@@ -1,0 +1,78 @@
+/* Shared content-page shell — match #/overview (.dashboard) */
+.page,
+.dashboard,
+.calendar-page,
+.task-board,
+.courses-page,
+.resources-page,
+.news-page,
+.tools-page,
+.settings-page {
+  width: 100%;
+  max-width: none;
+  padding: 0px 32px 40px;
+  box-sizing: border-box;
+  margin: 0;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Task board previously constrained inner blocks to 1360px */
+.task-board .board-heading,
+.task-board .board-notice,
+.task-board .board-summary,
+.task-board .board-controls,
+.task-board .kanban-grid {
+  max-width: none;
+  width: 100%;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  overflow: hidden;
+}
+
+.app-shell,
+.main-content {
+  height: 100dvh;
+}
+
+.main-content {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.topbar {
+  flex: 0 0 auto;
+}
+
+/* Fallback: any direct page content under main can scroll */
+.main-content > section,
+.main-content > .page {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* Keep shell padding stable across breakpoints (same as overview) */
+@media (max-width: 1120px), (max-width: 1100px), (max-width: 860px), (max-width: 620px) {
+  .page,
+  .dashboard,
+  .calendar-page,
+  .task-board,
+  .courses-page,
+  .resources-page,
+  .news-page,
+  .tools-page,
+  .settings-page {
+    padding: 28px 32px 40px;
+    max-width: none;
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "name": "教学工作台",
+  "short_name": "教学工作台",
+  "description": "大学教育专业教师本地优先工作台：日程、看板、课程、学生、成绩与资源",
+  "start_url": "/#/overview",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f2eee7",
+  "theme_color": "#3f6b56",
+  "lang": "zh-CN",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+.route-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  padding: 5px 9px;
+  border: 1px solid #d7e5e3;
+  border-radius: 999px;
+  background: #eff7f6;
+  color: #43807a;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.route-indicator span {
+  color: #3f6b56;
+  font-weight: 700;
+  letter-spacing: .06em;
+}
+
+.topbar-note { margin-left: 14px; }
+
+@media (max-width: 620px) {
+  .route-indicator { display: none; }
+}

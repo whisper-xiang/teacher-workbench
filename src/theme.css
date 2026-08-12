@@ -1,0 +1,453 @@
+/* Campus morning — warm paper + sage, soft edges */
+
+:root {
+  --ink: #2c2925;
+  --muted: #6d655c;
+  --subtle: #91887c;
+  --line: #e2e8f0;
+  --line-soft: #f1f5f9;
+  --canvas: #f8fafc;
+  --canvas-deep: #f1f5f9;
+  --surface: #ffffff;
+  --surface-raised: #ffffff;
+  --accent: #3f6b56;
+  --accent-hover: #355a48;
+  --accent-deep: #2c4d3d;
+  --accent-soft: #e6efe8;
+  --accent-wash: #f0f5f1;
+  --warm: #c4a574;
+  --warm-soft: #f6efe4;
+  --danger: #b54a3c;
+  --radius: 14px;
+  --radius-sm: 10px;
+  --shadow-sm: 0 1px 2px rgba(58, 45, 28, 0.04), 0 4px 14px rgba(58, 45, 28, 0.04);
+  --shadow-md: 0 8px 28px rgba(58, 45, 28, 0.08);
+  --font-ui: "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --font-display: "Noto Serif SC", "Songti SC", "STSong", serif;
+}
+
+html,
+body,
+#root {
+  font-family: var(--font-ui);
+  color: var(--ink);
+  background: var(--canvas);
+}
+
+body {
+  background: var(--canvas);
+}
+
+.app-shell {
+  background: transparent;
+}
+
+.sidebar {
+  background: var(--surface);
+  border-right: 1px solid var(--line);
+  box-shadow: 4px 0 24px rgba(58, 45, 28, 0.03);
+  backdrop-filter: blur(8px);
+}
+
+.brand {
+  border-bottom-color: var(--line-soft);
+  padding: 26px 22px 22px;
+}
+
+.brand-mark {
+  border-radius: 12px;
+  background: linear-gradient(145deg, #4d7a62 0%, var(--accent-deep) 100%);
+  box-shadow: 0 6px 14px rgba(44, 77, 61, 0.22);
+  font-family: var(--font-display);
+}
+
+.brand strong {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.nav-group h2,
+.section-label,
+.kicker {
+  letter-spacing: 0.12em;
+  color: var(--subtle);
+  font-weight: 600;
+  text-transform: none;
+}
+
+.kicker {
+  color: var(--accent);
+}
+
+.nav-item {
+  border-radius: var(--radius-sm);
+  color: #5c554c;
+  transition: background 0.18s ease, color 0.18s ease, transform 0.12s ease;
+}
+
+.nav-item:hover {
+  background: rgba(63, 107, 86, 0.08);
+  color: var(--ink);
+}
+
+.nav-item-active {
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+  box-shadow: inset 0 0 0 1px rgba(63, 107, 86, 0.12);
+}
+
+.nav-item-badge {
+  background: #f3e2d4;
+  color: #9a5536;
+}
+
+.profile,
+.profile-button {
+  border-top-color: var(--line-soft);
+}
+
+.avatar {
+  background: linear-gradient(145deg, #efe4d4, #e2d3be);
+  color: #5c4632;
+}
+
+.main-content {
+  background: transparent;
+}
+
+.topbar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--line-soft);
+  backdrop-filter: blur(10px);
+}
+
+.topbar-note {
+  color: var(--accent-deep);
+  background: var(--accent-soft);
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.breadcrumb {
+  color: var(--muted);
+}
+
+h1,
+.dashboard h1,
+#task-board-title,
+#calendar-title,
+#courses-title,
+#students-title,
+#resources-title,
+#tools-title,
+#news-title,
+#grades-title,
+#settings-title,
+#page-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.page-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+@media (max-width: 620px) {
+  .page-actions > button {
+    flex: 1;
+  }
+}
+
+.primary-action,
+button.primary-action {
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: #fffdf9;
+  background: linear-gradient(165deg, #4d7a62 0%, var(--accent) 55%, var(--accent-deep) 100%);
+  box-shadow: 0 6px 16px rgba(44, 77, 61, 0.2);
+  transition: transform 0.12s ease, box-shadow 0.18s ease, filter 0.18s ease;
+}
+
+.primary-action:hover,
+button.primary-action:hover {
+  filter: brightness(1.03);
+  box-shadow: 0 8px 18px rgba(44, 77, 61, 0.26);
+}
+
+.primary-action:active,
+button.primary-action:active {
+  transform: translateY(1px);
+}
+
+.outline-action,
+.filter-action,
+.confirmed-action,
+button.outline-action {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: #524b43;
+  background: rgba(255, 252, 247, 0.9);
+  box-shadow: var(--shadow-sm);
+}
+
+.outline-action:hover,
+.filter-action:hover {
+  border-color: #d5cbbd;
+  background: #fff;
+}
+
+.dashboard-panel,
+.progress-panel,
+.duty-panel,
+.feature-statement,
+.side-card,
+.course-list-panel,
+.course-detail,
+.roster-panel,
+.student-detail,
+.resource-card,
+.resource-preview,
+.tool-card,
+.news-card,
+.news-detail,
+.grades-table-wrap,
+.grade-chart-card,
+.settings-card,
+.duty-roster,
+.week-overview,
+.kanban-column,
+.assignment-card,
+.kanban-summary-item {
+  border-color: var(--line) !important;
+  background: var(--surface) !important;
+  box-shadow: var(--shadow-sm);
+}
+
+.implementation-note {
+  border-color: rgba(63, 107, 86, 0.14) !important;
+  background: var(--accent-soft) !important;
+  box-shadow: none;
+}
+
+.next-event {
+  background:
+    linear-gradient(120deg, rgba(63, 107, 86, 0.12) 0%, rgba(196, 165, 116, 0.12) 48%, rgba(255, 252, 247, 0.9) 100%) !important;
+  border: 1px solid rgba(63, 107, 86, 0.12);
+  box-shadow: var(--shadow-sm);
+}
+
+.next-event h2 {
+  color: var(--accent-deep) !important;
+}
+
+.next-event p:not(.section-label) {
+  color: #5f7167 !important;
+}
+
+.data-notice,
+.data-notice-btn,
+.local-badge {
+  border-color: #e2d3bc !important;
+  color: #7a5a34 !important;
+  background: #f7efe3 !important;
+}
+
+.task-board {
+  background:
+    radial-gradient(800px 360px at 80% 0%, rgba(196, 165, 116, 0.12), transparent 55%),
+    linear-gradient(180deg, rgba(245, 241, 234, 0.5), rgba(242, 238, 231, 0.2)) !important;
+}
+
+.task-board .kanban-column {
+  border-color: var(--line) !important;
+  background: var(--surface-raised) !important;
+  box-shadow: var(--shadow-sm);
+}
+
+.task-board .task-card {
+  border-top-color: var(--line) !important;
+  border-right-color: var(--line) !important;
+  border-bottom-color: var(--line) !important;
+  background: var(--surface-raised) !important;
+  box-shadow: var(--shadow-sm);
+}
+
+.task-board .task-card.priority-high {
+  border-left-color: #dc2626 !important;
+}
+
+.task-board .task-card.priority-medium {
+  border-left-color: #f59e0b !important;
+}
+
+.task-board .task-card.priority-low {
+  border-left-color: #16a34a !important;
+}
+
+.task-board .kind-教学 {
+  color: #355a48 !important;
+  background: #e6efe8 !important;
+}
+
+.calendar-notice,
+.courses-notice,
+.student-notice,
+.resources-notice,
+.tools-notice,
+.news-notice,
+.grades-notice,
+.settings-notice,
+.board-notice {
+  border-color: #c9dbcf !important;
+  background: #eef5f0 !important;
+  color: #355a48 !important;
+}
+
+.week-head,
+.month-head,
+.table-head,
+.grades-table th,
+.duty-table th,
+.week-overview-table th {
+  background: #f7f2ea !important;
+}
+
+.course-metrics,
+.news-overview,
+.grades-metrics > div,
+.course-metrics > div {
+  background: var(--surface) !important;
+  border-color: var(--line) !important;
+}
+
+.today-column,
+.month-grid > button:hover,
+.timetable-cell:hover {
+  background: rgba(63, 107, 86, 0.06) !important;
+}
+
+.calendar-event.event-course {
+  background: #e6efe8;
+  border-left-color: var(--accent);
+  color: var(--accent-deep);
+}
+
+.calendar-event.event-meeting {
+  background: #ebe4f4;
+  border-left-color: #6b5b95;
+}
+
+.calendar-event.event-duty,
+.calendar-event.event-patrol {
+  background: #f3e8d8;
+  border-left-color: #a67c52;
+}
+
+.calendar-event.event-deadline {
+  background: #f8e6e2;
+  border-left-color: var(--danger);
+  color: #8f3d32;
+}
+
+.duty-type.office {
+  background: var(--accent-soft) !important;
+  color: var(--accent-deep) !important;
+}
+
+.week-slot b,
+.week-slot.edu b {
+  color: var(--accent-deep) !important;
+}
+
+.dist-track {
+  background: #efe8dc !important;
+}
+
+.dist-track i {
+  background: linear-gradient(90deg, var(--accent-deep), #6f947d) !important;
+}
+
+.resource-hero,
+.tools-spotlight {
+  background:
+    linear-gradient(115deg, rgba(63, 107, 86, 0.12), rgba(196, 165, 116, 0.14) 46%, rgba(255, 252, 247, 0.95)) !important;
+  border-color: #ddd2c3 !important;
+  box-shadow: var(--shadow-sm);
+}
+
+.major-edu {
+  background: #e7eef8 !important;
+  color: #355f9c !important;
+}
+
+.major-pri {
+  background: #e6efe8 !important;
+  color: #2f5646 !important;
+}
+
+.major-pre {
+  background: #efe8f7 !important;
+  color: #6a4f8f !important;
+}
+
+.major-filter,
+.grades-toolbar select,
+.board-search input,
+.course-search input,
+.student-search input,
+.resource-search input,
+.tools-search input,
+.news-search input,
+.calendar-filter {
+  border-color: var(--line) !important;
+  background: var(--surface) !important;
+  border-radius: var(--radius-sm) !important;
+  color: var(--ink) !important;
+}
+
+.text-action {
+  color: var(--accent-deep) !important;
+}
+
+.timeline-content {
+  border-left-color: #ddd4c7 !important;
+}
+
+.timeline-content::before {
+  background: var(--accent) !important;
+}
+
+.students-tabs .selected,
+.view-switch .selected,
+.course-filters .selected,
+.board-filter .selected,
+.tool-categories .selected,
+.resource-filter .active,
+.news-filters .active,
+.student-filter .active {
+  color: var(--accent-deep) !important;
+}
+
+.menu-toggle {
+  border-color: var(--line);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.scrim {
+  background: rgba(44, 36, 28, 0.28) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-item,
+  .primary-action {
+    transition: none;
+  }
+}

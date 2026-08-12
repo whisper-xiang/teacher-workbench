@@ -1,0 +1,74 @@
+.major-tag{display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:650;letter-spacing:.02em;white-space:nowrap}
+.major-edu{background:#dbeafe;color:#1d4ed8}
+.major-pri{background:#ccfbf1;color:#0f766e}
+.major-pre{background:#ede9fe;color:#6d28d9}
+.major-general{background:#f1f5f9;color:#64748b}
+.major-filter{padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);font:inherit;font-size:13px}
+
+.nav-item{position:relative}
+.nav-item-badge{margin-left:auto;min-width:18px;padding:1px 6px;border-radius:999px;background:#fee2e2;color:#b91c1c;font-size:10px;font-weight:700;text-align:center}
+
+.kanban-summary-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:18px 0 8px}
+.kanban-summary-item{display:flex;align-items:center;gap:10px;padding:14px 16px;border:1px solid var(--line);border-radius:12px;background:#fff}
+.kanban-summary-dot{width:8px;height:8px;border-radius:50%}
+.kanban-summary-num{font-size:22px;font-weight:700;letter-spacing:-.03em;line-height:1}
+.kanban-summary-label{margin-top:2px;color:var(--subtle);font-size:12px}
+
+.duty-roster{margin-top:28px;border:1px solid var(--line);border-radius:12px;background:#fff;overflow:hidden}
+.duty-roster-head{display:flex;justify-content:space-between;align-items:center;padding:16px 18px;border-bottom:1px solid var(--line)}
+.duty-roster-head h2{margin:6px 0 0;font-size:18px}
+.duty-table{width:100%;border-collapse:collapse}
+.duty-table th,.duty-table td{padding:11px 14px;border-bottom:1px solid #edf0f2;text-align:left;font-size:13px}
+.duty-table th{color:var(--subtle);font-size:11px;font-weight:700}
+.duty-type{display:inline-flex;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:650}
+.duty-type.office{background:#eaf4f3;color:#0f6c66}
+.duty-type.class{background:#dbeafe;color:#1d4ed8}
+.duty-type.patrol{background:#fef3c7;color:#b45309}
+.duty-type.visit{background:#ede9fe;color:#6d28d9}
+
+.calendar-event.event-deadline{background:#fee2e2;border-left:3px solid #dc2626;color:#991b1b}
+.calendar-legend{display:flex;flex-wrap:wrap;gap:10px;margin:8px 0 0;color:var(--subtle);font-size:12px}
+.calendar-legend i{display:inline-block;width:8px;height:8px;margin-right:5px;border-radius:50%}
+
+.grade-charts{display:grid;grid-template-columns:1.2fr 1fr;gap:14px;margin:16px 0 20px}
+.grade-chart-card{padding:18px;border:1px solid var(--line);border-radius:12px;background:#fff}
+.grade-chart-card h3{margin:0 0 14px;font-size:15px}
+.dist-bars{display:grid;gap:10px}
+.dist-row{display:grid;grid-template-columns:64px 1fr 36px;gap:10px;align-items:center}
+.dist-row span{color:var(--subtle);font-size:12px}
+.dist-track{height:10px;border-radius:999px;background:#f1f5f9;overflow:hidden}
+.dist-track i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#0f6c66,#38b2ac)}
+.dist-row strong{text-align:right;font-size:13px}
+.course-bars{display:grid;gap:12px}
+.course-bar-row{display:grid;gap:6px}
+.course-bar-row header{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--muted)}
+.course-bar-row header b{color:var(--ink)}
+.letter-badge{display:inline-flex;min-width:28px;justify-content:center;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700}
+.letter-badge.success{background:#dcfce7;color:#15803d}
+.letter-badge.info{background:#dbeafe;color:#1d4ed8}
+.letter-badge.warning{background:#fef3c7;color:#b45309}
+.letter-badge.muted{background:#f1f5f9;color:#64748b}
+.letter-badge.danger{background:#fee2e2;color:#b91c1c}
+
+.week-overview{margin-top:24px;border:1px solid var(--line);border-radius:12px;background:#fff;overflow:auto}
+.week-overview h2{margin:0;padding:16px 18px;font-size:18px;border-bottom:1px solid var(--line)}
+.week-overview-table{width:100%;min-width:680px;border-collapse:collapse}
+.week-overview-table th,.week-overview-table td{padding:10px;border-bottom:1px solid #edf0f2;border-right:1px solid #edf0f2;vertical-align:top;font-size:12px}
+.week-overview-table th{background:#f9fbfb;color:var(--subtle);font-weight:700}
+.week-slot{padding:8px;border-radius:8px;background:#eaf4f3}
+.week-slot b{display:block;margin-bottom:2px;color:#0f6c66}
+.week-slot.edu{background:#dbeafe}.week-slot.edu b{color:#1d4ed8}
+.week-slot.pri{background:#e6efe8}.week-slot.pri b{color:#2c4d3d}
+.week-slot.pre{background:#f3ebe0}.week-slot.pre b{color:#7a5a34}
+.week-slot-btn:hover{outline:2px solid rgba(63,107,86,.25);outline-offset:1px}
+
+@media(max-width:860px){
+  .kanban-summary-row,.grade-charts{grid-template-columns:1fr}
+}
+
+.tool-tags{display:flex;flex-wrap:wrap;gap:6px;padding:0 14px 14px}
+.tool-tags span{padding:2px 8px;border-radius:999px;background:#f1f5f9;color:#64748b;font-size:11px}
+.task-desc{margin:0;color:var(--muted);font-size:12px;line-height:1.5}
+.news-hot{position:absolute;top:10px;right:42px;padding:2px 6px;border-radius:4px;background:#fef3c7;color:#b45309;font-size:10px;font-weight:700}
+.news-card{position:relative}
+.kanban-summary-item{border:1px solid var(--line);background:#fff;font:inherit;color:inherit}
