@@ -1,258 +1,189 @@
-import { useState } from 'react'
-import { MajorFilter, MajorTag } from '../components/MajorTag'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { uid } from '../data/store'
-import type { Course, MajorId, TeachingResource } from '../data/types'
+import type { Course, TeachingResource } from '../data/types'
 import { notify } from '../lib/notify'
 
 const RESOURCE_TYPES = ['课件', '教案', '试题', '视频', '文献'] as const
-type TypeFilter = '全部' | (typeof RESOURCE_TYPES)[number]
+
+type ContextMenuState = {
+  resourceId: string
+  x: number
+  y: number
+}
 
 type Props = {
   resources: TeachingResource[]
-  savedResources: string[]
   courses: Course[]
   onChangeResources: (resources: TeachingResource[]) => void
-  onChangeSaved: (ids: string[]) => void
 }
 
-export function ResourcesPage({ resources, savedResources, courses, onChangeResources, onChangeSaved }: Props) {
+export function ResourcesPage({ resources, courses, onChangeResources }: Props) {
   const [query, setQuery] = useState('')
-  const [type, setType] = useState<TypeFilter>('全部')
-  const [major, setMajor] = useState<MajorId | '' | 'general'>('')
-  const [savedOnly, setSavedOnly] = useState(false)
-  const [selectedId, setSelectedId] = useState(resources[0]?.id ?? '')
   const [composerOpen, setComposerOpen] = useState(false)
   const [editing, setEditing] = useState<TeachingResource | null>(null)
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
+  const menuRef = useRef<HTMLDivElement | null>(null)
 
-  const selected = resources.find((item) => item.id === selectedId) ?? resources[0]
-  const saved = new Set(savedResources)
+  const courseNames = courses.map((course) => course.name)
+  const contextResource = contextMenu ? resources.find((item) => item.id === contextMenu.resourceId) : null
 
-  const visible = resources.filter(
-    (item) =>
-      (type === '全部' || item.type === type) &&
-      (!savedOnly || saved.has(item.id)) &&
-      (!major || major === 'general' || item.major === major) &&
-      `${item.title}${item.course}${item.tags.join('')}`.toLowerCase().includes(query.trim().toLowerCase()),
-  )
-  const typeCount = (item: TypeFilter) =>
-    item === '全部' ? resources.length : resources.filter((r) => r.type === item).length
-  const usedCount = resources.reduce((sum, r) => sum + (r.usedCount ?? 0), 0)
-  const courseNames = courses.map((c) => c.name)
-
-  const toggleSaved = (id: string) => {
-    onChangeSaved(saved.has(id) ? savedResources.filter((item) => item !== id) : [...savedResources, id])
-  }
-  const resourceIcon = (kind: TeachingResource['type']) =>
-    ({ 课件: '▣', 教案: '✦', 试题: '☷', 视频: '▶', 文献: '≡' })[kind]
-
-  const markUsed = (item: TeachingResource) => {
-    onChangeResources(
-      resources.map((r) => (r.id === item.id ? { ...r, usedCount: (r.usedCount ?? 0) + 1, lastUsed: '刚刚' } : r)),
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return resources
+    return resources.filter((item) =>
+      `${item.title}${item.course}${item.type}${item.description}`.toLowerCase().includes(q),
     )
-    notify.success(`已记录「${item.title}」使用 ${(item.usedCount ?? 0) + 1} 次`)
-  }
+  }, [resources, query])
 
-  const removeResource = () => {
-    if (!selected) return
-    if (!window.confirm(`确定删除「${selected.title}」？删除后不可恢复。`)) return
-    const rest = resources.filter((r) => r.id !== selected.id)
-    onChangeResources(rest)
-    if (saved.has(selected.id)) onChangeSaved(savedResources.filter((id) => id !== selected.id))
-    setSelectedId(rest[0]?.id ?? '')
-    notify.warning(`已删除：${selected.title}`, '已删除')
-  }
+  useEffect(() => {
+    if (!contextMenu) return
+    const close = () => setContextMenu(null)
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') close()
+    }
+    window.addEventListener('pointerdown', close)
+    window.addEventListener('keydown', onKey)
+    window.addEventListener('scroll', close, true)
+    return () => {
+      window.removeEventListener('pointerdown', close)
+      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('scroll', close, true)
+    }
+  }, [contextMenu])
+
+  useEffect(() => {
+    if (!contextMenu || !menuRef.current) return
+    const rect = menuRef.current.getBoundingClientRect()
+    const pad = 8
+    let x = contextMenu.x
+    let y = contextMenu.y
+    if (x + rect.width > window.innerWidth - pad) x = window.innerWidth - rect.width - pad
+    if (y + rect.height > window.innerHeight - pad) y = window.innerHeight - rect.height - pad
+    if (x !== contextMenu.x || y !== contextMenu.y) setContextMenu({ ...contextMenu, x, y })
+  }, [contextMenu])
 
   const openComposer = (item: TeachingResource | null) => {
+    setContextMenu(null)
     setEditing(item)
     setComposerOpen(true)
+  }
+
+  const closeComposer = () => {
+    setComposerOpen(false)
+    setEditing(null)
+  }
+
+  const removeById = (id: string) => {
+    const item = resources.find((resource) => resource.id === id)
+    if (!item) return
+    if (!window.confirm(`确定删除「${item.title}」？`)) return
+    onChangeResources(resources.filter((resource) => resource.id !== id))
+    notify.warning(`已删除：${item.title}`, '已删除')
+    setContextMenu(null)
+    if (editing?.id === id) closeComposer()
   }
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const form = new FormData(event.currentTarget)
     const courseName = String(form.get('course') || '').trim()
-    const linked = courses.find((c) => c.name === courseName)
+    const linked = courses.find((course) => course.name === courseName)
     const base = {
       title: String(form.get('title') || '').trim(),
       course: courseName || '未关联课程',
       type: String(form.get('type')) as TeachingResource['type'],
       updated: '刚刚',
-      size: String(form.get('size')).trim() || '—',
+      size: editing?.size ?? '—',
       accent: editing?.accent ?? 'teal',
-      description: String(form.get('description')).trim() || '本地登记的教学资源。',
-      tags: String(form.get('tags') || '')
-        .split(/[,，]/)
-        .map((t) => t.trim())
-        .filter(Boolean),
+      description: String(form.get('description') || '').trim() || '本地登记的教学资源。',
+      tags: editing?.tags ?? [],
       major: linked?.major ?? editing?.major,
       format: editing?.format ?? '其他',
       usedCount: editing?.usedCount,
       lastUsed: editing?.lastUsed,
     }
+    if (!base.title) return
+
     if (editing) {
-      onChangeResources(resources.map((r) => (r.id === editing.id ? { ...r, ...base } : r)))
+      onChangeResources(resources.map((item) => (item.id === editing.id ? { ...item, ...base } : item)))
       notify.success(`已更新「${base.title}」`)
     } else {
-      const next: TeachingResource = { ...base, id: uid('res') }
-      onChangeResources([next, ...resources])
-      setSelectedId(next.id)
-      notify.success(`已登记「${next.title}」`)
+      onChangeResources([{ ...base, id: uid('res') }, ...resources])
+      notify.success(`已登记「${base.title}」`)
     }
-    setComposerOpen(false)
-    setEditing(null)
+    closeComposer()
   }
 
-  if (!selected) return <section className="resources-page"><p>暂无资源，点击右上角「登记资源」开始归档。</p></section>
-
   return (
-    <section className="resources-page" aria-label="教学资源库">
+    <section className="resources-page resources-page-simple" aria-label="教学资源库">
       <div className="page-actions">
-          <button
-            className="outline-action"
-            onClick={() => {
-              const blob = new Blob([JSON.stringify(resources, null, 2)], { type: 'application/json' })
-              const url = URL.createObjectURL(blob)
-              const a = document.createElement('a')
-              a.href = url
-              a.download = `teaching-resources-${new Date().toISOString().slice(0, 10)}.json`
-              a.click()
-              URL.revokeObjectURL(url)
-              notify.success('已导出资源清单 JSON')
+        <button type="button" className="primary-action" onClick={() => openComposer(null)}>
+          ＋ 登记资源
+        </button>
+      </div>
+
+      <label className="resource-search-simple">
+        <span>⌕</span>
+        <input
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="搜索标题、课程或类型"
+          aria-label="搜索教学资源"
+        />
+      </label>
+
+      <div className="resource-list-simple">
+        {visible.map((item) => (
+          <article
+            key={item.id}
+            className={`resource-row${contextMenu?.resourceId === item.id ? ' is-menu-open' : ''}`}
+            onContextMenu={(event) => {
+              event.preventDefault()
+              setContextMenu({ resourceId: item.id, x: event.clientX, y: event.clientY })
             }}
           >
-            导出清单
-          </button>
-          <button className="primary-action" onClick={() => openComposer(null)}>
-            ＋ 登记资源
-          </button>
-      </div>
-      <section className="resource-hero" aria-label="资源库概览">
-        <div className="resource-hero-mark">档</div>
-        <div>
-          <span>我的教学资料</span>
-          <strong>
-            {resources.length} <small>份资源已归档</small>
-          </strong>
-        </div>
-        <div className="resource-hero-stats">
-          <span>
-            <b>{resources.length}</b> 本地索引
-          </span>
-          <span>
-            <b>{new Set(resources.map((r) => r.course)).size}</b> 门课程关联
-          </span>
-          <span>
-            <b>{saved.size}</b> 已收藏
-          </span>
-          <span>
-            <b>{usedCount}</b> 累计使用
-          </span>
-        </div>
-      </section>
-      <div className="resources-workspace">
-        <section className="resource-browser">
-          <div className="resource-toolbar">
-            <label className="resource-search">
-              <span>⌕</span>
-              <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="搜索标题、课程或标签"
-                aria-label="搜索教学资源"
-              />
-            </label>
-            <MajorFilter value={major} onChange={setMajor} /><div className="resource-filter" aria-label="资源类型筛选">
-              {(['全部', ...RESOURCE_TYPES] as TypeFilter[]).map((item) => (
-                <button key={item} className={type === item ? 'active' : ''} onClick={() => setType(item)}>
-                  {item}
-                  <small>{typeCount(item)}</small>
-                </button>
-              ))}
+            <span className="resource-type-pill">{item.type}</span>
+            <div className="resource-row-body">
+              <strong>{item.title}</strong>
+              <small>{item.course}</small>
             </div>
+          </article>
+        ))}
+        {visible.length === 0 && (
+          <div className="resource-empty-simple">
+            {resources.length === 0 ? '暂无资源，点击右上角登记' : '没有匹配的资源'}
           </div>
-          <div className="resource-list-meta">
-            <span>共 {visible.length} 份资源</span>
-            <button className={savedOnly ? 'active' : ''} onClick={() => setSavedOnly((v) => !v)}>
-              {savedOnly ? '★ 仅看收藏' : '☆ 仅看收藏'}
-            </button>
-          </div>
-          <div className="resource-grid">
-            {visible.map((item) => (
-              <article key={item.id} className={selectedId === item.id ? 'resource-card selected' : 'resource-card'}>
-                <button className={`resource-cover cover-${item.accent}`} onClick={() => setSelectedId(item.id)} aria-label={`查看 ${item.title}`}>
-                  <span>{resourceIcon(item.type)}</span>
-                  <small>{item.type}</small>
-                </button>
-                <div className="resource-card-body">
-                  <button className="resource-card-title" onClick={() => setSelectedId(item.id)}>
-                    <b>{item.title}</b>
-                    <span>
-                      {item.course} · {item.updated} · <MajorTag major={item.major} compact />
-                    </span>
-                  </button>
-                  <button
-                    className={saved.has(item.id) ? 'save-resource saved' : 'save-resource'}
-                    onClick={() => toggleSaved(item.id)}
-                    aria-label={saved.has(item.id) ? '取消收藏' : '收藏资源'}
-                  >
-                    {saved.has(item.id) ? '★' : '☆'}
-                  </button>
-                </div>
-              </article>
-            ))}
-            {visible.length === 0 && (
-              <div className="resource-empty">
-                没有匹配的资源
-                <br />
-                <small>换一个关键词、类型，或关闭「仅看收藏」试试。</small>
-              </div>
-            )}
-          </div>
-        </section>
-        <aside className="resource-preview" aria-label="资源详情">
-          <div className={`preview-visual cover-${selected.accent}`}>
-            <span>{resourceIcon(selected.type)}</span>
-            <small>{selected.type.toUpperCase()}</small>
-          </div>
-          <div className="preview-content">
-            <p className="section-label">资源详情</p>
-            <h2>{selected.title}</h2>
-            <p>{selected.description}</p>
-            <div className="preview-course">
-              <span>关联课程</span>
-              <b>{selected.course}</b>
-            </div>
-            <div className="resource-tags">
-              {selected.tags.map((tag) => (
-                <span key={tag}>{tag}</span>
-              ))}
-            </div>
-            <div className="preview-foot">
-              <span>
-                {selected.size} · 更新于 {selected.updated}
-                {selected.usedCount ? ` · 已使用 ${selected.usedCount} 次${selected.lastUsed ? `（${selected.lastUsed}）` : ''}` : ''}
-              </span>
-              <div className="preview-actions">
-                <button className="outline-action" onClick={() => openComposer(selected)}>
-                  编辑
-                </button>
-                <button className="danger-action" onClick={removeResource}>
-                  删除
-                </button>
-                <button className="primary-action" onClick={() => markUsed(selected)}>
-                  标记已用
-                </button>
-              </div>
-            </div>
-          </div>
-        </aside>
+        )}
       </div>
 
+      {contextMenu && contextResource && (
+        <div
+          ref={menuRef}
+          className="task-context-menu"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          role="menu"
+          aria-label={`资源操作：${contextResource.title}`}
+          onPointerDown={(event) => event.stopPropagation()}
+        >
+          <button type="button" role="menuitem" onClick={() => openComposer(contextResource)}>
+            编辑
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className="is-danger"
+            onClick={() => removeById(contextResource.id)}
+          >
+            删除
+          </button>
+        </div>
+      )}
+
       {composerOpen && (
-        <div className="resources-modal-backdrop" onMouseDown={() => openComposer(null)}>
+        <div className="resources-modal-backdrop" onMouseDown={closeComposer}>
           <form
             className="resources-composer"
-            onMouseDown={(e) => e.stopPropagation()}
+            onMouseDown={(event) => event.stopPropagation()}
             onSubmit={handleSubmit}
           >
             <div>
@@ -262,20 +193,6 @@ export function ResourcesPage({ resources, savedResources, courses, onChangeReso
             <label>
               标题
               <input name="title" required autoFocus defaultValue={editing?.title} />
-            </label>
-            <label>
-              关联课程（选填）
-              <select name="course" defaultValue={editing?.course ?? ''}>
-                <option value="">未关联课程</option>
-                {courseNames.map((name) => (
-                  <option key={name} value={name}>
-                    {name}
-                  </option>
-                ))}
-                {editing && !courseNames.includes(editing.course) && (
-                  <option value={editing.course}>{editing.course}（原记录）</option>
-                )}
-              </select>
             </label>
             <div className="composer-grid">
               <label>
@@ -287,20 +204,32 @@ export function ResourcesPage({ resources, savedResources, courses, onChangeReso
                 </select>
               </label>
               <label>
-                大小
-                <input name="size" placeholder="2.1 MB" defaultValue={editing?.size} />
+                关联课程
+                <select name="course" defaultValue={editing?.course ?? ''}>
+                  <option value="">未关联课程</option>
+                  {courseNames.map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                  {editing && editing.course !== '未关联课程' && !courseNames.includes(editing.course) && (
+                    <option value={editing.course}>{editing.course}（原记录）</option>
+                  )}
+                </select>
               </label>
             </div>
             <label>
               说明
-              <input name="description" defaultValue={editing?.description} />
-            </label>
-            <label>
-              标签（逗号分隔）
-              <input name="tags" placeholder="第 10 周, 课件" defaultValue={editing?.tags.join('，')} />
+              <input name="description" defaultValue={editing?.description} placeholder="一句话说明用途（可选）" />
             </label>
             <div className="composer-actions">
-              <button type="button" className="outline-action" onClick={() => openComposer(null)}>
+              {editing && (
+                <button type="button" className="danger-action" onClick={() => removeById(editing.id)}>
+                  删除
+                </button>
+              )}
+              <span className="composer-actions-spacer" />
+              <button type="button" className="outline-action" onClick={closeComposer}>
                 取消
               </button>
               <button type="submit" className="primary-action">

@@ -150,7 +150,6 @@ function App() {
         {activeId === 'calendar' && (
           <CalendarPage
             events={data.events}
-            dutyRoster={data.dutyRoster}
             dutyConfirmedDates={data.dutyConfirmedDates}
             weekStart={data.meta.weekStart}
             onChangeEvents={(events) => patch('events', events)}
@@ -178,28 +177,19 @@ function App() {
         {activeId === 'resources' && (
           <ResourcesPage
             resources={data.resources}
-            savedResources={data.savedResources}
             courses={data.courses}
             onChangeResources={(resources) => patch('resources', resources)}
-            onChangeSaved={(savedResources) => patch('savedResources', savedResources)}
           />
         )}
         {activeId === 'news' && (
           <NewsPage
             news={data.news}
-            bookmarks={data.newsBookmarks}
             readItems={data.newsRead}
-            onChangeBookmarks={(newsBookmarks) => patch('newsBookmarks', newsBookmarks)}
             onChangeRead={(newsRead) => patch('newsRead', newsRead)}
           />
         )}
         {activeId === 'tools' && (
-          <ToolsPage
-            tools={data.tools}
-            favorites={data.favoriteTools}
-            onChangeTools={(tools) => patch('tools', tools)}
-            onChangeFavorites={(favoriteTools) => patch('favoriteTools', favoriteTools)}
-          />
+          <ToolsPage tools={data.tools} onChangeTools={(tools) => patch('tools', tools)} />
         )}
         {activeId === 'settings' && (
           <SettingsPage

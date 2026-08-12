@@ -82,7 +82,7 @@ export type Assignment = {
   major?: MajorId
 }
 
-export type BoardStatus = 'todo' | 'doing' | 'review' | 'done'
+export type BoardStatus = 'todo' | 'doing' | 'done'
 
 export type BoardPriority = 'high' | 'medium' | 'low'
 

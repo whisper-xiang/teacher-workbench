@@ -34,29 +34,23 @@ export function Dashboard({ meta, events, tasks, courses, onNavigate, onSetTaskS
     [events, today],
   )
 
-  const openTasks = tasks.filter((task) => task.status !== 'done').slice(0, 4)
+  const focusTasks = useMemo(() => {
+    const priority = { high: 0, medium: 1, low: 2 }
+    return [...tasks]
+      .sort(
+        (a, b) =>
+          (priority[a.priority ?? 'medium'] - priority[b.priority ?? 'medium']) ||
+          (a.dueDate ?? '').localeCompare(b.dueDate ?? '') ||
+          a.title.localeCompare(b.title),
+      )
+      .slice(0, 5)
+  }, [tasks])
+  const pendingCount = focusTasks.filter((task) => task.status !== 'done').length
   const duties = events.filter((item) => item.date === today && (item.kind === 'duty' || item.kind === 'patrol'))
   const next = schedule[0]
 
   return (
     <section className="dashboard" aria-label="工作概览">
-      <div className="kanban-summary-row" aria-label="看板概览">
-        {([
-          { id: 'todo', label: '待办', color: '#94a3b8', count: tasks.filter((t) => t.status === 'todo').length },
-          { id: 'doing', label: '进行中', color: '#2563eb', count: tasks.filter((t) => t.status === 'doing').length },
-          { id: 'review', label: '待复核', color: '#f59e0b', count: tasks.filter((t) => t.status === 'review').length },
-          { id: 'done', label: '已完成', color: '#16a34a', count: tasks.filter((t) => t.status === 'done').length },
-        ] as const).map((item) => (
-          <button key={item.id} className="kanban-summary-item" onClick={() => onNavigate('tasks')} style={{ cursor: 'pointer', textAlign: 'left' }}>
-            <span className="kanban-summary-dot" style={{ background: item.color }} />
-            <span>
-              <div className="kanban-summary-num">{item.count}</div>
-              <div className="kanban-summary-label">{item.label}</div>
-            </span>
-          </button>
-        ))}
-      </div>
-
       {next && (
         <section className="next-event" aria-label="下一件事">
           <div>
@@ -105,34 +99,36 @@ export function Dashboard({ meta, events, tasks, courses, onNavigate, onSetTaskS
           <div className="panel-heading">
             <div>
               <p className="section-label">需要处理</p>
-              <h2>{openTasks.length} 项事项等待推进</h2>
+              <h2>{pendingCount ? `${pendingCount} 项待完成` : '今日事项已完成'}</h2>
             </div>
             <button className="text-action" onClick={() => onNavigate('tasks')}>
               进入看板
             </button>
           </div>
-          <div className="task-list">
-            {openTasks.map((task) => (
-                <div className="task-row" key={task.id}>
+          <ul className="task-list todo-list">
+            {focusTasks.map((task) => {
+              const done = task.status === 'done'
+              return (
+                <li className={done ? 'task-row task-done' : 'task-row'} key={task.id}>
                   <label className="task-check">
                     <input
                       type="checkbox"
-                      checked={false}
-                      onChange={() => onSetTaskStatus(task.id, true)}
-                      aria-label={`完成 ${task.title}`}
+                      checked={done}
+                      onChange={(event) => onSetTaskStatus(task.id, event.target.checked)}
+                      aria-label={done ? `取消完成 ${task.title}` : `完成 ${task.title}`}
                     />
                     <span />
                   </label>
-                  <button className="task-link" onClick={() => onNavigate('tasks')}>
+                  <button type="button" className="task-link" onClick={() => onNavigate('tasks')}>
                     <strong>{task.title}</strong>
                     <small>
                       {task.course} · {task.due}
                     </small>
                   </button>
-                  <b>查看</b>
-                </div>
-            ))}
-          </div>
+                </li>
+              )
+            })}
+          </ul>
         </section>
       </div>
 

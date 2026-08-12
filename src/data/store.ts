@@ -42,8 +42,11 @@ function normalizeTask(task: BoardTask): BoardTask {
   if (raw === 'high' || raw === '紧急') priority = 'high'
   else if (raw === 'medium' || raw === '本周') priority = 'medium'
   else if (raw === 'low') priority = 'low'
+  // 旧版「待审核」并入进行中
+  const status = (task.status as string) === 'review' ? 'doing' : task.status
   return {
     ...task,
+    status,
     priority,
     assignee: task.assignee?.trim() || '本人',
     major: task.major === undefined ? inferMajorFromText(task.course) : task.major,

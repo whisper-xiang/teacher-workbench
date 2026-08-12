@@ -73,7 +73,7 @@ const rawSeed: WorkbenchData = {
     { id: 'grade', title: '录入教育心理学期中成绩', course: '教育心理学 · 52 人', due: '今天 20:00', dueDate: '2025-05-13', kind: '教务', status: 'doing', priority: 'high', major: 'edu', desc: '期中成绩录入并核对名单', assignee: '李明华' },
     { id: 'paper', title: '审阅 3 份本科生论文提纲', course: '2025 届本科毕业论文', due: '5 月 16 日', dueDate: '2025-05-16', kind: '学生', status: 'doing', priority: 'medium', major: 'edu', desc: '反馈提纲结构与文献建议', assignee: '李明华' },
     { id: 'record', title: '补充幼儿园课程教学记录', course: '幼儿园课程 · 第 7 教学周', due: '5 月 10 日', dueDate: '2025-05-10', kind: '教学', status: 'doing', priority: 'low', major: 'pre', desc: '整理观摩与活动记录', assignee: '李明华' },
-    { id: 'notice', title: '提交课程组教研会材料', course: '教育学课程组', due: '5 月 12 日', dueDate: '2025-05-12', kind: '教研', status: 'review', priority: 'medium', major: null, desc: '汇总本周教研讨论要点', assignee: '教研室' },
+    { id: 'notice', title: '提交课程组教研会材料', course: '教育学课程组', due: '5 月 12 日', dueDate: '2025-05-12', kind: '教研', status: 'doing', priority: 'medium', major: null, desc: '汇总本周教研讨论要点', assignee: '教研室' },
     { id: 'visit', title: '登记本周实习巡视记录', course: '小学教育专业 · 4 名学生', due: '已提交', dueDate: '2025-05-08', kind: '学生', status: 'done', priority: 'medium', major: 'pri', desc: '巡视记录已归档', assignee: '李明华' },
     { id: 'resource', title: '归档《班级管理学》案例资料', course: '班级管理学', due: '已完成', dueDate: '2025-05-01', kind: '教学', status: 'done', priority: 'low', major: 'pri', desc: '案例资料已入库', assignee: '李明华' },
   ],

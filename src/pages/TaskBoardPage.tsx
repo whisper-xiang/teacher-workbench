@@ -1,35 +1,42 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { uid } from '../data/store'
-import { MajorFilter, MajorTag } from '../components/MajorTag'
-import type { BoardPriority, BoardStatus, BoardTask, MajorId } from '../data/types'
+import type { BoardPriority, BoardStatus, BoardTask } from '../data/types'
 import { notify } from '../lib/notify'
-import { isTaskOverdue, nextPriority } from '../lib/tasks'
+import { isTaskOverdue } from '../lib/tasks'
 
-const boardColumns: { id: BoardStatus; title: string; icon: string }[] = [
-  { id: 'todo', title: '待办', icon: '📥' },
-  { id: 'doing', title: '进行中', icon: '🔄' },
-  { id: 'review', title: '待审核', icon: '🔍' },
-  { id: 'done', title: '已完成', icon: '✅' },
+const boardColumns: { id: BoardStatus; title: string }[] = [
+  { id: 'todo', title: '待办' },
+  { id: 'doing', title: '进行中' },
+  { id: 'done', title: '已完成' },
 ]
 
-const priorityLabel: Record<BoardPriority, string> = {
-  high: '高',
-  medium: '中',
-  low: '低',
-}
+const priorityOptions: { id: BoardPriority; label: string }[] = [
+  { id: 'high', label: '高' },
+  { id: 'medium', label: '中' },
+  { id: 'low', label: '低' },
+]
 
 const emptyForm = {
   id: '',
   title: '',
   course: '',
-  due: '本周五',
+  due: '',
   dueDate: '',
-  kind: '教学' as BoardTask['kind'],
-  priority: 'medium' as BoardPriority,
   status: 'todo' as BoardStatus,
+  priority: 'medium' as BoardPriority,
   desc: '',
-  assignee: '本人',
-  major: '' as MajorId | '',
+}
+
+function formatDueLabel(dueDate: string) {
+  if (!dueDate) return '待定'
+  const date = new Date(dueDate + 'T12:00:00')
+  return `${date.getMonth() + 1} 月 ${date.getDate()} 日`
+}
+
+type ContextMenuState = {
+  taskId: string
+  x: number
+  y: number
 }
 
 type Props = {
@@ -38,32 +45,42 @@ type Props = {
 }
 
 export function TaskBoardPage({ tasks, onChange }: Props) {
-  const [filter, setFilter] = useState<'全部' | BoardTask['kind']>('全部')
-  const [major, setMajor] = useState<MajorId | '' | 'general'>('')
-  const [query, setQuery] = useState('')
   const [composerOpen, setComposerOpen] = useState(false)
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const [dragOverCol, setDragOverCol] = useState<BoardStatus | null>(null)
   const [form, setForm] = useState(emptyForm)
-  const dragMoved = useRef(false)
-  const columnRefs = useRef<Partial<Record<BoardStatus, HTMLElement | null>>>({})
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
+  const menuRef = useRef<HTMLDivElement | null>(null)
 
   const editing = Boolean(form.id)
+  const contextTask = contextMenu ? tasks.find((task) => task.id === contextMenu.taskId) : null
 
-  const visibleTasks = tasks.filter((task) => {
-    if (filter !== '全部' && task.kind !== filter) return false
-    if (major === 'general' && task.major) return false
-    if (major && major !== 'general' && task.major !== major) return false
-    return `${task.title}${task.course}${task.desc ?? ''}${task.assignee ?? ''}`.includes(query.trim())
-  })
+  useEffect(() => {
+    if (!contextMenu) return
+    const close = () => setContextMenu(null)
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') close()
+    }
+    window.addEventListener('pointerdown', close)
+    window.addEventListener('keydown', onKey)
+    window.addEventListener('scroll', close, true)
+    return () => {
+      window.removeEventListener('pointerdown', close)
+      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('scroll', close, true)
+    }
+  }, [contextMenu])
 
-  const counts = {
-    todo: tasks.filter((t) => t.status === 'todo').length,
-    doing: tasks.filter((t) => t.status === 'doing').length,
-    review: tasks.filter((t) => t.status === 'review').length,
-    done: tasks.filter((t) => t.status === 'done').length,
-  }
-
+  useEffect(() => {
+    if (!contextMenu || !menuRef.current) return
+    const rect = menuRef.current.getBoundingClientRect()
+    const pad = 8
+    let x = contextMenu.x
+    let y = contextMenu.y
+    if (x + rect.width > window.innerWidth - pad) x = window.innerWidth - rect.width - pad
+    if (y + rect.height > window.innerHeight - pad) y = window.innerHeight - rect.height - pad
+    if (x !== contextMenu.x || y !== contextMenu.y) setContextMenu({ ...contextMenu, x, y })
+  }, [contextMenu])
 
   const moveTask = (id: string, status: BoardStatus) => {
     const item = tasks.find((task) => task.id === id)
@@ -72,32 +89,23 @@ export function TaskBoardPage({ tasks, onChange }: Props) {
     notify.success(`已将「${item.title}」移至${boardColumns.find((column) => column.id === status)?.title}`)
   }
 
-  const cyclePriority = (id: string) => {
-    const item = tasks.find((task) => task.id === id)
-    if (!item) return
-    const priority = nextPriority(item.priority)
-    onChange(tasks.map((task) => (task.id === id ? { ...task, priority } : task)))
-    notify.info(`「${item.title}」优先级已改为${priorityLabel[priority]}`)
-  }
-
   const openCreate = (status: BoardStatus = 'todo') => {
+    setContextMenu(null)
     setForm({ ...emptyForm, status })
     setComposerOpen(true)
   }
 
   const openEdit = (task: BoardTask) => {
+    setContextMenu(null)
     setForm({
       id: task.id,
       title: task.title,
       course: task.course,
       due: task.due,
       dueDate: task.dueDate ?? '',
-      kind: task.kind,
-      priority: task.priority ?? 'medium',
       status: task.status,
+      priority: task.priority ?? 'medium',
       desc: task.desc ?? '',
-      assignee: task.assignee ?? '本人',
-      major: task.major ?? '',
     })
     setComposerOpen(true)
   }
@@ -110,88 +118,56 @@ export function TaskBoardPage({ tasks, onChange }: Props) {
   const saveTask = (event: React.FormEvent) => {
     event.preventDefault()
     if (!form.title.trim()) return
+    const existing = form.id ? tasks.find((task) => task.id === form.id) : undefined
+    const due = form.dueDate ? formatDueLabel(form.dueDate) : form.due.trim() || '待定'
     const next: BoardTask = {
       id: form.id || uid('task'),
       title: form.title.trim(),
       course: form.course.trim() || '未关联课程',
-      due: form.due.trim() || '待定',
+      due,
       dueDate: form.dueDate || undefined,
-      kind: form.kind,
+      kind: existing?.kind ?? '教学',
       priority: form.priority,
       status: form.status,
       desc: form.desc.trim() || undefined,
-      assignee: form.assignee.trim() || '本人',
-      major: form.major || null,
+      assignee: existing?.assignee ?? '本人',
+      major: existing?.major ?? null,
     }
     onChange(form.id ? tasks.map((task) => (task.id === form.id ? next : task)) : [...tasks, next])
     notify.success(form.id ? `已更新：${next.title}` : `已创建并保存：${next.title}`)
     closeComposer()
   }
 
-  const removeTask = () => {
-    if (!form.id) return
-    const title = form.title.trim() || '任务'
-    if (!window.confirm(`确定删除「${title}」？`)) return
-    onChange(tasks.filter((task) => task.id !== form.id))
-    notify.warning(`已删除：${title}`, '已删除')
-    closeComposer()
+  const removeTaskById = (id: string) => {
+    const item = tasks.find((task) => task.id === id)
+    if (!item) return
+    if (!window.confirm(`确定删除「${item.title}」？`)) return
+    onChange(tasks.filter((task) => task.id !== id))
+    notify.warning(`已删除：${item.title}`, '已删除')
+    setContextMenu(null)
+    if (form.id === id) closeComposer()
   }
 
-  const scrollToColumn = (status: BoardStatus) => {
-    columnRefs.current[status]?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
+  const removeTask = () => {
+    if (!form.id) return
+    removeTaskById(form.id)
   }
 
   return (
     <section className="task-board" aria-label="教学看板">
       <div className="page-actions">
-        <button className="primary-action board-add" onClick={() => openCreate()}>
+        <button type="button" className="primary-action board-add" onClick={() => openCreate()}>
           ＋ 新建任务
         </button>
       </div>
 
-      <section className="board-summary kanban-status-summary" aria-label="看板状态概览">
-        {boardColumns.map((column) => (
-          <button
-            type="button"
-            className="kanban-summary-item kanban-summary-btn"
-            key={column.id}
-            onClick={() => scrollToColumn(column.id)}
-          >
-            <span className={`kanban-column-dot ${column.id}`} aria-hidden="true" />
-            <div>
-              <strong className="summary-number">{counts[column.id]}</strong>
-              <span>{column.title}</span>
-            </div>
-          </button>
-        ))}
-        <p className="board-summary-note">共 {tasks.length} 个任务 · 支持拖拽移动</p>
-      </section>
-
-      <div className="board-controls">
-        <MajorFilter value={major} onChange={setMajor} includeGeneral />
-        <div className="board-filter" aria-label="任务类型筛选">
-          {(['全部', '教学', '学生', '教务', '教研'] as const).map((item) => (
-            <button className={filter === item ? 'selected' : ''} onClick={() => setFilter(item)} key={item}>
-              {item}
-            </button>
-          ))}
-        </div>
-        <label className="board-search">
-          <span>⌕</span>
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索任务、负责人或课程" />
-        </label>
-      </div>
-
       <div className="kanban-grid">
         {boardColumns.map((column) => {
-          const columnTasks = visibleTasks.filter((task) => task.status === column.id)
+          const columnTasks = tasks.filter((task) => task.status === column.id)
           return (
             <section
               className={`kanban-column column-${column.id}${dragOverCol === column.id ? ' drag-over' : ''}`}
               key={column.id}
-              ref={(node) => {
-                columnRefs.current[column.id] = node
-              }}
               onDragOver={(event) => {
                 event.preventDefault()
                 setDragOverCol(column.id)
@@ -206,78 +182,73 @@ export function TaskBoardPage({ tasks, onChange }: Props) {
               <header>
                 <div className="kanban-column-title">
                   <span className={`kanban-column-dot ${column.id}`} aria-hidden="true" />
-                  <span aria-hidden="true">{column.icon}</span>
                   <h2>{column.title}</h2>
                 </div>
                 <b>{columnTasks.length}</b>
               </header>
               <div className="kanban-stack">
                 {columnTasks.map((task) => {
-                  const priority = task.priority ?? 'low'
                   const overdue = isTaskOverdue(task)
+                  const priority = task.priority ?? 'medium'
                   return (
                     <article
-                      className={`task-card priority-${priority}${draggingId === task.id ? ' dragging' : ''}${overdue ? ' is-overdue' : ''}`}
+                      className={`task-card priority-${priority}${draggingId === task.id ? ' dragging' : ''}${overdue ? ' is-overdue' : ''}${contextMenu?.taskId === task.id ? ' is-menu-open' : ''}`}
                       draggable
                       onDragStart={(event) => {
-                        dragMoved.current = false
+                        setContextMenu(null)
                         event.dataTransfer.setData('text/task-id', task.id)
                         event.dataTransfer.effectAllowed = 'move'
                         setDraggingId(task.id)
-                      }}
-                      onDrag={() => {
-                        dragMoved.current = true
                       }}
                       onDragEnd={() => {
                         setDraggingId(null)
                         setDragOverCol(null)
                       }}
-                      onClick={() => {
-                        if (dragMoved.current) return
-                        openEdit(task)
+                      onContextMenu={(event) => {
+                        event.preventDefault()
+                        setContextMenu({ taskId: task.id, x: event.clientX, y: event.clientY })
                       }}
                       key={task.id}
                     >
-                      <div className="task-card-top">
-                        <div className="task-card-meta">
-                          <span className={`kind-tag kind-${task.kind}`}>{task.kind}</span>
-                          <MajorTag major={task.major} compact />
-                          <span className="assignee-tag">{task.assignee || '本人'}</span>
-                        </div>
-                        <button
-                          type="button"
-                          className={`priority-chip priority-chip-${priority}`}
-                          onClick={(event) => {
-                            event.stopPropagation()
-                            cyclePriority(task.id)
-                          }}
-                          title="点击切换优先级"
-                        >
-                          {priority === 'high' ? '🔴' : priority === 'medium' ? '🟡' : '🟢'} {priorityLabel[priority]}
-                        </button>
-                      </div>
                       <h3>{task.title}</h3>
                       <p className="task-desc">{task.desc || task.course}</p>
                       {task.desc && task.course ? <p className="task-course">{task.course}</p> : null}
                       <div className="task-card-footer">
-                        <span className={overdue || priority === 'high' ? 'due urgent-due' : 'due'}>
-                          {overdue ? '逾期 · ' : '⏰ '}
+                        <span className={overdue ? 'due urgent-due' : 'due'}>
+                          {overdue ? '逾期 · ' : ''}
                           {task.due}
                         </span>
-                        <span className="task-edit-hint">点击编辑</span>
                       </div>
                     </article>
                   )
                 })}
-                {columnTasks.length === 0 && <div className="empty-column">暂无匹配任务</div>}
+                {columnTasks.length === 0 && <div className="empty-column">暂无任务</div>}
               </div>
-              <button className="column-add" onClick={() => openCreate(column.id)}>
+              <button type="button" className="column-add" onClick={() => openCreate(column.id)}>
                 ＋ 添加任务
               </button>
             </section>
           )
         })}
       </div>
+
+      {contextMenu && contextTask && (
+        <div
+          ref={menuRef}
+          className="task-context-menu"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          role="menu"
+          aria-label={`任务操作：${contextTask.title}`}
+          onPointerDown={(event) => event.stopPropagation()}
+        >
+          <button type="button" role="menuitem" onClick={() => openEdit(contextTask)}>
+            编辑
+          </button>
+          <button type="button" role="menuitem" className="is-danger" onClick={() => removeTaskById(contextTask.id)}>
+            删除
+          </button>
+        </div>
+      )}
 
       {composerOpen && (
         <div className="board-modal-backdrop" onMouseDown={closeComposer}>
@@ -319,32 +290,6 @@ export function TaskBoardPage({ tasks, onChange }: Props) {
             </label>
             <div className="composer-grid">
               <label>
-                负责人
-                <input
-                  value={form.assignee}
-                  onChange={(event) => setForm({ ...form, assignee: event.target.value })}
-                  placeholder="本人 / 教务处 / 教研室"
-                />
-              </label>
-              <label>
-                关联专业
-                <select
-                  value={form.major}
-                  onChange={(event) => setForm({ ...form, major: event.target.value as MajorId | '' })}
-                >
-                  <option value="">通用</option>
-                  <option value="edu">教育学</option>
-                  <option value="pri">小学教育</option>
-                  <option value="pre">学前教育</option>
-                </select>
-              </label>
-            </div>
-            <div className="composer-grid">
-              <label>
-                截止说明
-                <input value={form.due} onChange={(event) => setForm({ ...form, due: event.target.value })} placeholder="今天 17:00" />
-              </label>
-              <label>
                 截止日期
                 <input
                   type="date"
@@ -352,31 +297,26 @@ export function TaskBoardPage({ tasks, onChange }: Props) {
                   onChange={(event) => setForm({ ...form, dueDate: event.target.value })}
                 />
               </label>
-            </div>
-            <div className="composer-grid">
               <label>
                 优先级
                 <select
                   value={form.priority}
                   onChange={(event) => setForm({ ...form, priority: event.target.value as BoardPriority })}
                 >
-                  <option value="high">高</option>
-                  <option value="medium">中</option>
-                  <option value="low">低</option>
-                </select>
-              </label>
-              <label>
-                任务类型
-                <select value={form.kind} onChange={(event) => setForm({ ...form, kind: event.target.value as BoardTask['kind'] })}>
-                  {(['教学', '学生', '教务', '教研'] as const).map((item) => (
-                    <option key={item}>{item}</option>
+                  {priorityOptions.map((item) => (
+                    <option value={item.id} key={item.id}>
+                      {item.label}
+                    </option>
                   ))}
                 </select>
               </label>
             </div>
             <label>
               看板状态
-              <select value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value as BoardStatus })}>
+              <select
+                value={form.status}
+                onChange={(event) => setForm({ ...form, status: event.target.value as BoardStatus })}
+              >
                 {boardColumns.map((column) => (
                   <option value={column.id} key={column.id}>
                     {column.title}

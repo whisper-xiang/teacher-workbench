@@ -10,13 +10,34 @@
 .settings-page {
   width: 100%;
   max-width: none;
-  padding: 0px 32px 40px;
+  padding: 0 32px 40px;
   box-sizing: border-box;
   margin: 0;
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
+}
+
+/* Pages with top action buttons need breathing room under the topbar */
+.calendar-page,
+.task-board,
+.courses-page,
+.resources-page,
+.news-page,
+.tools-page,
+.settings-page,
+.page {
+  padding-top: 12px;
+}
+
+/* Kanban scrolls per column, not the whole page */
+.main-content > .task-board,
+.task-board {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding-bottom: 16px;
 }
 
 /* Task board previously constrained inner blocks to 1360px */
@@ -72,7 +93,11 @@ body,
   .news-page,
   .tools-page,
   .settings-page {
-    padding: 28px 32px 40px;
+    padding: 12px 32px 40px;
     max-width: none;
+  }
+
+  .dashboard {
+    padding-top: 0;
   }
 }

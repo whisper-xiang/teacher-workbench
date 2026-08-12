@@ -7,19 +7,14 @@
 .courses-page-simple .courses-toolbar-note{margin:0;color:var(--subtle);font-size:12px}
 .courses-page-simple .course-card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-top:16px}
 .courses-page-simple .course-overview-card{display:flex;flex-direction:column;padding:0;border:1px solid var(--line);border-radius:14px;background:var(--surface,#fffcf7);box-shadow:var(--shadow-sm);overflow:hidden}
-.courses-page-simple .course-overview-main{display:flex;flex-direction:column;gap:10px;padding:18px 18px 12px;border:0;background:transparent;color:inherit;text-align:left;cursor:pointer;font:inherit}
-.courses-page-simple .course-overview-main:hover{background:#faf7f2}
+.courses-page-simple .course-overview-card.is-menu-open{outline:2px solid rgba(63,107,86,.35);outline-offset:1px}
+.courses-page-simple .course-overview-main{display:flex;flex-direction:column;gap:10px;padding:18px 18px 12px;border:0;background:transparent;color:inherit;text-align:left;font:inherit}
 .courses-page-simple .course-overview-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
 .courses-page-simple .course-overview-head h3{margin:0;font-size:17px;letter-spacing:-.02em;line-height:1.35}
-.courses-page-simple .course-overview-tags{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.courses-page-simple .course-credit-pill{display:inline-flex;padding:2px 8px;border-radius:999px;background:#f3ebe0;color:#7a5a34;font-size:11px;font-weight:650}
-.courses-page-simple .course-overview-desc{margin:0;min-height:40px;color:var(--muted);font-size:13px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .courses-page-simple .course-overview-meta{display:flex;flex-wrap:wrap;gap:10px 14px;color:#61717d;font-size:12px}
 .courses-page-simple .course-overview-progress>div:first-child{display:flex;justify-content:space-between;gap:10px;font-size:12px;color:var(--muted)}
 .courses-page-simple .course-overview-progress strong{color:#147069;font-size:12px}
-.courses-page-simple .course-card-actions{display:flex;gap:8px;padding:0 18px 16px}
-.courses-page-simple .course-card-actions .outline-action,
-.courses-page-simple .course-card-actions .primary-action{flex:1}
+.courses-page-simple .course-overview-progress{padding-bottom:6px}
 .courses-page-simple .course-session-fields{margin:12px 0 0;padding:12px;border:1px solid var(--line);border-radius:10px}
 .courses-page-simple .course-session-fields legend{padding:0 6px;color:var(--subtle);font-size:12px;font-weight:700}
 .courses-page-simple .composer-actions-split{justify-content:space-between;width:100%}
@@ -32,6 +27,26 @@
 .courses-page-simple .courses-composer select{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:#fff;font:inherit;font-size:13px}
 .courses-page-simple .composer-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:16px}
 .courses-page-simple .week-overview{margin-top:28px}
+.courses-page-simple .week-overview-head{padding:16px 18px;border-bottom:1px solid var(--line)}
+.courses-page-simple .week-overview-head h2{margin:0;padding:0;border:0;font-size:18px}
+.courses-page-simple .week-cell{min-height:64px;cursor:default;user-select:none;transition:background .15s ease, box-shadow .15s ease}
+.courses-page-simple .week-cell.is-empty{cursor:cell}
+.courses-page-simple .week-cell.is-empty:hover{
+  background:rgba(63,107,86,.07);
+  box-shadow:inset 0 0 0 1px rgba(63,107,86,.18);
+}
+.courses-page-simple .week-cell.has-course{cursor:context-menu}
+.courses-page-simple .week-cell.has-course:hover{
+  background:rgba(63,107,86,.05);
+}
+.courses-page-simple .week-slot{width:100%;box-sizing:border-box;transition:transform .15s ease, box-shadow .15s ease, outline-color .15s ease}
+.courses-page-simple .week-cell.has-course:hover .week-slot{
+  transform:translateY(-1px);
+  box-shadow:0 4px 12px rgba(44,61,52,.1);
+  outline:2px solid rgba(63,107,86,.22);
+  outline-offset:1px;
+}
+.courses-page-simple .week-slot.is-menu-open{outline:2px solid rgba(63,107,86,.35);outline-offset:1px}
 @media(max-width:720px){
   .courses-page-simple .course-card-grid{grid-template-columns:1fr}
   .courses-page-simple .courses-composer .composer-grid{grid-template-columns:1fr}

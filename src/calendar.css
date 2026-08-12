@@ -23,7 +23,7 @@
 .kind-badge-deadline{background:#f8e6e2;color:#8f3d32}
 .day-detail-card .side-card-title,.month-day-detail .side-card-title{align-items:flex-start}
 .day-detail-list{display:grid;gap:8px;margin-top:8px}
-.day-detail-item{display:grid;grid-template-columns:8px minmax(0,1fr) auto auto;gap:8px;align-items:center;width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;background:#fffcf7;color:inherit;text-align:left;cursor:pointer;font:inherit}
+.day-detail-item{display:grid;grid-template-columns:8px minmax(0,1fr) auto;gap:8px;align-items:center;width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;background:#fffcf7;color:inherit;text-align:left;cursor:pointer;font:inherit}
 .day-detail-item:hover{border-color:#c9d8ce}
 .day-detail-dot{width:8px;height:8px;border-radius:50%}
 .day-detail-dot.event-course{background:#3f6b56}
@@ -37,8 +37,18 @@
 .month-workspace{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(280px,.8fr);gap:16px;margin-top:22px;align-items:start}
 .month-workspace .month-calendar{margin-top:0}
 .month-day-detail{padding:18px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);box-shadow:var(--shadow-sm)}
-.month-detail-actions{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}
+.month-detail-actions{display:flex;flex-wrap:wrap;gap:8px;margin:0}
 .composer-hint{margin:0;padding:10px 12px;border-radius:8px;background:#f7efe3;color:#7a5a34;font-size:12px;line-height:1.5}
+.day-duty-strip{display:grid;gap:10px;margin:14px 0 4px;padding:12px;border:1px solid #e6d7c4;border-radius:10px;background:#fbf6ef}
+.day-duty-strip strong,.day-duty-strip small{display:block}
+.day-duty-strip strong{color:var(--ink);font-size:13px}
+.day-duty-strip small{margin-top:3px;color:var(--muted);font-size:11px}
+.day-duty-strip .outline-action,
+.day-duty-strip .confirmed-action,
+.day-duty-strip .duty-confirm{width:auto}
+.month-side .month-detail-actions{margin-top:0}
+.functional-calendar .page-actions{margin-bottom:4px}
+.functional-calendar .calendar-toolbar{margin-top:12px}
 .upcoming-list b{display:inline-flex;flex-wrap:wrap;gap:6px;align-items:center}
 @media(max-width:1100px){.month-workspace{grid-template-columns:1fr}}
 @media(max-width:860px){.week-allday{min-width:650px}}

@@ -5,22 +5,33 @@
   padding: 27px;
 }
 
+.todo-list {
+  list-style: none;
+  margin: 15px 0 0;
+  padding: 0;
+}
+
 .task-row {
-  grid-template-columns: 22px minmax(0, 1fr) auto;
-  gap: 10px;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 12px;
 }
 
 .task-check {
+  position: relative;
   display: grid;
   place-items: center;
   width: 18px;
   height: 18px;
+  margin-top: 1px;
   cursor: pointer;
 }
 
 .task-check input {
   position: absolute;
+  inset: 0;
+  margin: 0;
   opacity: 0;
+  cursor: pointer;
 }
 
 .task-check span {
@@ -28,9 +39,11 @@
   place-items: center;
   width: 18px;
   height: 18px;
-  border: 1px solid #a8b7b9;
+  border: 1.5px solid #a8b7b9;
   border-radius: 5px;
   color: white;
+  background: var(--surface);
+  transition: border-color 0.15s ease, background 0.15s ease;
 }
 
 .task-check input:focus-visible + span {
@@ -44,9 +57,13 @@
 }
 
 .task-check input:checked + span::after {
-  content: '✓';
-  font-size: 12px;
-  font-weight: 700;
+  content: '';
+  width: 10px;
+  height: 6px;
+  margin-top: -2px;
+  border-left: 2px solid #fff;
+  border-bottom: 2px solid #fff;
+  transform: rotate(-45deg);
 }
 
 .task-link {
@@ -56,6 +73,10 @@
   background: transparent;
   cursor: pointer;
   text-align: left;
+}
+
+.task-done {
+  opacity: 0.72;
 }
 
 .task-done strong,
