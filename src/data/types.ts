@@ -148,7 +148,16 @@ export type NewsItem = {
   url: string
 }
 
-export type ToolCategory = '备课工具' | '教学平台' | '学术工具' | '效率工具' | 'AI工具' | '备课与课堂' | '研究与写作' | '协作与事务'
+export type ToolCategory =
+  | '政策与学会'
+  | '备课工具'
+  | '教学平台'
+  | '学术工具'
+  | '效率工具'
+  | 'AI工具'
+  | '备课与课堂'
+  | '研究与写作'
+  | '协作与事务'
 
 export type ToolItem = {
   id: string
@@ -205,6 +214,8 @@ export type WorkbenchMeta = {
   demoBanner: boolean
   /** RSS 资讯上次拉取时间（ISO） */
   newsFetchedAt?: string
+  /** 预置工具版本；低于当前版本时按 id 补齐新入口，不覆盖用户已有项 */
+  presetToolsVersion?: number
 }
 
 export type WorkbenchData = {

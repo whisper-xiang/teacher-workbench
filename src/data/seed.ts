@@ -1,4 +1,5 @@
 import { dueLabel, iso, mondayOf, shift, todayIso } from '../lib/dates'
+import { DEFAULT_FAVORITE_TOOL_IDS, DEFAULT_TOOLS, PRESET_TOOLS_VERSION } from './default-tools'
 import type { Course, ReminderItem, WorkbenchData } from './types'
 import { syncAssignmentDeadlines, syncCourseEvents } from './sync'
 
@@ -79,6 +80,7 @@ function buildRawSeed(weekStart: string, today: string): WorkbenchData {
       weekNumber: 9,
       weekStart,
       demoBanner: true,
+      presetToolsVersion: PRESET_TOOLS_VERSION,
     },
     events: [
       { id: 'duty', date: d(1), start: 5, length: 2, title: '午间值班', detail: '教育楼一层大厅', kind: 'duty' },
@@ -281,24 +283,8 @@ function buildRawSeed(weekStart: string, today: string): WorkbenchData {
     news: [],
     newsBookmarks: [],
     newsRead: [],
-    tools: [
-      { id: 'yuketang', name: '雨课堂', description: '课件推送、弹幕互动、随堂测验与学情数据', category: '备课工具', initials: '雨', tone: 'blue', url: 'https://www.yuketang.cn', tags: ['课堂互动', '数据统计'], typeLabel: '网页/小程序' },
-      { id: 'chaoxing', name: '学习通', description: '课程管理、资源共享、签到、作业与考试', category: '备课工具', initials: '学', tone: 'teal', url: 'https://www.chaoxing.com', tags: ['课程管理'], typeLabel: 'App/网页' },
-      { id: 'canva', name: 'Canva 可画', description: 'PPT、教学海报与信息图模板', category: '备课工具', initials: 'C', tone: 'coral', url: 'https://www.canva.cn', tags: ['PPT设计'], typeLabel: '网页/App' },
-      { id: 'xmind', name: 'XMind', description: '知识体系梳理与课程框架设计', category: '备课工具', initials: 'X', tone: 'gold', url: 'https://www.xmind.cn', tags: ['思维导图'], typeLabel: '桌面/App' },
-      { id: 'mooc', name: '中国大学 MOOC', description: '国家级在线课程平台，可建课与引用资源', category: '教学平台', initials: '慕', tone: 'navy', url: 'https://www.icourse163.org', tags: ['MOOC'], typeLabel: '网页/App' },
-      { id: 'meeting', name: '腾讯会议', description: '在线授课、组会、答辩与录制', category: '教学平台', initials: '会', tone: 'blue', url: 'https://meeting.tencent.com', tags: ['在线授课'], typeLabel: 'App/网页' },
-      { id: 'cnki', name: '中国知网', description: '期刊、学位论文与会议文献检索', category: '学术工具', initials: '知', tone: 'navy', url: 'https://www.cnki.net', tags: ['文献检索'], typeLabel: '网页' },
-      { id: 'scholar', name: 'Google Scholar', description: '英文文献检索与引用追踪', category: '学术工具', initials: 'G', tone: 'slate', url: 'https://scholar.google.com', tags: ['英文文献'], typeLabel: '网页' },
-      { id: 'zotero', name: 'Zotero', description: '文献管理与参考文献格式生成', category: '学术工具', initials: 'Z', tone: 'gold', url: 'https://www.zotero.org', tags: ['文献管理'], typeLabel: '桌面/插件' },
-      { id: 'wjx', name: '问卷星', description: '教学满意度与学情调研问卷', category: '效率工具', initials: '问', tone: 'green', url: 'https://www.wjx.cn', tags: ['问卷'], typeLabel: '网页/小程序' },
-      { id: 'docs', name: '腾讯文档', description: '教研室协作与教案共建', category: '效率工具', initials: '文', tone: 'green', url: 'https://docs.qq.com', tags: ['协同编辑'], typeLabel: '网页' },
-      { id: 'yiyan', name: '文心一言', description: '教案生成、教学反思撰写辅助', category: 'AI工具', initials: '文', tone: 'violet', url: 'https://yiyan.baidu.com', tags: ['国产AI'], typeLabel: '网页/App' },
-      { id: 'tongyi', name: '通义千问', description: '文档解析、PPT 生成与长文本理解', category: 'AI工具', initials: '通', tone: 'violet', url: 'https://tongyi.aliyun.com', tags: ['文档解析'], typeLabel: '网页/App' },
-      { id: 'kimi', name: 'Kimi', description: '长文本处理论文速读与文献综述辅助', category: 'AI工具', initials: 'K', tone: 'coral', url: 'https://kimi.moonshot.cn', tags: ['论文速读'], typeLabel: '网页/App' },
-      { id: 'metaso', name: '秘塔 AI 搜索', description: '无广告学术搜索，直达学术来源', category: 'AI工具', initials: '秘', tone: 'slate', url: 'https://metaso.cn', tags: ['AI搜索'], typeLabel: '网页' },
-    ],
-    favoriteTools: ['cnki', 'zotero', 'yuketang', 'kimi'],
+    tools: DEFAULT_TOOLS,
+    favoriteTools: DEFAULT_FAVORITE_TOOL_IDS,
     grades: [
       { id: 'g1', courseId: 'psy', studentId: 's01', usual: 90, midterm: 88, final: 0, total: 89 },
       { id: 'g2', courseId: 'psy', studentId: 's02', usual: 82, midterm: 76, final: 0, total: 79 },

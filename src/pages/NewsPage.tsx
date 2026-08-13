@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import type { NewsItem } from '../data/types'
-import { RSS_FEEDS } from '../lib/rss'
+import { NEWS_PORTALS, RSS_FEEDS } from '../lib/rss'
 import { notify } from '../lib/notify'
 
 const ALL = '全部'
@@ -21,6 +21,7 @@ const categoryClass = (accent: NewsItem['accent']) => `news-category category-${
 export function NewsPage({ news, readItems, bookmarks, fetchedAt, onChangeRead, onChangeBookmarks, onRefresh }: Props) {
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState<string>(ALL)
+  const [source, setSource] = useState<string>(ALL)
   const [selectedId, setSelectedId] = useState<string | null>(news[0]?.id ?? null)
   const [refreshing, setRefreshing] = useState(false)
   const autoFetched = useRef(false)
@@ -30,7 +31,6 @@ export function NewsPage({ news, readItems, bookmarks, fetchedAt, onChangeRead, 
     : null
 
   const unreadCount = news.filter((item) => item.fresh && !readItems.includes(item.id)).length
-  const categoryCount = new Set(news.map((item) => item.category)).size
 
   const activeCategories = useMemo(
     () => CATEGORIES.filter((item) => item === ALL || news.some((entry) => entry.category === item)),
@@ -41,10 +41,11 @@ export function NewsPage({ news, readItems, bookmarks, fetchedAt, onChangeRead, 
     const q = query.trim().toLowerCase()
     return news.filter((item) => {
       if (category !== ALL && item.category !== category) return false
+      if (source !== ALL && item.source !== source) return false
       if (!q) return true
       return `${item.title}${item.summary}${item.source}${item.tag}${item.category}`.toLowerCase().includes(q)
     })
-  }, [news, query, category])
+  }, [news, query, category, source])
 
   const selected = useMemo(() => {
     const current = visible.find((item) => item.id === selectedId)
@@ -75,6 +76,7 @@ export function NewsPage({ news, readItems, bookmarks, fetchedAt, onChangeRead, 
   const clearFilters = () => {
     setQuery('')
     setCategory(ALL)
+    setSource(ALL)
   }
 
   const refreshNews = async (silent = false) => {
@@ -111,7 +113,7 @@ export function NewsPage({ news, readItems, bookmarks, fetchedAt, onChangeRead, 
           <p className="section-label">资讯与参考</p>
           <h1>热点资讯</h1>
           <p>
-            教育政策、教研动态与学术活动 · RSS 实时聚合
+            教育政策、教研动态与学前 / 师范相关资讯 · RSS 实时聚合
             {fetchedLabel ? ` · 上次更新 ${fetchedLabel}` : ''}
           </p>
         </div>
@@ -123,16 +125,37 @@ export function NewsPage({ news, readItems, bookmarks, fetchedAt, onChangeRead, 
       <div className="news-notice">
         <span aria-hidden="true">ℹ</span>
         <span>
-          资讯来自 {RSS_FEEDS.length} 个 RSS 源（{RSS_FEEDS.map((feed) => feed.name).join('、')}），
-          点击条目打开原文；上次拉取结果会缓存在本地。
+          预置教育部、中国教育新闻网、学前教育研究等入口；列表来自 {RSS_FEEDS.length} 路教育向 RSS，点击条目打开原文。
         </span>
+      </div>
+
+      <div className="news-sources" aria-label="预置资讯源">
+        <button type="button" className={source === ALL ? 'active' : ''} onClick={() => setSource(ALL)}>
+          全部 RSS
+        </button>
+        {RSS_FEEDS.map((feed) => (
+          <button
+            key={feed.id}
+            type="button"
+            className={source === feed.name ? 'active' : ''}
+            onClick={() => setSource(feed.name)}
+          >
+            {feed.name}
+          </button>
+        ))}
+        {NEWS_PORTALS.map((portal) => (
+          <a key={portal.id} href={portal.url} target="_blank" rel="noopener noreferrer" title={portal.note}>
+            {portal.name}
+            <span aria-hidden="true">↗</span>
+          </a>
+        ))}
       </div>
 
       <div className="news-overview">
         <div>
           <span>资讯总数</span>
           <strong>{news.length}</strong>
-          <small>涵盖 {categoryCount || RSS_FEEDS.length} 个来源</small>
+          <small>RSS {RSS_FEEDS.length} 路 · 官网 {NEWS_PORTALS.length} 个</small>
         </div>
         <div>
           <span>未读提醒</span>
@@ -196,7 +219,7 @@ export function NewsPage({ news, readItems, bookmarks, fetchedAt, onChangeRead, 
             <div className="news-empty">
               <span aria-hidden="true">📭</span>
               <h3>没有匹配的资讯</h3>
-              <p>试试调整搜索词或分类筛选</p>
+              <p>试试调整搜索词、分类或资讯源筛选</p>
               <button type="button" className="text-action" onClick={clearFilters}>
                 清除筛选
               </button>

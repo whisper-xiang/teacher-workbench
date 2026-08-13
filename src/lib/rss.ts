@@ -1,44 +1,8 @@
 import type { NewsItem } from '../data/types'
+import { RSS_FEEDS, type RssFeedConfig } from './rss-feeds'
 
-export type RssFeedConfig = {
-  id: string
-  name: string
-  url: string
-  category: NewsItem['category']
-  accent: NewsItem['accent']
-  tag: string
-  /** 仅保留标题或摘要匹配的教育相关条目 */
-  keywords?: RegExp
-}
-
-/** 教育相关 RSS 源（经服务端代理拉取，规避浏览器 CORS） */
-export const RSS_FEEDS: RssFeedConfig[] = [
-  {
-    id: 'chinanews-edu',
-    name: '中国新闻网·教育',
-    url: 'https://www.chinanews.com.cn/rss/edu.xml',
-    category: '行业观察',
-    accent: 'blue',
-    tag: '教育动态',
-  },
-  {
-    id: 'people-scitech',
-    name: '人民网·科技',
-    url: 'http://www.people.com.cn/rss/scitech.xml',
-    category: 'AI热点',
-    accent: 'violet',
-    tag: '科技教育',
-  },
-  {
-    id: 'chinanews-scroll',
-    name: '中国新闻网',
-    url: 'https://www.chinanews.com.cn/rss/scroll-news.xml',
-    category: '行业观察',
-    accent: 'slate',
-    tag: '教育相关',
-    keywords: /教育|学校|大学|教师|师范|课程|学生|人工智能|AI|教研/,
-  },
-]
+export type { NewsPortal, RssFeedConfig } from './rss-feeds'
+export { NEWS_PORTALS, RSS_FEEDS } from './rss-feeds'
 
 function stripHtml(html: string): string {
   if (!html.includes('<')) return html.trim()
@@ -56,7 +20,7 @@ function inferCategory(title: string, summary: string, fallback: NewsItem['categ
   const text = `${title}${summary}`
   if (/AI|人工智能|大模型|ChatGPT|生成式|智能体/i.test(text)) return 'AI热点'
   if (/政策|通知|意见|办法|规定|部署|印发/i.test(text)) return '政策通知'
-  if (/教研|工作坊|教学改进|课堂观察|教师发展/i.test(text)) return '教研动态'
+  if (/教研|工作坊|教学改进|课堂观察|教师发展|学前|幼儿|幼儿园|指南|游戏课程/i.test(text)) return '教研动态'
   if (/论坛|会议|征文|征稿|学术|投稿/i.test(text)) return '学术活动'
   if (/大学|高校|师范|院校|校园/i.test(text)) return '高校动态'
   return fallback

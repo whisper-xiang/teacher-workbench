@@ -1,9 +1,10 @@
 import type { Connect } from 'vite'
 
-/** 与 src/lib/rss.ts 中 RSS_FEEDS 的 url 保持一致 */
+/** 与 src/lib/rss-feeds.ts 中 RSS_FEEDS 的 url 保持一致 */
 const ALLOWED = new Set([
   'https://www.chinanews.com.cn/rss/edu.xml',
-  'http://www.people.com.cn/rss/scitech.xml',
+  'http://www.sciencenet.cn/xml/news-0.aspx?di=9',
+  'http://www.sciencenet.cn/xml/blog.aspx?di=9',
   'https://www.chinanews.com.cn/rss/scroll-news.xml',
 ])
 

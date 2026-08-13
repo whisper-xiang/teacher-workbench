@@ -1,5 +1,6 @@
 import { currentCourseTopic } from '../lib/courses'
 import { addDaysIso, diffDays, dueLabel, thisMondayIso, todayIso } from '../lib/dates'
+import { mergePresetTools, PRESET_TOOLS_VERSION } from './default-tools'
 import { createSeedData } from './seed'
 import type {
   BoardPriority,
@@ -131,7 +132,14 @@ function mergeWithSeed(partial: Partial<WorkbenchData> | null): WorkbenchData {
   const courses = (partial.courses ?? seed.courses).map(normalizeCourse)
   const students = (partial.students ?? seed.students).map(normalizeStudent)
   const assignments = partial.assignments ?? seed.assignments
-  const meta = { ...seed.meta, ...partial.meta }
+  const storedToolsVersion = partial.meta?.presetToolsVersion ?? 0
+  const tools =
+    storedToolsVersion < PRESET_TOOLS_VERSION ? mergePresetTools(partial.tools) : (partial.tools ?? seed.tools)
+  const meta = {
+    ...seed.meta,
+    ...partial.meta,
+    presetToolsVersion: Math.max(storedToolsVersion, PRESET_TOOLS_VERSION),
+  }
 
   // 日历中的课程/截止事件是派生数据：先清掉历史手写课程事件，再按课程与作业重建
   const baseEvents = (partial.events ?? seed.events).map(normalizeEvent).filter((item) => item.kind !== 'course')
@@ -155,8 +163,7 @@ function mergeWithSeed(partial: Partial<WorkbenchData> | null): WorkbenchData {
     news,
     newsBookmarks,
     newsRead,
-    // If user still has old short tool list, prefer richer seed once.
-    tools: (partial.tools?.length ?? 0) >= 10 ? partial.tools! : seed.tools,
+    tools,
     favoriteTools: partial.favoriteTools ?? seed.favoriteTools,
     grades: partial.grades ?? seed.grades,
     dutyConfirmedDates: partial.dutyConfirmedDates ?? seed.dutyConfirmedDates,
@@ -176,7 +183,11 @@ export function loadWorkbenchData(): WorkbenchData {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<WorkbenchData>
-      return mergeWithSeed(parsed)
+      const data = mergeWithSeed(parsed)
+      if ((parsed.meta?.presetToolsVersion ?? 0) < PRESET_TOOLS_VERSION) {
+        saveWorkbenchData(data)
+      }
+      return data
     }
 
     const legacy = localStorage.getItem(LEGACY_CALENDAR_KEY)

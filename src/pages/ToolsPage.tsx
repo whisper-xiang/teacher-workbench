@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { TOOL_CATEGORIES } from '../data/default-tools'
 import { uid } from '../data/store'
 import type { ToolCategory, ToolItem } from '../data/types'
 import { notify } from '../lib/notify'
@@ -6,7 +7,6 @@ import { confirm } from '../lib/confirm'
 
 const ALL = '全部'
 const FAVORITES = '常用'
-const TOOL_CATEGORIES: ToolCategory[] = ['备课工具', '教学平台', '学术工具', '效率工具', 'AI工具']
 const FILTERS = [ALL, FAVORITES, ...TOOL_CATEGORIES] as const
 
 type Draft = {
@@ -239,7 +239,7 @@ export function ToolsPage({ tools, favorites, onChangeTools, onChangeFavorites }
         <div>
           <p className="section-label">资讯与工具</p>
           <h1>工具箱</h1>
-          <p>教学常用网站与应用入口 · 点击即可打开 · 本地离线可用</p>
+          <p>教育学院常用入口 · 教育部 / 知网 / 学前教育研究等已预置 · 本地离线可用</p>
         </div>
         <button type="button" className="primary-action" onClick={openCreate}>
           ＋ 添加工具
@@ -248,7 +248,7 @@ export function ToolsPage({ tools, favorites, onChangeTools, onChangeFavorites }
 
       <div className="tools-notice">
         <span aria-hidden="true">ℹ</span>
-        <span>预置常用教学工具，可加入常用置顶；点击 ⋯ 可编辑或删除。</span>
+        <span>面向教育学预置教育部、知网、学前教育研究、智慧教育平台等入口；可加入常用置顶，点击 ⋯ 可编辑或删除。</span>
       </div>
 
       <div className="tools-overview">
