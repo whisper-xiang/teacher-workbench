@@ -1,7 +1,8 @@
 import { useMemo } from 'react'
 import { MajorTag } from '../components/MajorTag'
 import type { BoardTask, CalendarEvent, Course, WorkbenchMeta } from '../data/types'
-import { times } from '../lib/dates'
+import { formatDayLabel, times, todayIso } from '../lib/dates'
+import { currentCourseTopic } from '../lib/courses'
 
 type Props = {
   meta: WorkbenchMeta
@@ -13,11 +14,7 @@ type Props = {
 }
 
 export function Dashboard({ meta, events, tasks, courses, onNavigate, onSetTaskStatus }: Props) {
-  const focusDate = meta.weekStart
-  // Use Tuesday of demo week as "today" for stable UX with seed, or real today if user advanced.
-  const today = events.some((e) => e.date === new Date().toISOString().slice(0, 10))
-    ? new Date().toISOString().slice(0, 10)
-    : '2025-05-13'
+  const today = todayIso()
 
   const schedule = useMemo(
     () =>
@@ -29,7 +26,7 @@ export function Dashboard({ meta, events, tasks, courses, onNavigate, onSetTaskS
           end: times[Math.min(times.length - 1, item.start + item.length)] ?? '',
           title: item.title,
           meta: item.detail,
-          type: item.kind === 'course' ? '课程' : item.kind === 'duty' ? '值班' : item.kind === 'patrol' ? '巡视' : '会议',
+          type: item.kind === 'course' ? '课程' : item.kind === 'duty' ? '值班' : item.kind === 'patrol' ? '巡视' : item.kind === 'deadline' ? '截止' : '会议',
         })),
     [events, today],
   )
@@ -70,7 +67,7 @@ export function Dashboard({ meta, events, tasks, courses, onNavigate, onSetTaskS
         <section className="dashboard-panel schedule-panel">
           <div className="panel-heading">
             <div>
-              <p className="section-label">今日安排</p>
+              <p className="section-label">今日安排 · {formatDayLabel(new Date())}</p>
               <h2>按时间完成今天的工作</h2>
             </div>
             <button className="text-action" onClick={() => onNavigate('calendar')}>
@@ -175,7 +172,11 @@ export function Dashboard({ meta, events, tasks, courses, onNavigate, onSetTaskS
             const totalWeeks = course.totalWeeks || 16
             const currentWeek = course.currentWeek || Math.round((course.progress / 100) * totalWeeks) || meta.weekNumber
             const pct = Math.min(100, Math.round(course.progress || (currentWeek / totalWeeks) * 100))
-            const room = course.sessions[0]?.room ?? '待排教室'
+            const topic = currentCourseTopic(course)
+            const sessionLabel =
+              course.sessions.length > 1
+                ? `${course.sessions.length} 个时段`
+                : course.sessions[0]?.room ?? '待排教室'
             return (
               <button
                 type="button"
@@ -193,10 +194,10 @@ export function Dashboard({ meta, events, tasks, courses, onNavigate, onSetTaskS
                 </div>
                 <div className="dash-course-meta">
                   <span>{course.students} 人</span>
-                  <span>{room}</span>
+                  <span>{sessionLabel}</span>
                   <span>{course.credits ?? 2} 学分</span>
                 </div>
-                {course.topic && <p className="dash-course-topic">本周：{course.topic}</p>}
+                {topic && <p className="dash-course-topic">本周：{topic}</p>}
                 <div className="dash-course-progress">
                   <div className="dash-course-progress-head">
                     <span>教学进度</span>
@@ -213,7 +214,7 @@ export function Dashboard({ meta, events, tasks, courses, onNavigate, onSetTaskS
           })}
         </div>
       </section>
-      <p className="sr-only">{focusDate}</p>
+      <p className="sr-only">{today}</p>
     </section>
   )
 }

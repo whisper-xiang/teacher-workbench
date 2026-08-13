@@ -6,6 +6,7 @@ import './icon-overrides.css'
 import './overview-overrides.css'
 import './calendar.css'
 import './courses.css'
+import './students.css'
 import './resources.css'
 import './tools.css'
 import './news.css'
@@ -17,14 +18,17 @@ import './theme.css'
 /* Must load last so page shell padding/width matches overview */
 import './layout-overrides.css'
 import { useWorkbenchStore } from './hooks/useWorkbenchStore'
-import { syncCourseEvents } from './data/sync'
+import { alignDataToWeekStart } from './data/store'
+import { syncAssignmentDeadlines, syncCourseEvents } from './data/sync'
 import type { RouteId } from './data/types'
+import { thisMondayIso } from './lib/dates'
 import { CalendarPage } from './pages/CalendarPage'
 import { CoursesPage } from './pages/CoursesPage'
 import { Dashboard } from './pages/Dashboard'
 import { NewsPage } from './pages/NewsPage'
 import { ResourcesPage } from './pages/ResourcesPage'
 import { SettingsPage } from './pages/SettingsPage'
+import { StudentsPage } from './pages/StudentsPage'
 import { TaskBoardPage } from './pages/TaskBoardPage'
 import { ToolsPage } from './pages/ToolsPage'
 import { RemindersPage } from './pages/RemindersPage'
@@ -44,6 +48,7 @@ const pages: NavPage[] = [
   { id: 'tasks', label: '教学看板', icon: '✅' },
   { id: 'reminders', label: '通知提醒', icon: '🔔' },
   { id: 'courses', label: '课程与排课', icon: '📚' },
+  { id: 'students', label: '学生与评价', icon: '👥' },
   { id: 'resources', label: '教学资源库', icon: '🗂️' },
   { id: 'news', label: '热点资讯', icon: '📰' },
   { id: 'tools', label: '工具箱', icon: '🧰' },
@@ -52,40 +57,44 @@ const pages: NavPage[] = [
 
 const groups = [
   { label: '工作台', ids: ['overview', 'calendar', 'tasks', 'reminders'] as RouteId[] },
-  { label: '教学管理', ids: ['courses', 'resources'] as RouteId[] },
+  { label: '教学管理', ids: ['courses', 'students', 'resources'] as RouteId[] },
   { label: '资讯与工具', ids: ['news', 'tools', 'settings'] as RouteId[] },
 ]
 
 const isRouteId = (value: string): value is RouteId => pages.some((page) => page.id === value)
 
-const readRoute = (): RouteId => {
-  const route = window.location.hash.replace(/^#\/?/, '').split('/')[0]
-  return isRouteId(route) ? route : 'overview'
+const readLocation = () => {
+  const parts = window.location.hash.replace(/^#\/?/, '').split('/').filter(Boolean)
+  const route = parts[0] ?? ''
+  return {
+    activeId: isRouteId(route) ? route : ('overview' as RouteId),
+    routeParam: parts[1] ?? '',
+  }
 }
 
 function useWorkbenchRoute() {
-  const [activeId, setActiveId] = useState<RouteId>(readRoute)
+  const [{ activeId, routeParam }, setLocation] = useState(readLocation)
 
   useEffect(() => {
-    const syncRoute = () => setActiveId(readRoute())
+    const syncRoute = () => setLocation(readLocation())
     window.addEventListener('hashchange', syncRoute)
-    if (!window.location.hash || !isRouteId(window.location.hash.replace(/^#\/?/, '').split('/')[0])) {
+    if (!window.location.hash || !isRouteId(window.location.hash.replace(/^#\/?/, '').split('/')[0] ?? '')) {
       window.history.replaceState(null, '', '#/overview')
       syncRoute()
     }
     return () => window.removeEventListener('hashchange', syncRoute)
   }, [])
 
-  const navigate = (id: RouteId) => {
-    const destination = `#/${id}`
+  const navigate = (id: RouteId, param?: string) => {
+    const destination = param ? `#/${id}/${param}` : `#/${id}`
     if (window.location.hash !== destination) window.location.hash = destination
   }
 
-  return { activeId, navigate }
+  return { activeId, routeParam, navigate }
 }
 
 function App() {
-  const { activeId, navigate } = useWorkbenchRoute()
+  const { activeId, routeParam, navigate } = useWorkbenchRoute()
   const { data, patch, update, reset, exportJson, importJson } = useWorkbenchStore()
   const [navOpen, setNavOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
@@ -93,8 +102,8 @@ function App() {
   const [aiOpen, setAiOpen] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const active = pages.find((page) => page.id === activeId) ?? pages[0]
-  const selectPage = (id: string) => {
-    navigate(id as RouteId)
+  const selectPage = (id: string, param?: string) => {
+    navigate(id as RouteId, param)
     setNavOpen(false)
   }
 
@@ -152,7 +161,7 @@ function App() {
         data={data}
         query={searchQuery}
         onClose={closeSearch}
-        onNavigate={(route) => navigate(route)}
+        onNavigate={(route, param) => navigate(route, param)}
       />
       <AiAssistantPanel open={aiOpen} onClose={() => setAiOpen(false)} />
       <aside className={navOpen ? 'sidebar sidebar-open' : 'sidebar'} aria-label="主导航">
@@ -172,6 +181,7 @@ function App() {
                 const selected = id === activeId
                 const badge =
                   id === 'tasks' ? data.tasks.filter((t) => t.status !== 'done').length :
+                  id === 'students' ? data.students.filter((s) => s.status !== '正常').length :
                   id === 'reminders' ? data.reminders.filter((r) => r.status === 'pending').length :
                   id === 'news' ? data.news.filter((n) => n.fresh && !data.newsRead.includes(n.id)).length :
                   id === 'calendar' ? data.events.filter((e) => e.kind === 'deadline').length :
@@ -268,10 +278,26 @@ function App() {
         {activeId === 'courses' && (
           <CoursesPage
             courses={data.courses}
+            onOpenStudents={(courseId) => selectPage('students', courseId)}
             onChange={(courses) => {
               patch('courses', courses)
               // 闭环A：排课变更自动同步日历课程事件
               patch('events', (prev) => syncCourseEvents(prev, courses, data.meta.weekStart))
+            }}
+          />
+        )}
+        {activeId === 'students' && (
+          <StudentsPage
+            courses={data.courses}
+            students={data.students}
+            assignments={data.assignments}
+            grades={data.grades}
+            initialCourseId={routeParam}
+            onChangeStudents={(students) => patch('students', students)}
+            onChangeGrades={(grades) => patch('grades', grades)}
+            onChangeAssignments={(assignments) => {
+              patch('assignments', assignments)
+              patch('events', (prev) => syncAssignmentDeadlines(prev, assignments))
             }}
           />
         )}
@@ -314,7 +340,22 @@ function App() {
             profile={data.profile}
             meta={data.meta}
             updatedAt={data.updatedAt}
-            onSaveProfile={(profile, meta) => update((current) => ({ ...current, profile, meta }))}
+            onSaveProfile={(profile, meta) =>
+              update((current) => ({
+                ...current,
+                profile,
+                meta,
+                events: syncAssignmentDeadlines(
+                  syncCourseEvents(current.events, current.courses, meta.weekStart),
+                  current.assignments,
+                ),
+              }))
+            }
+            onAlignWeek={() =>
+              update((current) =>
+                alignDataToWeekStart({ ...current, meta: { ...current.meta, demoBanner: true } }, thisMondayIso()),
+              )
+            }
             onExport={exportJson}
             onImport={importJson}
             onReset={reset}

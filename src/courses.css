@@ -47,7 +47,15 @@
   outline-offset:1px;
 }
 .courses-page-simple .week-slot.is-menu-open{outline:2px solid rgba(63,107,86,.35);outline-offset:1px}
+.courses-page-simple .course-overview-sessions{flex-direction:column;gap:4px}
+.courses-page-simple .course-overview-topic{margin:0;color:var(--subtle);font-size:12px;line-height:1.5}
+.courses-page-simple .course-overview-actions{display:flex;gap:14px;padding-top:4px}
+.courses-page-simple .courses-composer-wide{width:min(640px,100%);max-height:min(88vh,820px);overflow:auto}
+.courses-page-simple .courses-composer textarea{width:100%;min-height:120px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font:inherit;font-size:13px;resize:vertical}
+.courses-page-simple .course-session-row{display:grid;grid-template-columns:1fr 1fr 1.2fr auto;gap:10px;align-items:end;margin-top:10px}
+.courses-page-simple .course-code{flex:none;padding:2px 8px;border-radius:6px;background:#f3ebe0;color:var(--subtle);font-size:11px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
 @media(max-width:720px){
   .courses-page-simple .course-card-grid{grid-template-columns:1fr}
-  .courses-page-simple .courses-composer .composer-grid{grid-template-columns:1fr}
+  .courses-page-simple .courses-composer .composer-grid,
+  .courses-page-simple .course-session-row{grid-template-columns:1fr}
 }

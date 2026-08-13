@@ -53,6 +53,8 @@ export type Course = {
   sessions: { day: number; section: number; room: string }[]
   topic?: string
   description?: string
+  /** 第 n 周教学主题，下标 0 对应第 1 周 */
+  weeklyTopics?: string[]
 }
 
 export type StudentRecord = {
@@ -221,6 +223,7 @@ export type RouteId =
   | 'calendar'
   | 'tasks'
   | 'courses'
+  | 'students'
   | 'resources'
   | 'news'
   | 'tools'

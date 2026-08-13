@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import type { TeacherProfile, WorkbenchMeta } from '../data/types'
+import { thisMondayIso } from '../lib/dates'
 import { notify } from '../lib/notify'
 import { confirm } from '../lib/confirm'
 
@@ -11,16 +12,17 @@ type Props = {
   onExport: () => string
   onImport: (json: string) => void
   onReset: () => void
+  onAlignWeek?: () => void
 }
 
-export function SettingsPage({ profile, meta, updatedAt, onSaveProfile, onExport, onImport, onReset }: Props) {
+export function SettingsPage({ profile, meta, updatedAt, onSaveProfile, onExport, onImport, onReset, onAlignWeek }: Props) {
   const [form, setForm] = useState(profile)
   const [metaForm, setMetaForm] = useState(meta)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const save = (event: React.FormEvent) => {
     event.preventDefault()
-    onSaveProfile(form, { ...metaForm, demoBanner: false })
+    onSaveProfile(form, metaForm)
     notify.success('个人资料与学期设置已保存到本机')
   }
 
@@ -79,6 +81,27 @@ export function SettingsPage({ profile, meta, updatedAt, onSaveProfile, onExport
             <input type="date" value={metaForm.weekStart} onChange={(e) => setMetaForm({ ...metaForm, weekStart: e.target.value })} />
           </label>
         </div>
+        <label className="settings-check">
+          <input
+            type="checkbox"
+            checked={metaForm.demoBanner}
+            onChange={(event) => setMetaForm({ ...metaForm, demoBanner: event.target.checked })}
+          />
+          演示模式：概览按真实今天显示；重置数据时日程对齐到本周
+        </label>
+        {onAlignWeek && (
+          <button
+            className="outline-action"
+            type="button"
+            onClick={() => {
+              onAlignWeek()
+              setMetaForm((current) => ({ ...current, weekStart: thisMondayIso(), demoBanner: true }))
+              notify.success('演示日程已对齐到本周，概览将显示今天的安排')
+            }}
+          >
+            将演示日程对齐到本周
+          </button>
+        )}
         <button className="primary-action" type="submit">
           保存设置
         </button>

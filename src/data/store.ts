@@ -1,3 +1,5 @@
+import { currentCourseTopic } from '../lib/courses'
+import { addDaysIso, diffDays, dueLabel, thisMondayIso, todayIso } from '../lib/dates'
 import { createSeedData } from './seed'
 import type {
   BoardPriority,
@@ -14,18 +16,55 @@ import { syncAssignmentDeadlines, syncCourseEvents } from './sync'
 
 export const STORAGE_KEY = 'teacher-workbench-data-v1'
 const LEGACY_CALENDAR_KEY = 'teacher-calendar-events'
+/** 旧版演示周起始日，加载时若仍处于演示模式则对齐到本周 */
+export const LEGACY_DEMO_WEEK_START = '2025-05-12'
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
 }
 
 function normalizeCourse(course: Course): Course {
+  const totalWeeks = course.totalWeeks ?? 16
+  const currentWeek = course.currentWeek ?? (Math.round(((course.progress || 0) / 100) * totalWeeks) || 9)
+  const weeklyTopics = Array.from({ length: totalWeeks }, (_, index) => course.weeklyTopics?.[index] ?? '')
+  const topic = currentCourseTopic({ ...course, weeklyTopics, currentWeek }) || course.topic
   return {
     ...course,
     major: course.major ?? inferMajorFromText(`${course.className} ${course.name}`),
     credits: course.credits ?? 2,
-    currentWeek: course.currentWeek ?? (Math.round(((course.progress || 0) / 100) * 16) || 9),
-    totalWeeks: course.totalWeeks ?? 16,
+    currentWeek,
+    totalWeeks,
+    sessions: course.sessions ?? [],
+    weeklyTopics,
+    topic,
+  }
+}
+
+export function alignDataToWeekStart(data: WorkbenchData, nextWeekStart: string): WorkbenchData {
+  const days = diffDays(data.meta.weekStart, nextWeekStart)
+  const today = todayIso()
+  const shiftIf = (value: string) => (days ? addDaysIso(value, days) : value)
+  const assignments = data.assignments.map((item) => ({ ...item, due: shiftIf(item.due) }))
+  const tasks = data.tasks.map((task) => {
+    const dueDate = task.dueDate ? shiftIf(task.dueDate) : task.dueDate
+    const keep = /已提交|已完成/.test(task.due)
+    return {
+      ...task,
+      dueDate,
+      due: keep ? task.due : dueDate ? dueLabel(dueDate, today) : task.due,
+    }
+  })
+  const events = data.events
+    .filter((item) => !item.id.startsWith('course-') && !item.id.startsWith('deadline-'))
+    .map((item) => ({ ...item, date: shiftIf(item.date) }))
+
+  return {
+    ...data,
+    meta: { ...data.meta, weekStart: nextWeekStart },
+    assignments,
+    tasks,
+    dutyConfirmedDates: data.dutyConfirmedDates.map((date) => shiftIf(date)),
+    events: syncAssignmentDeadlines(syncCourseEvents(events, data.courses, nextWeekStart), assignments),
   }
 }
 
@@ -97,7 +136,7 @@ function mergeWithSeed(partial: Partial<WorkbenchData> | null): WorkbenchData {
   const events = syncAssignmentDeadlines(syncCourseEvents(baseEvents, courses, meta.weekStart), assignments)
   const { news, newsBookmarks, newsRead } = normalizeNews(partial)
 
-  return {
+  const merged: WorkbenchData = {
     ...seed,
     ...partial,
     version: 1,
@@ -123,6 +162,11 @@ function mergeWithSeed(partial: Partial<WorkbenchData> | null): WorkbenchData {
     reminderSettings: { ...seed.reminderSettings, ...partial.reminderSettings },
     updatedAt: partial.updatedAt ?? new Date().toISOString(),
   }
+
+  if (merged.meta.demoBanner && merged.meta.weekStart === LEGACY_DEMO_WEEK_START) {
+    return alignDataToWeekStart(merged, thisMondayIso())
+  }
+  return merged
 }
 
 export function loadWorkbenchData(): WorkbenchData {

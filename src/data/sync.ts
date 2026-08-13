@@ -13,8 +13,8 @@ import { iso, shift } from '../lib/dates'
 const COURSE_EVENT_PREFIX = 'course-'
 const DEADLINE_EVENT_PREFIX = 'deadline-'
 
-/** 节次 → times 索引（与课程页节次表一致）：1-2节08:00 / 3-4节10:00 / 5-6节14:00 / 7-8节16:00 */
-const SECTION_TO_START = [0, 2, 6, 8] as const
+/** 节次 → times 索引：1-2节08:00 / 3-4节10:00 / 5-6节14:00 / 7-8节16:00 / 晚上19:00 */
+const SECTION_TO_START = [0, 2, 6, 8, 9] as const
 
 /** 由课程排课生成/更新日历中的课程事件（kind: course） */
 export function syncCourseEvents(events: CalendarEvent[], courses: Course[], weekStart: string): CalendarEvent[] {

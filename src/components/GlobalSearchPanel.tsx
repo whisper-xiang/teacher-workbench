@@ -7,7 +7,7 @@ type Props = {
   data: WorkbenchData
   query: string
   onClose: () => void
-  onNavigate: (route: RouteId) => void
+  onNavigate: (route: RouteId, param?: string) => void
 }
 
 export function GlobalSearchPanel({ open, data, query, onClose, onNavigate }: Props) {
@@ -27,7 +27,7 @@ export function GlobalSearchPanel({ open, data, query, onClose, onNavigate }: Pr
   if (!open) return null
 
   const select = (item: SearchResult) => {
-    onNavigate(item.route)
+    onNavigate(item.route, item.param)
     onClose()
   }
 

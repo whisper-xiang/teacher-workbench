@@ -15,12 +15,34 @@ export const formatDayLabel = (date: Date) =>
 export const weekdayLabel = (date: Date) =>
   `周${'日一二三四五六'[date.getDay()]}`
 
-export const times = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00'] as const
+/** 08:00–16:00 整点 + 晚上补课 19:00/20:00，与课程节次、日历行对齐 */
+export const times = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '19:00', '20:00'] as const
 
-export function todayIso(fallback = '2025-05-13') {
-  try {
-    return iso(new Date())
-  } catch {
-    return fallback
-  }
+export function todayIso() {
+  return iso(new Date())
+}
+
+export function thisMondayIso(date = new Date()) {
+  return iso(mondayOf(date))
+}
+
+export function addDaysIso(value: string, days: number): string {
+  const datePart = value.slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(datePart)) return value
+  return iso(shift(new Date(`${datePart}T12:00:00`), days)) + value.slice(10)
+}
+
+export function diffDays(from: string, to: string): number {
+  const a = new Date(`${from.slice(0, 10)}T12:00:00`)
+  const b = new Date(`${to.slice(0, 10)}T12:00:00`)
+  return Math.round((b.getTime() - a.getTime()) / 86_400_000)
+}
+
+export function dueLabel(date: string, today = todayIso()): string {
+  const diff = diffDays(today, date.slice(0, 10))
+  if (diff === 0) return '今天'
+  if (diff === 1) return '明天'
+  if (diff === -1) return '昨天'
+  const d = new Date(`${date.slice(0, 10)}T12:00:00`)
+  return `${d.getMonth() + 1} 月 ${d.getDate()} 日`
 }

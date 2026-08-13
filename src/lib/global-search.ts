@@ -6,6 +6,7 @@ export type SearchResult = {
   meta: string
   group: string
   route: RouteId
+  param?: string
 }
 
 const PAGE_ENTRIES: { id: RouteId; label: string }[] = [
@@ -14,6 +15,7 @@ const PAGE_ENTRIES: { id: RouteId; label: string }[] = [
   { id: 'tasks', label: '教学看板' },
   { id: 'reminders', label: '通知提醒' },
   { id: 'courses', label: '课程与排课' },
+  { id: 'students', label: '学生与评价' },
   { id: 'resources', label: '教学资源库' },
   { id: 'news', label: '热点资讯' },
   { id: 'tools', label: '工具箱' },
@@ -57,7 +59,8 @@ export function buildSearchIndex(data: WorkbenchData): SearchResult[] {
         title: student.name,
         meta: `${student.number} · ${student.className} · ${student.status}`,
         group: '学生',
-        route: 'courses',
+        route: 'students',
+        param: student.courseId,
       },
       student.id,
     )
@@ -156,7 +159,8 @@ export function buildSearchIndex(data: WorkbenchData): SearchResult[] {
         title: assignment.title,
         meta: `${course?.name ?? '课程'} · 截止 ${assignment.due.slice(0, 10)}`,
         group: '作业',
-        route: 'courses',
+        route: 'students',
+        param: assignment.courseId,
       },
       assignment.id,
     )
