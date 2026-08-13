@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import './App.css'
 import './routes.css'
 import './dashboard.css'
@@ -30,6 +30,9 @@ import { ToolsPage } from './pages/ToolsPage'
 import { RemindersPage } from './pages/RemindersPage'
 import { NotifyHost } from './components/NotifyHost'
 import { ConfirmHost } from './components/ConfirmHost'
+import { GlobalSearchPanel } from './components/GlobalSearchPanel'
+import { AiAssistantPanel } from './components/AiAssistantPanel'
+import './components/topbar-tools.css'
 import { useReminderScheduler } from './hooks/useReminderScheduler'
 import { fetchRssNews } from './lib/rss'
 
@@ -85,6 +88,10 @@ function App() {
   const { activeId, navigate } = useWorkbenchRoute()
   const { data, patch, update, reset, exportJson, importJson } = useWorkbenchStore()
   const [navOpen, setNavOpen] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [aiOpen, setAiOpen] = useState(false)
+  const searchInputRef = useRef<HTMLInputElement>(null)
   const active = pages.find((page) => page.id === activeId) ?? pages[0]
   const selectPage = (id: string) => {
     navigate(id as RouteId)
@@ -118,10 +125,36 @@ function App() {
     }))
   }, [update])
 
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault()
+        setSearchOpen(true)
+        setAiOpen(false)
+        searchInputRef.current?.focus()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
+  const closeSearch = useCallback(() => {
+    setSearchOpen(false)
+    setSearchQuery('')
+  }, [])
+
   return (
     <div className="app-shell">
       <NotifyHost />
       <ConfirmHost />
+      <GlobalSearchPanel
+        open={searchOpen}
+        data={data}
+        query={searchQuery}
+        onClose={closeSearch}
+        onNavigate={(route) => navigate(route)}
+      />
+      <AiAssistantPanel open={aiOpen} onClose={() => setAiOpen(false)} />
       <aside className={navOpen ? 'sidebar sidebar-open' : 'sidebar'} aria-label="主导航">
         <div className="brand">
           <div className="brand-mark" aria-hidden="true">教</div>
@@ -167,7 +200,40 @@ function App() {
         <header className="topbar">
           <button className="menu-toggle" onClick={() => setNavOpen(true)}>菜单</button>
           <div className="breadcrumb">教学工作台 <span>/</span> {active.label}</div>
-          <div className="topbar-note">本地数据 · 可离线使用</div>
+          <div className="topbar-actions">
+            <label className={`topbar-search${searchOpen ? ' is-open' : ''}`}>
+              <span aria-hidden="true">⌕</span>
+              <input
+                ref={searchInputRef}
+                value={searchQuery}
+                onChange={(event) => {
+                  setSearchQuery(event.target.value)
+                  setSearchOpen(true)
+                  setAiOpen(false)
+                }}
+                onFocus={() => {
+                  setSearchOpen(true)
+                  setAiOpen(false)
+                }}
+                placeholder="搜索课程、学生、资源、任务、资讯…"
+                aria-label="搜索全部内容"
+              />
+              <kbd>⌘K</kbd>
+            </label>
+            <button
+              type="button"
+              className={`topbar-icon-btn topbar-icon-btn--ai${aiOpen ? ' active' : ''}`}
+              aria-label="AI 助手"
+              title="AI 助手"
+              onClick={() => {
+                setAiOpen((open) => !open)
+                setSearchOpen(false)
+              }}
+            >
+              💬
+              <small>AI</small>
+            </button>
+          </div>
         </header>
 
         {activeId === 'overview' && (
