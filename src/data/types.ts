@@ -166,6 +166,8 @@ export type ToolItem = {
   category: ToolCategory
   initials: string
   tone: string
+  /** 卡片展示用图标，缺省回退到 initials */
+  icon?: string
   url?: string
   tags?: string[]
   typeLabel?: string

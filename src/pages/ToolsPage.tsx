@@ -5,10 +5,6 @@ import type { ToolCategory, ToolItem } from '../data/types'
 import { notify } from '../lib/notify'
 import { confirm } from '../lib/confirm'
 
-const ALL = '全部'
-const FAVORITES = '常用'
-const FILTERS = [ALL, FAVORITES, ...TOOL_CATEGORIES] as const
-
 type Draft = {
   id: string
   name: string
@@ -23,7 +19,19 @@ type MenuState = {
   y: number
 }
 
-const emptyDraft: Draft = { id: '', name: '', description: '', url: '', category: '效率工具' }
+const emptyDraft: Draft = { id: '', name: '', description: '', url: '', category: '备课工具' }
+
+const CAT_META: Record<string, { icon: string; desc: string }> = {
+  政策与学会: { icon: '🏛️', desc: '教育部、学会与教育媒体入口' },
+  备课工具: { icon: '📚', desc: '课件制作、教学设计、课堂互动工具' },
+  教学平台: { icon: '🏫', desc: '课程管理、在线教学、教务协同平台' },
+  学术工具: { icon: '📖', desc: '文献检索、数据分析、质性研究工具' },
+  效率工具: { icon: '⚡', desc: '问卷、协作文档、录屏、PDF 处理等效率工具' },
+  AI工具: { icon: '🤖', desc: 'AI 对话、文档解析、学术搜索等 AI 辅助工具' },
+  备课与课堂: { icon: '📝', desc: '备课与课堂相关入口' },
+  研究与写作: { icon: '✍️', desc: '研究与写作相关入口' },
+  协作与事务: { icon: '🤝', desc: '协作与事务相关入口' },
+}
 
 type Props = {
   tools: ToolItem[]
@@ -34,45 +42,34 @@ type Props = {
 
 export function ToolsPage({ tools, favorites, onChangeTools, onChangeFavorites }: Props) {
   const [query, setQuery] = useState('')
-  const [category, setCategory] = useState<string>(ALL)
   const [draft, setDraft] = useState<Draft | null>(null)
   const [menu, setMenu] = useState<MenuState | null>(null)
   const menuRef = useRef<HTMLDivElement | null>(null)
 
   const editing = Boolean(draft?.id)
-  const menuTool = menu ? tools.find((tool) => tool.id === menu.toolId) : null
-  const categoryCount = new Set(tools.map((tool) => tool.category)).size
-  const withUrlCount = tools.filter((tool) => tool.url).length
-
-  const activeFilters = useMemo(
-    () => FILTERS.filter((item) => item === ALL || item === FAVORITES || tools.some((tool) => tool.category === item)),
-    [tools],
-  )
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase()
-    let list = tools
-    if (category === FAVORITES) list = tools.filter((tool) => favorites.includes(tool.id))
-    else if (category !== ALL) list = tools.filter((tool) => tool.category === category)
+    if (!q) return tools
+    return tools.filter((tool) =>
+      `${tool.name}${tool.description}${tool.category}${tool.typeLabel ?? ''}${tool.tags?.join('') ?? ''}`
+        .toLowerCase()
+        .includes(q),
+    )
+  }, [tools, query])
 
-    if (q) {
-      list = list.filter((tool) =>
-        `${tool.name}${tool.description}${tool.category}${tool.typeLabel ?? ''}${tool.tags?.join('') ?? ''}`
-          .toLowerCase()
-          .includes(q),
-      )
-    }
-
-    if (category === ALL) {
-      list = [...list].sort((a, b) => {
-        const aRank = favorites.includes(a.id) ? 0 : 1
-        const bRank = favorites.includes(b.id) ? 0 : 1
-        return aRank - bRank || a.name.localeCompare(b.name, 'zh-CN')
+  const sections = useMemo(() => {
+    const order = [...TOOL_CATEGORIES]
+    tools.forEach((tool) => {
+      if (!order.includes(tool.category)) order.push(tool.category)
+    })
+    return order
+      .map((category) => {
+        const items = visible.filter((tool) => tool.category === category)
+        return { category, items, total: tools.filter((tool) => tool.category === category).length }
       })
-    }
-
-    return list
-  }, [tools, query, category, favorites])
+      .filter((section) => section.items.length > 0)
+  }, [tools, visible])
 
   useEffect(() => {
     if (!menu) return
@@ -105,10 +102,7 @@ export function ToolsPage({ tools, favorites, onChangeTools, onChangeFavorites }
     setMenu({ toolId, x: anchor.clientX, y: anchor.clientY })
   }
 
-  const openCreate = () => {
-    setMenu(null)
-    setDraft({ ...emptyDraft })
-  }
+  const openCreate = () => setDraft({ ...emptyDraft })
 
   const openEdit = (tool: ToolItem) => {
     setMenu(null)
@@ -148,7 +142,7 @@ export function ToolsPage({ tools, favorites, onChangeTools, onChangeFavorites }
       return
     }
     onChangeTools(tools.filter((tool) => tool.id !== id))
-    onChangeFavorites(favorites.filter((item) => item !== id))
+    onChangeFavorites(favorites.filter((fav) => fav !== id))
     notify.warning(`已删除：${item.name}`, '已删除')
     setMenu(null)
     if (draft?.id === id) closeDraft()
@@ -169,6 +163,7 @@ export function ToolsPage({ tools, favorites, onChangeTools, onChangeFavorites }
       category: draft.category,
       initials: name.slice(0, 1),
       tone: existing?.tone ?? 'teal',
+      icon: existing?.icon,
       url,
       typeLabel: existing?.typeLabel ?? '网页',
       tags: existing?.tags,
@@ -179,144 +174,119 @@ export function ToolsPage({ tools, favorites, onChangeTools, onChangeFavorites }
     closeDraft()
   }
 
-  const clearFilters = () => {
-    setQuery('')
-    setCategory(ALL)
-  }
-
-  const renderToolCard = (tool: ToolItem) => {
-    const saved = favorites.includes(tool.id)
-    return (
-      <article key={tool.id} className={`tool-card${menu?.toolId === tool.id ? ' is-menu-open' : ''}${saved ? ' is-favorite' : ''}`}>
-        <button type="button" className="tool-card-main" onClick={() => launch(tool)}>
-          <span className={`tool-avatar tone-${tool.tone}`} aria-hidden="true">
-            {tool.initials}
-          </span>
-          <span className="tool-card-body">
-            <span className="tool-category">{tool.category}</span>
-            <strong>{tool.name}</strong>
-            <small>{tool.description}</small>
-            <span className="tool-card-meta">
-              {tool.typeLabel && <em>{tool.typeLabel}</em>}
-              {tool.tags?.slice(0, 2).map((tag) => (
-                <em key={tag}>{tag}</em>
-              ))}
-              <em>{tool.url ? '点击打开' : '未填写链接'}</em>
-            </span>
-          </span>
-        </button>
-        <button
-          type="button"
-          className={`tool-favorite${saved ? ' saved' : ''}`}
-          aria-label={saved ? '移出常用' : '加入常用'}
-          onClick={() => toggleFavorite(tool.id)}
-        >
-          {saved ? '★' : '☆'}
-        </button>
-        <button
-          type="button"
-          className="tool-menu-btn"
-          aria-label={`更多操作：${tool.name}`}
-          onClick={(event) => {
-            event.stopPropagation()
-            openMenu(tool.id, { clientX: event.clientX, clientY: event.clientY })
-          }}
-          onContextMenu={(event) => {
-            event.preventDefault()
-            event.stopPropagation()
-            openMenu(tool.id, { clientX: event.clientX, clientY: event.clientY })
-          }}
-        >
-          ⋯
-        </button>
-      </article>
-    )
-  }
+  const menuTool = menu ? tools.find((tool) => tool.id === menu.toolId) : null
 
   return (
     <section className="tools-page" aria-label="工具箱">
-      <div className="tools-heading">
-        <div>
-          <p className="section-label">资讯与工具</p>
-          <h1>工具箱</h1>
-          <p>教育学院常用入口 · 教育部 / 知网 / 学前教育研究等已预置 · 本地离线可用</p>
+      <div className="tools-banner">
+        <div className="tools-banner-text">
+          <h1>教师工具箱</h1>
+          <p>精选 {tools.length} 款大学教师常用工具 · 备课 · 教学 · 科研 · 效率 · AI</p>
         </div>
-        <button type="button" className="primary-action" onClick={openCreate}>
+        <button type="button" className="tools-banner-add" onClick={openCreate}>
           ＋ 添加工具
         </button>
       </div>
 
-      <div className="tools-notice">
-        <span aria-hidden="true">ℹ</span>
-        <span>面向教育学预置教育部、知网、学前教育研究、智慧教育平台等入口；可加入常用置顶，点击 ⋯ 可编辑或删除。</span>
-      </div>
-
-      <div className="tools-overview">
-        <div>
-          <span>工具总数</span>
-          <strong>{tools.length}</strong>
-          <small>涵盖 {categoryCount} 个分类</small>
-        </div>
-        <div>
-          <span>常用工具</span>
-          <strong>{favorites.length}</strong>
-          <small>列表优先展示</small>
-        </div>
-        <div>
-          <span>可打开链接</span>
-          <strong>{withUrlCount}</strong>
-          <small>{tools.length - withUrlCount} 个待补链接</small>
-        </div>
-      </div>
-
-      <div className="tools-toolbar">
+      <div className="tools-filter-bar">
         <label className="tools-search">
           <span aria-hidden="true">⌕</span>
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="搜索名称、分类或标签"
+            placeholder="搜索工具名称或功能..."
             aria-label="搜索工具"
           />
         </label>
-        <div className="tools-filters" role="tablist" aria-label="分类筛选">
-          {activeFilters.map((item) => (
-            <button
-              key={item}
-              type="button"
-              role="tab"
-              aria-selected={category === item}
-              className={category === item ? 'active' : ''}
-              onClick={() => setCategory(item)}
-            >
-              {item}
-              {item === FAVORITES && favorites.length > 0 ? ` ${favorites.length}` : ''}
-            </button>
-          ))}
-        </div>
+        <span className="tools-filter-count">共 {query.trim() ? visible.length : tools.length} 款工具</span>
       </div>
 
-      <div className="tools-feed">
-        <div className="tools-feed-head">
-          <h2>{category === FAVORITES ? '常用工具' : '全部工具'}</h2>
-          <span>{visible.length} 个</span>
+      {sections.length === 0 ? (
+        <div className="tools-empty">
+          <span aria-hidden="true">🧰</span>
+          <h3>没有匹配的工具</h3>
+          <p>试试其他关键词，或清空搜索</p>
+          <button type="button" className="text-action" onClick={() => setQuery('')}>
+            清除搜索
+          </button>
         </div>
-
-        {visible.length === 0 ? (
-          <div className="tools-empty">
-            <span aria-hidden="true">🧰</span>
-            <h3>{category === FAVORITES ? '还没有常用工具' : '没有匹配的工具'}</h3>
-            <p>{category === FAVORITES ? '点击工具旁的 ☆ 加入常用' : '试试调整搜索词或分类筛选'}</p>
-            {category !== FAVORITES && (
-              <button type="button" className="text-action" onClick={clearFilters}>
-                清除筛选
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="tools-grid">{visible.map(renderToolCard)}</div>
-        )}
-      </div>
+      ) : (
+        sections.map((section) => {
+          const meta = CAT_META[section.category] ?? { icon: '🔧', desc: '' }
+          return (
+            <section key={section.category} className="tools-section">
+              <div className="tools-section-header">
+                <h2 className="tools-section-title">
+                  <span className="tools-section-icon" aria-hidden="true">
+                    {meta.icon}
+                  </span>
+                  {section.category}
+                </h2>
+                <span className="tools-section-count">{section.items.length}款</span>
+              </div>
+              {meta.desc && <p className="tools-section-desc">{meta.desc}</p>}
+              <div className="tools-grid">
+                {section.items.map((tool) => {
+                  const saved = favorites.includes(tool.id)
+                  return (
+                    <article
+                      key={tool.id}
+                      className={`tool-card${menu?.toolId === tool.id ? ' is-menu-open' : ''}${saved ? ' is-favorite' : ''}`}
+                    >
+                      <button type="button" className="tool-card-main" onClick={() => launch(tool)}>
+                        <span className={`tool-card-icon${tool.icon ? '' : ` tone-${tool.tone}`}`} aria-hidden="true">
+                          {tool.icon ?? tool.initials}
+                        </span>
+                        <span className="tool-card-info">
+                          <span className="tool-card-name">{tool.name}</span>
+                          {tool.typeLabel && <span className="tool-card-type">{tool.typeLabel}</span>}
+                          <span className="tool-card-desc">{tool.description}</span>
+                          {tool.tags && tool.tags.length > 0 && (
+                            <span className="tool-card-tags">
+                              {tool.tags.map((tag) => (
+                                <em key={tag} className="tool-card-tag">
+                                  {tag}
+                                </em>
+                              ))}
+                            </span>
+                          )}
+                        </span>
+                        <span className="tool-card-arrow" aria-hidden="true">
+                          ↗
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        className={`tool-favorite${saved ? ' saved' : ''}`}
+                        aria-label={saved ? '移出常用' : '加入常用'}
+                        onClick={() => toggleFavorite(tool.id)}
+                      >
+                        {saved ? '★' : '☆'}
+                      </button>
+                      <button
+                        type="button"
+                        className="tool-menu-btn"
+                        aria-label={`更多操作：${tool.name}`}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          openMenu(tool.id, { clientX: event.clientX, clientY: event.clientY })
+                        }}
+                        onContextMenu={(event) => {
+                          event.preventDefault()
+                          event.stopPropagation()
+                          openMenu(tool.id, { clientX: event.clientX, clientY: event.clientY })
+                        }}
+                      >
+                        ⋯
+                      </button>
+                    </article>
+                  )
+                })}
+              </div>
+            </section>
+          )
+        })
+      )}
 
       {menu && menuTool && (
         <div
