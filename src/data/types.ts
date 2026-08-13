@@ -15,6 +15,11 @@ export const MAJORS: Major[] = [
 
 export type CalendarKind = 'course' | 'duty' | 'meeting' | 'patrol' | 'deadline'
 
+export type DeadlineLink = {
+  route: RouteId
+  param?: string
+}
+
 export type CalendarEvent = {
   id: string
   date: string
@@ -24,6 +29,10 @@ export type CalendarEvent = {
   detail: string
   kind: CalendarKind
   major?: MajorId | null
+  /** 截止事项跳转目标 */
+  linkTo?: DeadlineLink
+  /** 已处理完成 */
+  done?: boolean
 }
 
 export type DutySlot = {
@@ -119,6 +128,10 @@ export type TeachingResource = {
   usedCount?: number
   /** 最近使用时间显示文本 */
   lastUsed?: string
+  /** IndexedDB 中的本地文件键 */
+  fileId?: string
+  fileName?: string
+  mimeType?: string
 }
 
 export type NewsItem = {

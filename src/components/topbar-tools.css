@@ -284,6 +284,41 @@
   border-bottom-left-radius: 4px;
 }
 
+.ai-draft-card {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid #d7e5e3;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.ai-draft-card strong,
+.ai-draft-card small,
+.ai-draft-card em {
+  display: block;
+}
+
+.ai-draft-card small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.ai-draft-card em {
+  color: #2f5646;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 650;
+}
+
+.ai-draft-card .primary-action {
+  justify-self: start;
+  margin-top: 4px;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
 .ai-chat-bubble--typing {
   color: var(--subtle);
   font-style: italic;

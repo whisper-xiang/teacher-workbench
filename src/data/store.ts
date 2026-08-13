@@ -105,6 +105,8 @@ function normalizeEvent(event: CalendarEvent): CalendarEvent {
     ...event,
     kind: event.kind || 'meeting',
     major: event.major ?? null,
+    linkTo: event.linkTo,
+    done: event.done,
   }
 }
 

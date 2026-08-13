@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { uid } from '../data/store'
-import type { CalendarEvent, CalendarKind } from '../data/types'
+import type { CalendarEvent, CalendarKind, DeadlineLink, RouteId } from '../data/types'
+import { deadlineLinkLabel, inferDeadlineLink } from '../lib/deadlines'
 import { formatDayLabel, iso, mondayOf, shift, times, weekdayLabel } from '../lib/dates'
 import { notify } from '../lib/notify'
 
@@ -22,9 +23,10 @@ type Props = {
   weekStart: string
   onChangeEvents: (events: CalendarEvent[]) => void
   onToggleDuty: (date: string) => void
+  onNavigate?: (route: RouteId, param?: string) => void
 }
 
-export function CalendarPage({ events, dutyConfirmedDates, weekStart, onChangeEvents, onToggleDuty }: Props) {
+export function CalendarPage({ events, dutyConfirmedDates, weekStart, onChangeEvents, onToggleDuty, onNavigate }: Props) {
   const seedCursor = new Date(weekStart + 'T12:00:00')
   const [view, setView] = useState<'week' | 'month'>('month')
   const [cursor, setCursor] = useState(seedCursor)
@@ -67,14 +69,18 @@ export function CalendarPage({ events, dutyConfirmedDates, weekStart, onChangeEv
   const save = (event: React.FormEvent) => {
     event.preventDefault()
     if (!editor?.title.trim()) return
-    const next: CalendarEvent = {
+    const base: CalendarEvent = {
       ...editor,
       id: editor.id || uid('event'),
       title: editor.title.trim(),
       detail: editor.detail.trim() || (editor.kind === 'deadline' ? '截止日期提醒' : '个人安排'),
       length: editor.kind === 'deadline' ? 1 : Math.max(1, editor.length || 1),
       start: editor.kind === 'deadline' ? 0 : editor.start,
-      major: editor.major ?? null,
+    }
+    const next: CalendarEvent = {
+      ...base,
+      linkTo: editor.kind === 'deadline' ? editor.linkTo ?? inferDeadlineLink(base) : editor.linkTo,
+      done: editor.kind === 'deadline' ? Boolean(editor.done) : undefined,
     }
     onChangeEvents(editor.id ? events.map((item) => (item.id === editor.id ? next : item)) : [...events, next])
     setSelectedDay(next.date)
@@ -106,6 +112,17 @@ export function CalendarPage({ events, dutyConfirmedDates, weekStart, onChangeEv
     setCursor(date)
     setSelectedDay(dateStr)
     setView('week')
+  }
+
+  const toggleDeadlineDone = (item: CalendarEvent) => {
+    onChangeEvents(events.map((event) => (event.id === item.id ? { ...event, done: !event.done } : event)))
+    notify.success(item.done ? `已恢复「${item.title}」` : `已完成「${item.title}」`)
+  }
+
+  const openDeadlineLink = (item: CalendarEvent) => {
+    const link = item.linkTo ?? inferDeadlineLink(item)
+    if (!link || !onNavigate) return
+    onNavigate(link.route, link.param)
   }
 
   const toggleDuty = () => {
@@ -151,16 +168,30 @@ export function CalendarPage({ events, dutyConfirmedDates, weekStart, onChangeEv
       <div className="day-detail-list">
         {selectedDayEvents.length === 0 && <div className="empty-column">这一天暂无安排</div>}
         {selectedDayEvents.map((item) => (
-          <button key={item.id} type="button" className="day-detail-item" onClick={() => setEditor(item)}>
-            <span className={`day-detail-dot event-${item.kind}`} />
-            <span className="day-detail-body">
-              <b>{item.title}</b>
-              <small>
-                {item.kind === 'deadline' ? '全天提醒' : `${times[item.start]} · ${item.detail}`}
-              </small>
-            </span>
-            <KindBadge kind={item.kind} />
-          </button>
+          <div key={item.id} className={`day-detail-item${item.done ? ' is-done' : ''}`}>
+            <button type="button" className="day-detail-main" onClick={() => setEditor(item)}>
+              <span className={`day-detail-dot event-${item.kind}`} />
+              <span className="day-detail-body">
+                <b>{item.title}</b>
+                <small>
+                  {item.kind === 'deadline' ? '全天提醒' : `${times[item.start]} · ${item.detail}`}
+                </small>
+              </span>
+              <KindBadge kind={item.kind} />
+            </button>
+            {item.kind === 'deadline' && (
+              <span className="deadline-actions">
+                {(item.linkTo || inferDeadlineLink(item)) && onNavigate && (
+                  <button type="button" className="text-action" onClick={() => openDeadlineLink(item)}>
+                    {deadlineLinkLabel(item.linkTo ?? inferDeadlineLink(item)!)}
+                  </button>
+                )}
+                <button type="button" className="text-action" onClick={() => toggleDeadlineDone(item)}>
+                  {item.done ? '恢复' : '完成'}
+                </button>
+              </span>
+            )}
+          </div>
         ))}
       </div>
     </section>
@@ -227,7 +258,7 @@ export function CalendarPage({ events, dutyConfirmedDates, weekStart, onChangeEv
                       <button
                         key={item.id}
                         type="button"
-                        className="allday-chip event-deadline"
+                        className={`allday-chip event-deadline${item.done ? ' is-done' : ''}`}
                         onClick={() => setEditor(item)}
                         title="点击编辑"
                       >
@@ -441,7 +472,41 @@ export function CalendarPage({ events, dutyConfirmedDates, weekStart, onChangeEv
               </div>
             )}
             {editor.kind === 'deadline' && (
-              <p className="composer-hint">截止日期将显示在「全天」行，不占用课时格子。</p>
+              <>
+                <p className="composer-hint">截止日期将显示在「全天」行，不占用课时格子。</p>
+                <label>
+                  处理入口
+                  <select
+                    value={editor.linkTo ? `${editor.linkTo.route}:${editor.linkTo.param ?? ''}` : ''}
+                    onChange={(event) => {
+                      const value = event.target.value
+                      if (!value) {
+                        setEditor({ ...editor, linkTo: undefined })
+                        return
+                      }
+                      const [route, param] = value.split(':') as [RouteId, string]
+                      const linkTo: DeadlineLink = param ? { route, param } : { route }
+                      setEditor({ ...editor, linkTo })
+                    }}
+                  >
+                    <option value="">不关联（保存时按标题推断）</option>
+                    <option value="students:">学生与评价</option>
+                    <option value="resources:">教学资源库</option>
+                    <option value="courses:">课程与排课</option>
+                    <option value="tasks:">教学看板</option>
+                  </select>
+                </label>
+                {editor.id && (
+                  <label className="settings-check">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(editor.done)}
+                      onChange={(event) => setEditor({ ...editor, done: event.target.checked })}
+                    />
+                    已完成此项
+                  </label>
+                )}
+              </>
             )}
             <div className="composer-actions">
               {editor.id && (

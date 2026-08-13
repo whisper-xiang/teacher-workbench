@@ -1,48 +1,31 @@
 import { useEffect, useRef, useState } from 'react'
+import type { Course } from '../data/types'
+import { draftSummary, parseAssistantInput, type AssistantDraft } from '../lib/assistant'
+import { formatReminderTime } from '../lib/reminder-nlp'
 
 type ChatMessage = {
   id: string
   role: 'user' | 'assistant'
   text: string
+  draft?: AssistantDraft
+  committed?: boolean
 }
 
 type Props = {
   open: boolean
   onClose: () => void
+  courses: Course[]
+  onCommit: (draft: AssistantDraft) => string
 }
 
-const STARTERS = [
-  '帮我在周三下午加一节教育心理学',
-  '上传一份课堂观察记录到资源库',
-  '提醒我明天批改作业',
-]
+const STARTERS = ['提醒我明天批改作业', '帮我在周三下午加一节教育心理学', '上传一份课堂观察记录到资源库']
 
-function mockReply(input: string): string {
-  const text = input.trim()
-  if (/课程|排课|课表/.test(text)) {
-    return '（原型）我可以解析你的描述并生成课程草稿，例如：\n· 课程名：教育心理学\n· 时间：周三 第 3–4 节\n· 班级：教育学 2024-1\n\n确认后将写入「课程与排课」，并同步到日程。'
-  }
-  if (/资源|上传|课件|教案/.test(text)) {
-    return '（原型）我可以帮你创建资源索引条目，填入标题、所属课程、类型与标签。正式版将支持选择本地文件并写入「教学资源库」。'
-  }
-  if (/提醒|通知|备忘/.test(text)) {
-    return '（原型）我可以把自然语言转成提醒，例如「明天 8:30 提醒批改作业」，写入「通知提醒」并可选系统通知。'
-  }
-  if (/任务|看板|待办/.test(text)) {
-    return '（原型）我可以把描述转为看板任务，指定课程、截止日与优先级，写入「教学看板」。'
-  }
-  if (/学生|成绩|花名册/.test(text)) {
-    return '（原型）后续可支持查询学生、批量导入花名册或录入过程性评价，数据写入课程与学生档案。'
-  }
-  return '（原型）我是工作台 AI 助手。你可以用自然语言让我帮你新增课程、资源、提醒、任务等。当前为界面演示，尚未连接真实写入逻辑。'
-}
-
-export function AiAssistantPanel({ open, onClose }: Props) {
+export function AiAssistantPanel({ open, onClose, courses, onCommit }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'welcome',
       role: 'assistant',
-      text: '你好，我是教学工作台 AI 助手（原型）。\n\n你可以直接说：\n· 「周三下午加一节教育心理学」\n· 「把课堂观察记录加到资源库」\n· 「明天提醒我批改作业」',
+      text: '你好，我是教学工作台助手。\n\n确认后会写入本机数据：\n· 「明天 8:30 提醒我批改作业」\n· 「周三下午加一节教育心理学」\n· 「把课堂观察记录加到资源库」',
     },
   ])
   const [draft, setDraft] = useState('')
@@ -73,12 +56,22 @@ export function AiAssistantPanel({ open, onClose }: Props) {
     setThinking(true)
 
     window.setTimeout(() => {
+      const parsed = parseAssistantInput(content, courses)
       setMessages((prev) => [
         ...prev,
-        { id: `a-${Date.now()}`, role: 'assistant', text: mockReply(content) },
+        { id: `a-${Date.now()}`, role: 'assistant', text: parsed.text, draft: parsed.draft },
       ])
       setThinking(false)
-    }, 600)
+    }, 280)
+  }
+
+  const confirmDraft = (messageId: string, item: AssistantDraft) => {
+    const result = onCommit(item)
+    setMessages((prev) =>
+      prev.map((message) =>
+        message.id === messageId ? { ...message, committed: true, text: `${message.text}\n\n${result}` } : message,
+      ),
+    )
   }
 
   if (!open) return null
@@ -90,7 +83,7 @@ export function AiAssistantPanel({ open, onClose }: Props) {
         <header className="ai-assistant-head">
           <div>
             <strong>AI 助手</strong>
-            <span>原型 · 对话录入数据</span>
+            <span>确认后写入本机</span>
           </div>
           <button type="button" onClick={onClose} aria-label="关闭">
             ×
@@ -103,12 +96,27 @@ export function AiAssistantPanel({ open, onClose }: Props) {
               {message.text.split('\n').map((line, index) => (
                 <p key={`${message.id}-${index}`}>{line || '\u00A0'}</p>
               ))}
+              {message.draft && (
+                <div className="ai-draft-card">
+                  <strong>{draftSummary(message.draft).title}</strong>
+                  <small>
+                    {message.draft.kind === 'reminder'
+                      ? formatReminderTime(message.draft.scheduledAt)
+                      : draftSummary(message.draft).meta}
+                  </small>
+                  {message.committed ? (
+                    <em>已写入</em>
+                  ) : (
+                    <button type="button" className="primary-action" onClick={() => confirmDraft(message.id, message.draft!)}>
+                      确认写入
+                    </button>
+                  )}
+                </div>
+              )}
             </article>
           ))}
           {thinking && (
-            <article className="ai-chat-bubble ai-chat-bubble--assistant ai-chat-bubble--typing">
-              正在思考…
-            </article>
+            <article className="ai-chat-bubble ai-chat-bubble--assistant ai-chat-bubble--typing">正在整理…</article>
           )}
         </div>
 
@@ -124,7 +132,7 @@ export function AiAssistantPanel({ open, onClose }: Props) {
           <textarea
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
-            placeholder="描述你想新增或修改的内容…"
+            placeholder="例如：明天上午提醒我批改作业"
             rows={2}
             onKeyDown={(event) => {
               if (event.key === 'Enter' && !event.shiftKey) {

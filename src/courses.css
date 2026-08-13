@@ -48,7 +48,7 @@
 }
 .courses-page-simple .week-slot.is-menu-open{outline:2px solid rgba(63,107,86,.35);outline-offset:1px}
 .courses-page-simple .course-overview-sessions{flex-direction:column;gap:4px}
-.courses-page-simple .course-overview-topic{margin:0;color:var(--subtle);font-size:12px;line-height:1.5}
+.courses-page-simple .course-resource-list{margin:0;padding-left:16px;color:var(--subtle);font-size:12px;line-height:1.6}
 .courses-page-simple .course-overview-actions{display:flex;gap:14px;padding-top:4px}
 .courses-page-simple .courses-composer-wide{width:min(640px,100%);max-height:min(88vh,820px);overflow:auto}
 .courses-page-simple .courses-composer textarea{width:100%;min-height:120px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font:inherit;font-size:13px;resize:vertical}

@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { MajorTag } from '../components/MajorTag'
 import type { BoardTask, CalendarEvent, Course, WorkbenchMeta } from '../data/types'
+import { deadlineLinkLabel, inferDeadlineLink } from '../lib/deadlines'
 import { formatDayLabel, times, todayIso } from '../lib/dates'
 import { currentCourseTopic } from '../lib/courses'
 
@@ -9,7 +10,7 @@ type Props = {
   events: CalendarEvent[]
   tasks: BoardTask[]
   courses: Course[]
-  onNavigate: (id: string) => void
+  onNavigate: (id: string, param?: string) => void
   onSetTaskStatus: (id: string, done: boolean) => void
 }
 
@@ -19,14 +20,15 @@ export function Dashboard({ meta, events, tasks, courses, onNavigate, onSetTaskS
   const schedule = useMemo(
     () =>
       events
-        .filter((item) => item.date === today)
+        .filter((item) => item.date === today && !item.done)
         .sort((a, b) => a.start - b.start)
         .map((item) => ({
-          time: times[item.start],
-          end: times[Math.min(times.length - 1, item.start + item.length)] ?? '',
+          time: item.kind === 'deadline' ? '截止' : times[item.start],
+          end: item.kind === 'deadline' ? '' : times[Math.min(times.length - 1, item.start + item.length)] ?? '',
           title: item.title,
           meta: item.detail,
           type: item.kind === 'course' ? '课程' : item.kind === 'duty' ? '值班' : item.kind === 'patrol' ? '巡视' : item.kind === 'deadline' ? '截止' : '会议',
+          event: item,
         })),
     [events, today],
   )
@@ -76,7 +78,9 @@ export function Dashboard({ meta, events, tasks, courses, onNavigate, onSetTaskS
           </div>
           <div className="timeline">
             {schedule.length === 0 && <div className="empty-column">今天暂无日程，可在日历中添加。</div>}
-            {schedule.map((item) => (
+            {schedule.map((item) => {
+              const link = item.event.kind === 'deadline' ? item.event.linkTo ?? inferDeadlineLink(item.event) : undefined
+              return (
               <div className="timeline-item" key={`${item.time}-${item.title}`}>
                 <div className="timeline-time">
                   <strong>{item.time}</strong>
@@ -86,9 +90,15 @@ export function Dashboard({ meta, events, tasks, courses, onNavigate, onSetTaskS
                   <span className={item.type === '课程' ? 'event-kind event-course' : 'event-kind'}>{item.type}</span>
                   <strong>{item.title}</strong>
                   <span>{item.meta}</span>
+                  {link && (
+                    <button type="button" className="text-action" onClick={() => onNavigate(link.route, link.param)}>
+                      {deadlineLinkLabel(link)}
+                    </button>
+                  )}
                 </div>
               </div>
-            ))}
+              )
+            })}
           </div>
         </section>
 

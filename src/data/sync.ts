@@ -1,4 +1,5 @@
 import type { Assignment, CalendarEvent, Course } from './types'
+import { inferDeadlineLink } from '../lib/deadlines'
 import { iso, shift } from '../lib/dates'
 
 /**
@@ -53,14 +54,17 @@ export function syncCourseEvents(events: CalendarEvent[], courses: Course[], wee
 /** 由作业截止时间生成/更新日历中的截止事件（kind: deadline） */
 export function syncAssignmentDeadlines(events: CalendarEvent[], assignments: Assignment[]): CalendarEvent[] {
   const managed = events.filter((item) => !item.id.startsWith(DEADLINE_EVENT_PREFIX))
+  const previous = new Map(events.filter((item) => item.id.startsWith(DEADLINE_EVENT_PREFIX)).map((item) => [item.id, item]))
 
   const generated: CalendarEvent[] = []
   for (const assignment of assignments) {
     if (!assignment.due) continue
     const date = assignment.due.slice(0, 10)
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) continue
+    const id = `${DEADLINE_EVENT_PREFIX}${assignment.id}`
+    const prior = previous.get(id)
     generated.push({
-      id: `${DEADLINE_EVENT_PREFIX}${assignment.id}`,
+      id,
       date,
       start: 0,
       length: 1,
@@ -68,6 +72,8 @@ export function syncAssignmentDeadlines(events: CalendarEvent[], assignments: As
       detail: assignment.description ? assignment.description.slice(0, 40) : '作业提交截止提醒',
       kind: 'deadline',
       major: assignment.major ?? null,
+      linkTo: prior?.linkTo ?? inferDeadlineLink({ id, title: assignment.title, detail: assignment.description }, assignment),
+      done: prior?.done,
     })
   }
 

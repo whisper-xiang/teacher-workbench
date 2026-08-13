@@ -18,10 +18,13 @@ import './theme.css'
 /* Must load last so page shell padding/width matches overview */
 import './layout-overrides.css'
 import { useWorkbenchStore } from './hooks/useWorkbenchStore'
-import { alignDataToWeekStart } from './data/store'
+import { alignDataToWeekStart, uid } from './data/store'
 import { syncAssignmentDeadlines, syncCourseEvents } from './data/sync'
-import type { RouteId } from './data/types'
-import { thisMondayIso } from './lib/dates'
+import { inferMajorFromText, type Course, type RouteId } from './data/types'
+import type { AssistantDraft } from './lib/assistant'
+import { dueLabel, thisMondayIso } from './lib/dates'
+import { notify } from './lib/notify'
+import { clearAllResourceFiles } from './lib/resource-files'
 import { CalendarPage } from './pages/CalendarPage'
 import { CoursesPage } from './pages/CoursesPage'
 import { Dashboard } from './pages/Dashboard'
@@ -134,6 +137,104 @@ function App() {
     }))
   }, [update])
 
+  const commitAssistant = useCallback(
+    (draft: AssistantDraft) => {
+      let message = '已写入本机。'
+      update((current) => {
+        if (draft.kind === 'reminder') {
+          const item = {
+            id: uid('rem'),
+            title: draft.title,
+            scheduledAt: draft.scheduledAt,
+            status: 'pending' as const,
+            source: 'ai' as const,
+            rawInput: draft.rawInput,
+            createdAt: new Date().toISOString(),
+          }
+          message = `已写入提醒「${item.title}」，到点会在工作台通知你。`
+          notify.success(`已添加提醒「${item.title}」`)
+          return { ...current, reminders: [item, ...current.reminders] }
+        }
+
+        if (draft.kind === 'course') {
+          let courses = current.courses
+          if (draft.mode === 'add-session' && draft.existingId) {
+            courses = courses.map((course) => {
+              if (course.id !== draft.existingId) return course
+              const exists = course.sessions.some((item) => item.day === draft.day && item.section === draft.section)
+              if (exists) return course
+              return { ...course, sessions: [...course.sessions, { day: draft.day, section: draft.section, room: draft.room }] }
+            })
+            message = `已为「${draft.name}」增加上课时段。`
+          } else {
+            const next: Course = {
+              id: uid('course'),
+              name: draft.name,
+              code: 'EDU000',
+              className: '待定班级',
+              students: 40,
+              weeks: '第 1–16 周',
+              progress: 0,
+              status: '待更新',
+              color: 'teal',
+              major: inferMajorFromText(draft.name),
+              credits: 2,
+              currentWeek: 1,
+              totalWeeks: 16,
+              topic: '待补充教学主题',
+              sessions: [{ day: draft.day, section: draft.section, room: draft.room }],
+            }
+            courses = [...courses, next]
+            message = `已新建课程「${draft.name}」，并同步到周课表。`
+          }
+          notify.success(message)
+          return {
+            ...current,
+            courses,
+            events: syncCourseEvents(current.events, courses, current.meta.weekStart),
+          }
+        }
+
+        if (draft.kind === 'resource') {
+          const item = {
+            id: uid('res'),
+            title: draft.title,
+            course: draft.course || '未关联课程',
+            type: draft.type,
+            updated: '刚刚',
+            size: '—',
+            accent: 'teal',
+            description: '由助手登记，可再补传文件。',
+            tags: ['助手'],
+            format: '其他' as const,
+            major: inferMajorFromText(`${draft.course} ${draft.title}`),
+          }
+          message = `已登记资源「${item.title}」，可到资源库补传文件。`
+          notify.success(message)
+          return { ...current, resources: [item, ...current.resources] }
+        }
+
+        const task = {
+          id: uid('task'),
+          title: draft.title,
+          course: draft.course,
+          due: dueLabel(draft.dueDate),
+          dueDate: draft.dueDate,
+          kind: draft.taskKind,
+          status: 'todo' as const,
+          priority: 'medium' as const,
+          assignee: current.profile.name,
+          major: inferMajorFromText(draft.course),
+        }
+        message = `已在教学看板添加「${task.title}」。`
+        notify.success(message)
+        return { ...current, tasks: [task, ...current.tasks] }
+      })
+      return message
+    },
+    [update],
+  )
+
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
@@ -163,7 +264,12 @@ function App() {
         onClose={closeSearch}
         onNavigate={(route, param) => navigate(route, param)}
       />
-      <AiAssistantPanel open={aiOpen} onClose={() => setAiOpen(false)} />
+      <AiAssistantPanel
+        open={aiOpen}
+        onClose={() => setAiOpen(false)}
+        courses={data.courses}
+        onCommit={commitAssistant}
+      />
       <aside className={navOpen ? 'sidebar sidebar-open' : 'sidebar'} aria-label="主导航">
         <div className="brand">
           <div className="brand-mark" aria-hidden="true">教</div>
@@ -184,7 +290,7 @@ function App() {
                   id === 'students' ? data.students.filter((s) => s.status !== '正常').length :
                   id === 'reminders' ? data.reminders.filter((r) => r.status === 'pending').length :
                   id === 'news' ? data.news.filter((n) => n.fresh && !data.newsRead.includes(n.id)).length :
-                  id === 'calendar' ? data.events.filter((e) => e.kind === 'deadline').length :
+                  id === 'calendar' ? data.events.filter((e) => e.kind === 'deadline' && !e.done).length :
                   0
                 return (
                   <button className={selected ? 'nav-item nav-item-active' : 'nav-item'} key={id} onClick={() => selectPage(id)}>
@@ -264,6 +370,7 @@ function App() {
             dutyConfirmedDates={data.dutyConfirmedDates}
             weekStart={data.meta.weekStart}
             onChangeEvents={(events) => patch('events', events)}
+            onNavigate={(route, param) => selectPage(route, param)}
             onToggleDuty={(date) =>
               patch(
                 'dutyConfirmedDates',
@@ -278,7 +385,9 @@ function App() {
         {activeId === 'courses' && (
           <CoursesPage
             courses={data.courses}
+            resources={data.resources}
             onOpenStudents={(courseId) => selectPage('students', courseId)}
+            onOpenResources={(courseId) => selectPage('resources', courseId)}
             onChange={(courses) => {
               patch('courses', courses)
               // 闭环A：排课变更自动同步日历课程事件
@@ -305,6 +414,8 @@ function App() {
           <ResourcesPage
             resources={data.resources}
             courses={data.courses}
+            initialCourseId={routeParam}
+            onOpenCourse={() => selectPage('courses')}
             onChangeResources={(resources) => patch('resources', resources)}
           />
         )}
@@ -358,7 +469,10 @@ function App() {
             }
             onExport={exportJson}
             onImport={importJson}
-            onReset={reset}
+            onReset={() => {
+              reset()
+              void clearAllResourceFiles()
+            }}
           />
         )}
       </main>

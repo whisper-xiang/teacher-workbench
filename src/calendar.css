@@ -23,8 +23,12 @@
 .kind-badge-deadline{background:#f8e6e2;color:#8f3d32}
 .day-detail-card .side-card-title,.month-day-detail .side-card-title{align-items:flex-start}
 .day-detail-list{display:grid;gap:8px;margin-top:8px}
-.day-detail-item{display:grid;grid-template-columns:8px minmax(0,1fr) auto;gap:8px;align-items:center;width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;background:#fffcf7;color:inherit;text-align:left;cursor:pointer;font:inherit}
+.day-detail-item{display:grid;gap:8px;padding:10px;border:1px solid var(--line);border-radius:10px;background:#fffcf7}
 .day-detail-item:hover{border-color:#c9d8ce}
+.day-detail-item.is-done .day-detail-body b{text-decoration:line-through;color:var(--muted)}
+.day-detail-main{display:grid;grid-template-columns:8px minmax(0,1fr) auto;gap:8px;align-items:center;width:100%;padding:0;border:0;background:transparent;color:inherit;text-align:left;cursor:pointer;font:inherit}
+.deadline-actions{display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-end}
+.allday-chip.is-done{opacity:.55;text-decoration:line-through}
 .day-detail-dot{width:8px;height:8px;border-radius:50%}
 .day-detail-dot.event-course{background:#3f6b56}
 .day-detail-dot.event-meeting{background:#6b5b95}

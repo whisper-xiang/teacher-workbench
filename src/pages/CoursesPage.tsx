@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { uid } from '../data/store'
-import { inferMajorFromText, type Course } from '../data/types'
+import { inferMajorFromText, type Course, type TeachingResource } from '../data/types'
 import { currentCourseTopic, formatSession, SECTIONS, SECTION_TIMES, topicsFromText, topicsToText, WEEK_DAYS } from '../lib/courses'
 import { notify } from '../lib/notify'
 import { confirm } from '../lib/confirm'
@@ -62,11 +62,13 @@ function progressPct(course: Course) {
 
 type Props = {
   courses: Course[]
+  resources?: TeachingResource[]
   onChange: (courses: Course[]) => void
   onOpenStudents?: (courseId: string) => void
+  onOpenResources?: (courseId: string) => void
 }
 
-export function CoursesPage({ courses, onChange, onOpenStudents }: Props) {
+export function CoursesPage({ courses, resources = [], onChange, onOpenStudents, onOpenResources }: Props) {
   const [draft, setDraft] = useState<Draft | null>(null)
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
   const menuRef = useRef<HTMLDivElement | null>(null)
@@ -207,6 +209,7 @@ export function CoursesPage({ courses, onChange, onOpenStudents }: Props) {
         {courses.map((course) => {
           const pct = progressPct(course)
           const topic = currentCourseTopic(course)
+          const courseResources = resources.filter((item) => item.course === course.name)
           return (
             <article
               className={`course-overview-card${contextMenu?.courseId === course.id ? ' is-menu-open' : ''}`}
@@ -229,6 +232,17 @@ export function CoursesPage({ courses, onChange, onOpenStudents }: Props) {
                     : <span>暂未排课</span>}
                 </div>
                 {topic && <p className="course-overview-topic">本周：{topic}</p>}
+                {courseResources.length > 0 && (
+                  <ul className="course-resource-list">
+                    {courseResources.slice(0, 3).map((item) => (
+                      <li key={item.id}>
+                        {item.type} · {item.title}
+                        {item.fileId ? '' : '（未上传）'}
+                      </li>
+                    ))}
+                    {courseResources.length > 3 && <li>还有 {courseResources.length - 3} 份</li>}
+                  </ul>
+                )}
                 <div className="course-overview-progress">
                   <div>
                     <span>教学进度</span>
@@ -247,6 +261,11 @@ export function CoursesPage({ courses, onChange, onOpenStudents }: Props) {
                   {onOpenStudents && (
                     <button type="button" className="text-action" onClick={() => onOpenStudents(course.id)}>
                       学生与评价
+                    </button>
+                  )}
+                  {onOpenResources && (
+                    <button type="button" className="text-action" onClick={() => onOpenResources(course.id)}>
+                      本课资源{courseResources.length ? ` ${courseResources.length}` : ''}
                     </button>
                   )}
                 </div>

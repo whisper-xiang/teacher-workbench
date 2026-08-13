@@ -86,9 +86,9 @@ function buildRawSeed(weekStart: string, today: string): WorkbenchData {
       { id: 'patrol', date: d(3), start: 6, length: 2, title: '实习巡视', detail: '附属小学', kind: 'patrol', major: 'pri' },
       { id: 'research', date: d(4), start: 7, length: 2, title: '科研材料整理', detail: '办公室', kind: 'meeting' },
       { id: 'meeting', date: d(5), start: 4, length: 2, title: '学院教学例会', detail: '行政楼 312', kind: 'meeting' },
-      { id: 'deadline-grade', date: d(5), start: 0, length: 1, title: '期中成绩录入截止', detail: '教务系统提交', kind: 'deadline' },
-      { id: 'deadline-paper', date: d(4), start: 0, length: 1, title: '课程方案设计截止', detail: '教育学课程组', kind: 'deadline', major: 'edu' },
-      { id: 'deadline-visit', date: d(3), start: 0, length: 1, title: '实习巡视材料提交', detail: '附属小学中期检查', kind: 'deadline', major: 'pri' },
+      { id: 'deadline-grade', date: d(5), start: 0, length: 1, title: '期中成绩录入截止', detail: '教务系统提交', kind: 'deadline', linkTo: { route: 'students', param: 'psy' } },
+      { id: 'deadline-paper', date: d(4), start: 0, length: 1, title: '课程方案设计截止', detail: '教育学课程组', kind: 'deadline', major: 'edu', linkTo: { route: 'courses' } },
+      { id: 'deadline-visit', date: d(3), start: 0, length: 1, title: '实习巡视材料提交', detail: '附属小学中期检查', kind: 'deadline', major: 'pri', linkTo: { route: 'resources' } },
     ],
     dutyRoster: [
       { id: 'd1', day: 1, period: '上午', time: '08:00-12:00', type: '办公室值班', location: '教育学院 312', note: '学生答疑、教务接待' },
