@@ -130,7 +130,7 @@ export type NewsItem = {
   accent: 'teal' | 'blue' | 'amber' | 'slate' | 'violet'
   fresh?: boolean
   hot?: boolean
-  url?: string
+  url: string
 }
 
 export type ToolCategory = '备课工具' | '教学平台' | '学术工具' | '效率工具' | 'AI工具' | '备课与课堂' | '研究与写作' | '协作与事务'
@@ -145,6 +145,25 @@ export type ToolItem = {
   url?: string
   tags?: string[]
   typeLabel?: string
+}
+
+export type ReminderStatus = 'pending' | 'fired' | 'cancelled'
+
+export type ReminderItem = {
+  id: string
+  title: string
+  note?: string
+  /** ISO datetime, local interpreted */
+  scheduledAt: string
+  status: ReminderStatus
+  source: 'manual' | 'ai'
+  rawInput?: string
+  createdAt: string
+  firedAt?: string
+}
+
+export type ReminderSettings = {
+  systemNotifyEnabled: boolean
 }
 
 export type GradeItem = {
@@ -169,6 +188,8 @@ export type WorkbenchMeta = {
   weekNumber: number
   weekStart: string
   demoBanner: boolean
+  /** RSS 资讯上次拉取时间（ISO） */
+  newsFetchedAt?: string
 }
 
 export type WorkbenchData = {
@@ -191,6 +212,8 @@ export type WorkbenchData = {
   favoriteTools: string[]
   grades: GradeItem[]
   dutyConfirmedDates: string[]
+  reminders: ReminderItem[]
+  reminderSettings: ReminderSettings
 }
 
 export type RouteId =
@@ -201,6 +224,7 @@ export type RouteId =
   | 'resources'
   | 'news'
   | 'tools'
+  | 'reminders'
   | 'settings'
 
 export function majorName(id?: MajorId | null): string {

@@ -1,39 +1,82 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { uid } from '../data/store'
-import type { ToolItem } from '../data/types'
+import type { ToolCategory, ToolItem } from '../data/types'
 import { notify } from '../lib/notify'
+import { confirm } from '../lib/confirm'
+
+const ALL = '全部'
+const FAVORITES = '常用'
+const TOOL_CATEGORIES: ToolCategory[] = ['备课工具', '教学平台', '学术工具', '效率工具', 'AI工具']
+const FILTERS = [ALL, FAVORITES, ...TOOL_CATEGORIES] as const
 
 type Draft = {
   id: string
   name: string
   description: string
   url: string
+  category: ToolCategory
 }
 
-type ContextMenuState = {
+type MenuState = {
   toolId: string
   x: number
   y: number
 }
 
-const emptyDraft: Draft = { id: '', name: '', description: '', url: '' }
+const emptyDraft: Draft = { id: '', name: '', description: '', url: '', category: '效率工具' }
 
 type Props = {
   tools: ToolItem[]
+  favorites: string[]
   onChangeTools: (tools: ToolItem[]) => void
+  onChangeFavorites: (ids: string[]) => void
 }
 
-export function ToolsPage({ tools, onChangeTools }: Props) {
+export function ToolsPage({ tools, favorites, onChangeTools, onChangeFavorites }: Props) {
+  const [query, setQuery] = useState('')
+  const [category, setCategory] = useState<string>(ALL)
   const [draft, setDraft] = useState<Draft | null>(null)
-  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
+  const [menu, setMenu] = useState<MenuState | null>(null)
   const menuRef = useRef<HTMLDivElement | null>(null)
 
   const editing = Boolean(draft?.id)
-  const contextTool = contextMenu ? tools.find((tool) => tool.id === contextMenu.toolId) : null
+  const menuTool = menu ? tools.find((tool) => tool.id === menu.toolId) : null
+  const categoryCount = new Set(tools.map((tool) => tool.category)).size
+  const withUrlCount = tools.filter((tool) => tool.url).length
+
+  const activeFilters = useMemo(
+    () => FILTERS.filter((item) => item === ALL || item === FAVORITES || tools.some((tool) => tool.category === item)),
+    [tools],
+  )
+
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    let list = tools
+    if (category === FAVORITES) list = tools.filter((tool) => favorites.includes(tool.id))
+    else if (category !== ALL) list = tools.filter((tool) => tool.category === category)
+
+    if (q) {
+      list = list.filter((tool) =>
+        `${tool.name}${tool.description}${tool.category}${tool.typeLabel ?? ''}${tool.tags?.join('') ?? ''}`
+          .toLowerCase()
+          .includes(q),
+      )
+    }
+
+    if (category === ALL) {
+      list = [...list].sort((a, b) => {
+        const aRank = favorites.includes(a.id) ? 0 : 1
+        const bRank = favorites.includes(b.id) ? 0 : 1
+        return aRank - bRank || a.name.localeCompare(b.name, 'zh-CN')
+      })
+    }
+
+    return list
+  }, [tools, query, category, favorites])
 
   useEffect(() => {
-    if (!contextMenu) return
-    const close = () => setContextMenu(null)
+    if (!menu) return
+    const close = () => setMenu(null)
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') close()
     }
@@ -45,31 +88,36 @@ export function ToolsPage({ tools, onChangeTools }: Props) {
       window.removeEventListener('keydown', onKey)
       window.removeEventListener('scroll', close, true)
     }
-  }, [contextMenu])
+  }, [menu])
 
   useEffect(() => {
-    if (!contextMenu || !menuRef.current) return
+    if (!menu || !menuRef.current) return
     const rect = menuRef.current.getBoundingClientRect()
     const pad = 8
-    let x = contextMenu.x
-    let y = contextMenu.y
+    let x = menu.x
+    let y = menu.y
     if (x + rect.width > window.innerWidth - pad) x = window.innerWidth - rect.width - pad
     if (y + rect.height > window.innerHeight - pad) y = window.innerHeight - rect.height - pad
-    if (x !== contextMenu.x || y !== contextMenu.y) setContextMenu({ ...contextMenu, x, y })
-  }, [contextMenu])
+    if (x !== menu.x || y !== menu.y) setMenu({ ...menu, x, y })
+  }, [menu])
+
+  const openMenu = (toolId: string, anchor: { clientX: number; clientY: number }) => {
+    setMenu({ toolId, x: anchor.clientX, y: anchor.clientY })
+  }
 
   const openCreate = () => {
-    setContextMenu(null)
+    setMenu(null)
     setDraft({ ...emptyDraft })
   }
 
   const openEdit = (tool: ToolItem) => {
-    setContextMenu(null)
+    setMenu(null)
     setDraft({
       id: tool.id,
       name: tool.name,
       description: tool.description,
       url: tool.url ?? '',
+      category: tool.category,
     })
   }
 
@@ -84,13 +132,25 @@ export function ToolsPage({ tools, onChangeTools }: Props) {
     notify.info(`「${tool.name}」尚未填写链接`)
   }
 
-  const removeById = (id: string) => {
+  const toggleFavorite = (id: string) => {
+    const saved = favorites.includes(id)
+    onChangeFavorites(saved ? favorites.filter((item) => item !== id) : [...favorites, id])
+    notify.success(saved ? '已移出常用' : '已加入常用')
+    setMenu(null)
+  }
+
+  const removeById = async (id: string) => {
     const item = tools.find((tool) => tool.id === id)
     if (!item) return
-    if (!window.confirm(`确定删除「${item.name}」？`)) return
+    try {
+      await confirm.delete(`确定删除「${item.name}」？`)
+    } catch {
+      return
+    }
     onChangeTools(tools.filter((tool) => tool.id !== id))
+    onChangeFavorites(favorites.filter((item) => item !== id))
     notify.warning(`已删除：${item.name}`, '已删除')
-    setContextMenu(null)
+    setMenu(null)
     if (draft?.id === id) closeDraft()
   }
 
@@ -106,11 +166,11 @@ export function ToolsPage({ tools, onChangeTools }: Props) {
       id: draft.id || uid('tool'),
       name,
       description,
-      category: existing?.category ?? '效率工具',
+      category: draft.category,
       initials: name.slice(0, 1),
       tone: existing?.tone ?? 'teal',
       url,
-      typeLabel: existing?.typeLabel,
+      typeLabel: existing?.typeLabel ?? '网页',
       tags: existing?.tags,
     }
 
@@ -119,47 +179,164 @@ export function ToolsPage({ tools, onChangeTools }: Props) {
     closeDraft()
   }
 
+  const clearFilters = () => {
+    setQuery('')
+    setCategory(ALL)
+  }
+
+  const renderToolCard = (tool: ToolItem) => {
+    const saved = favorites.includes(tool.id)
+    return (
+      <article key={tool.id} className={`tool-card${menu?.toolId === tool.id ? ' is-menu-open' : ''}${saved ? ' is-favorite' : ''}`}>
+        <button type="button" className="tool-card-main" onClick={() => launch(tool)}>
+          <span className={`tool-avatar tone-${tool.tone}`} aria-hidden="true">
+            {tool.initials}
+          </span>
+          <span className="tool-card-body">
+            <span className="tool-category">{tool.category}</span>
+            <strong>{tool.name}</strong>
+            <small>{tool.description}</small>
+            <span className="tool-card-meta">
+              {tool.typeLabel && <em>{tool.typeLabel}</em>}
+              {tool.tags?.slice(0, 2).map((tag) => (
+                <em key={tag}>{tag}</em>
+              ))}
+              <em>{tool.url ? '点击打开' : '未填写链接'}</em>
+            </span>
+          </span>
+        </button>
+        <button
+          type="button"
+          className={`tool-favorite${saved ? ' saved' : ''}`}
+          aria-label={saved ? '移出常用' : '加入常用'}
+          onClick={() => toggleFavorite(tool.id)}
+        >
+          {saved ? '★' : '☆'}
+        </button>
+        <button
+          type="button"
+          className="tool-menu-btn"
+          aria-label={`更多操作：${tool.name}`}
+          onClick={(event) => {
+            event.stopPropagation()
+            openMenu(tool.id, { clientX: event.clientX, clientY: event.clientY })
+          }}
+          onContextMenu={(event) => {
+            event.preventDefault()
+            event.stopPropagation()
+            openMenu(tool.id, { clientX: event.clientX, clientY: event.clientY })
+          }}
+        >
+          ⋯
+        </button>
+      </article>
+    )
+  }
+
   return (
-    <section className="tools-page tools-page-simple" aria-label="工具箱">
-      <div className="page-actions">
+    <section className="tools-page" aria-label="工具箱">
+      <div className="tools-heading">
+        <div>
+          <p className="section-label">资讯与工具</p>
+          <h1>工具箱</h1>
+          <p>教学常用网站与应用入口 · 点击即可打开 · 本地离线可用</p>
+        </div>
         <button type="button" className="primary-action" onClick={openCreate}>
           ＋ 添加工具
         </button>
       </div>
 
-      <div className="tools-list-simple">
-        {tools.map((tool) => (
-          <button
-            type="button"
-            key={tool.id}
-            className={`tool-row${contextMenu?.toolId === tool.id ? ' is-menu-open' : ''}`}
-            onClick={() => launch(tool)}
-            onContextMenu={(event) => {
-              event.preventDefault()
-              setContextMenu({ toolId: tool.id, x: event.clientX, y: event.clientY })
-            }}
-          >
-            <strong>{tool.name}</strong>
-            <small>{tool.description}</small>
-            <em>{tool.url ? '点击打开' : '未填写链接'}</em>
-          </button>
-        ))}
-        {tools.length === 0 && <div className="tools-empty-simple">暂无工具，点击右上角添加</div>}
+      <div className="tools-notice">
+        <span aria-hidden="true">ℹ</span>
+        <span>预置常用教学工具，可加入常用置顶；点击 ⋯ 可编辑或删除。</span>
       </div>
 
-      {contextMenu && contextTool && (
+      <div className="tools-overview">
+        <div>
+          <span>工具总数</span>
+          <strong>{tools.length}</strong>
+          <small>涵盖 {categoryCount} 个分类</small>
+        </div>
+        <div>
+          <span>常用工具</span>
+          <strong>{favorites.length}</strong>
+          <small>列表优先展示</small>
+        </div>
+        <div>
+          <span>可打开链接</span>
+          <strong>{withUrlCount}</strong>
+          <small>{tools.length - withUrlCount} 个待补链接</small>
+        </div>
+      </div>
+
+      <div className="tools-toolbar">
+        <label className="tools-search">
+          <span aria-hidden="true">⌕</span>
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="搜索名称、分类或标签"
+            aria-label="搜索工具"
+          />
+        </label>
+        <div className="tools-filters" role="tablist" aria-label="分类筛选">
+          {activeFilters.map((item) => (
+            <button
+              key={item}
+              type="button"
+              role="tab"
+              aria-selected={category === item}
+              className={category === item ? 'active' : ''}
+              onClick={() => setCategory(item)}
+            >
+              {item}
+              {item === FAVORITES && favorites.length > 0 ? ` ${favorites.length}` : ''}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="tools-feed">
+        <div className="tools-feed-head">
+          <h2>{category === FAVORITES ? '常用工具' : '全部工具'}</h2>
+          <span>{visible.length} 个</span>
+        </div>
+
+        {visible.length === 0 ? (
+          <div className="tools-empty">
+            <span aria-hidden="true">🧰</span>
+            <h3>{category === FAVORITES ? '还没有常用工具' : '没有匹配的工具'}</h3>
+            <p>{category === FAVORITES ? '点击工具旁的 ☆ 加入常用' : '试试调整搜索词或分类筛选'}</p>
+            {category !== FAVORITES && (
+              <button type="button" className="text-action" onClick={clearFilters}>
+                清除筛选
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="tools-grid">{visible.map(renderToolCard)}</div>
+        )}
+      </div>
+
+      {menu && menuTool && (
         <div
           ref={menuRef}
           className="task-context-menu"
-          style={{ left: contextMenu.x, top: contextMenu.y }}
+          style={{ left: menu.x, top: menu.y }}
           role="menu"
-          aria-label={`工具操作：${contextTool.name}`}
+          aria-label={`工具操作：${menuTool.name}`}
           onPointerDown={(event) => event.stopPropagation()}
         >
-          <button type="button" role="menuitem" onClick={() => openEdit(contextTool)}>
+          <button type="button" role="menuitem" onClick={() => launch(menuTool)}>
+            打开链接
+          </button>
+          <button type="button" role="menuitem" onClick={() => toggleFavorite(menuTool.id)}>
+            {favorites.includes(menuTool.id) ? '移出常用' : '加入常用'}
+          </button>
+          <button type="button" role="menuitem" onClick={() => openEdit(menuTool)}>
             编辑
           </button>
-          <button type="button" role="menuitem" className="is-danger" onClick={() => removeById(contextTool.id)}>
+          <button type="button" role="menuitem" className="is-danger" onClick={() => removeById(menuTool.id)}>
             删除
           </button>
         </div>
@@ -181,6 +358,19 @@ export function ToolsPage({ tools, onChangeTools }: Props) {
                 onChange={(event) => setDraft({ ...draft, name: event.target.value })}
                 placeholder="例如：课程云平台"
               />
+            </label>
+            <label>
+              分类
+              <select
+                value={draft.category}
+                onChange={(event) => setDraft({ ...draft, category: event.target.value as ToolCategory })}
+              >
+                {TOOL_CATEGORIES.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
+              </select>
             </label>
             <label>
               链接

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { uid } from '../data/store'
 import type { Course, TeachingResource } from '../data/types'
 import { notify } from '../lib/notify'
+import { confirm } from '../lib/confirm'
 
 const RESOURCE_TYPES = ['课件', '教案', '试题', '视频', '文献'] as const
 
@@ -73,10 +74,14 @@ export function ResourcesPage({ resources, courses, onChangeResources }: Props) 
     setEditing(null)
   }
 
-  const removeById = (id: string) => {
+  const removeById = async (id: string) => {
     const item = resources.find((resource) => resource.id === id)
     if (!item) return
-    if (!window.confirm(`确定删除「${item.title}」？`)) return
+    try {
+      await confirm.delete(`确定删除「${item.title}」？`)
+    } catch {
+      return
+    }
     onChangeResources(resources.filter((resource) => resource.id !== id))
     notify.warning(`已删除：${item.title}`, '已删除')
     setContextMenu(null)

@@ -1,5 +1,41 @@
-import type { WorkbenchData } from './types'
+import type { ReminderItem, WorkbenchData } from './types'
 import { syncAssignmentDeadlines, syncCourseEvents } from './sync'
+
+function pad(n: number) {
+  return String(n).padStart(2, '0')
+}
+
+function localIso(date: Date) {
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:00`
+}
+
+function buildSeedReminders(): ReminderItem[] {
+  const later = new Date(Date.now() + 2 * 3_600_000)
+  const tomorrow = new Date()
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  tomorrow.setHours(8, 30, 0, 0)
+  const now = new Date().toISOString()
+  return [
+    {
+      id: 'rem-seed-1',
+      title: '批改教育心理学期中作业',
+      note: '重点关注迟交与雷同检测',
+      scheduledAt: localIso(later),
+      status: 'pending',
+      source: 'manual',
+      createdAt: now,
+    },
+    {
+      id: 'rem-seed-2',
+      title: '实习巡视材料打包',
+      scheduledAt: localIso(tomorrow),
+      status: 'pending',
+      source: 'ai',
+      rawInput: '明天上午8点半提醒准备实习巡视材料',
+      createdAt: now,
+    },
+  ]
+}
 
 /**
  * 种子数据只保存「非派生」事件（值班/会议/巡视/独立截止），
@@ -87,15 +123,8 @@ const rawSeed: WorkbenchData = {
     { id: 'guide', title: '《3-6岁儿童学习与发展指南》', course: '幼儿园课程', type: '文献', updated: '4 月 20 日', size: '2.1 MB', accent: 'slate', description: '学前核心参考文件。', tags: ['指南', '学前'], major: 'pre', format: 'PDF' },
   ],
   savedResources: ['motivation'],
-  news: [
-    { id: 'ai-1', category: 'AI热点', title: '教育部发文推进 AI 赋能教育教学', summary: '鼓励高校在课程设计、作业批改、学情分析等环节探索 AI 应用，同时强调学术诚信底线。', source: '教育部官网', date: '5 月 14 日', tag: 'AI 与教育', accent: 'violet', fresh: true, hot: true, url: 'https://www.moe.gov.cn/' },
-    { id: 'policy-1', category: '政策通知', title: '教育部部署推进师范教育协同提质计划', summary: '围绕教师培养、课程建设与实践基地协同提出新要求。', source: '教育部', date: '5 月 13 日', tag: '师范教育', accent: 'teal', fresh: true, hot: true, url: 'https://www.moe.gov.cn/' },
-    { id: 'research-1', category: '教研动态', title: '从课堂观察到教学改进：高校教师发展工作坊报名', summary: '聚焦课堂观察工具、学生反馈分析与教学设计迭代。', source: '省教师发展中心', date: '5 月 12 日', tag: '教学研究', accent: 'blue', fresh: true },
-    { id: 'uni-1', category: '高校动态', title: '多所师范大学联合发起「新师范」建设倡议', summary: '推进师范生培养模式改革、强化教育实践、加强 AI+教师教育融合。', source: '光明日报', date: '5 月 11 日', tag: '新师范', accent: 'blue', hot: true },
-    { id: 'academic-1', category: '学术活动', title: '第十二届教育研究方法论坛征集专题报告', summary: '摘要提交截止日期为 6 月 8 日。', source: '中国教育学会', date: '5 月 11 日', tag: '会议征稿', accent: 'amber' },
-    { id: 'industry-1', category: '行业观察', title: '生成式人工智能融入课程评价的实践边界', summary: '讨论 AI 辅助反馈的适用场景与学术诚信要求。', source: '中国教育报', date: '5 月 10 日', tag: 'AI 与教育', accent: 'slate' },
-  ],
-  newsBookmarks: ['policy-1'],
+  news: [],
+  newsBookmarks: [],
   newsRead: [],
   tools: [
     { id: 'yuketang', name: '雨课堂', description: '课件推送、弹幕互动、随堂测验与学情数据', category: '备课工具', initials: '雨', tone: 'blue', url: 'https://www.yuketang.cn', tags: ['课堂互动', '数据统计'], typeLabel: '网页/小程序' },
@@ -126,6 +155,10 @@ const rawSeed: WorkbenchData = {
     { id: 'g8', courseId: 'kinder', studentId: 's08', usual: 84, midterm: 80, final: 0, total: 82 },
   ],
   dutyConfirmedDates: [],
+  reminders: [],
+  reminderSettings: {
+    systemNotifyEnabled: false,
+  },
 }
 
 export const createSeedData = (): WorkbenchData => {
@@ -133,5 +166,9 @@ export const createSeedData = (): WorkbenchData => {
     syncCourseEvents(rawSeed.events, rawSeed.courses, rawSeed.meta.weekStart),
     rawSeed.assignments,
   )
-  return { ...rawSeed, events }
+  return {
+    ...rawSeed,
+    events,
+    reminders: buildSeedReminders(),
+  }
 }

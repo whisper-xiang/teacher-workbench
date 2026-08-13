@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { uid } from '../data/store'
 import { inferMajorFromText, type Course } from '../data/types'
 import { notify } from '../lib/notify'
+import { confirm } from '../lib/confirm'
 
 const weekDays = ['周一', '周二', '周三', '周四', '周五']
 const sections = ['1–2 节', '3–4 节', '5–6 节', '7–8 节']
@@ -149,10 +150,14 @@ export function CoursesPage({ courses, onChange }: Props) {
     close()
   }
 
-  const removeById = (id: string) => {
+  const removeById = async (id: string) => {
     const item = courses.find((course) => course.id === id)
     if (!item) return
-    if (!window.confirm(`确定删除「${item.name}」？`)) return
+    try {
+      await confirm.delete(`确定删除「${item.name}」？`)
+    } catch {
+      return
+    }
     onChange(courses.filter((course) => course.id !== id))
     notify.warning(`已删除：${item.name}`, '已删除')
     setContextMenu(null)

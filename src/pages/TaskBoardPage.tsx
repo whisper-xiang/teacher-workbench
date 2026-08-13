@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { uid } from '../data/store'
 import type { BoardPriority, BoardStatus, BoardTask } from '../data/types'
 import { notify } from '../lib/notify'
+import { confirm } from '../lib/confirm'
 import { isTaskOverdue } from '../lib/tasks'
 
 const boardColumns: { id: BoardStatus; title: string }[] = [
@@ -138,10 +139,14 @@ export function TaskBoardPage({ tasks, onChange }: Props) {
     closeComposer()
   }
 
-  const removeTaskById = (id: string) => {
+  const removeTaskById = async (id: string) => {
     const item = tasks.find((task) => task.id === id)
     if (!item) return
-    if (!window.confirm(`确定删除「${item.title}」？`)) return
+    try {
+      await confirm.delete(`确定删除「${item.title}」？`)
+    } catch {
+      return
+    }
     onChange(tasks.filter((task) => task.id !== id))
     notify.warning(`已删除：${item.title}`, '已删除')
     setContextMenu(null)

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import './App.css'
 import './routes.css'
 import './dashboard.css'
@@ -9,6 +9,7 @@ import './courses.css'
 import './resources.css'
 import './tools.css'
 import './news.css'
+import './reminders.css'
 import './task-board.css'
 import './settings.css'
 import './majors.css'
@@ -26,7 +27,11 @@ import { ResourcesPage } from './pages/ResourcesPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { TaskBoardPage } from './pages/TaskBoardPage'
 import { ToolsPage } from './pages/ToolsPage'
+import { RemindersPage } from './pages/RemindersPage'
 import { NotifyHost } from './components/NotifyHost'
+import { ConfirmHost } from './components/ConfirmHost'
+import { useReminderScheduler } from './hooks/useReminderScheduler'
+import { fetchRssNews } from './lib/rss'
 
 type NavPage = { id: RouteId; label: string; icon: string }
 
@@ -34,6 +39,7 @@ const pages: NavPage[] = [
   { id: 'overview', label: '工作概览', icon: '🏠' },
   { id: 'calendar', label: '日程与值班', icon: '📅' },
   { id: 'tasks', label: '教学看板', icon: '✅' },
+  { id: 'reminders', label: '通知提醒', icon: '🔔' },
   { id: 'courses', label: '课程与排课', icon: '📚' },
   { id: 'resources', label: '教学资源库', icon: '🗂️' },
   { id: 'news', label: '热点资讯', icon: '📰' },
@@ -42,7 +48,7 @@ const pages: NavPage[] = [
 ]
 
 const groups = [
-  { label: '工作台', ids: ['overview', 'calendar', 'tasks'] as RouteId[] },
+  { label: '工作台', ids: ['overview', 'calendar', 'tasks', 'reminders'] as RouteId[] },
   { label: '教学管理', ids: ['courses', 'resources'] as RouteId[] },
   { label: '资讯与工具', ids: ['news', 'tools', 'settings'] as RouteId[] },
 ]
@@ -85,9 +91,37 @@ function App() {
     setNavOpen(false)
   }
 
+  const fireReminder = useCallback(
+    (id: string, firedAt: string) => {
+      patch('reminders', (prev) =>
+        prev.map((item) => (item.id === id ? { ...item, status: 'fired' as const, firedAt } : item)),
+      )
+    },
+    [patch],
+  )
+
+  useReminderScheduler({
+    reminders: data.reminders,
+    settings: data.reminderSettings,
+    onFire: fireReminder,
+  })
+
+  const refreshNews = useCallback(async () => {
+    const items = await fetchRssNews()
+    if (!items.length) throw new Error('未获取到资讯，请检查网络或稍后重试')
+    update((current) => ({
+      ...current,
+      news: items,
+      newsRead: current.newsRead.filter((id) => items.some((item) => item.id === id)),
+      newsBookmarks: current.newsBookmarks.filter((id) => items.some((item) => item.id === id)),
+      meta: { ...current.meta, newsFetchedAt: new Date().toISOString() },
+    }))
+  }, [update])
+
   return (
     <div className="app-shell">
       <NotifyHost />
+      <ConfirmHost />
       <aside className={navOpen ? 'sidebar sidebar-open' : 'sidebar'} aria-label="主导航">
         <div className="brand">
           <div className="brand-mark" aria-hidden="true">教</div>
@@ -105,6 +139,7 @@ function App() {
                 const selected = id === activeId
                 const badge =
                   id === 'tasks' ? data.tasks.filter((t) => t.status !== 'done').length :
+                  id === 'reminders' ? data.reminders.filter((r) => r.status === 'pending').length :
                   id === 'news' ? data.news.filter((n) => n.fresh && !data.newsRead.includes(n.id)).length :
                   id === 'calendar' ? data.events.filter((e) => e.kind === 'deadline').length :
                   0
@@ -185,11 +220,28 @@ function App() {
           <NewsPage
             news={data.news}
             readItems={data.newsRead}
+            bookmarks={data.newsBookmarks}
+            fetchedAt={data.meta.newsFetchedAt}
             onChangeRead={(newsRead) => patch('newsRead', newsRead)}
+            onChangeBookmarks={(newsBookmarks) => patch('newsBookmarks', newsBookmarks)}
+            onRefresh={refreshNews}
           />
         )}
         {activeId === 'tools' && (
-          <ToolsPage tools={data.tools} onChangeTools={(tools) => patch('tools', tools)} />
+          <ToolsPage
+            tools={data.tools}
+            favorites={data.favoriteTools}
+            onChangeTools={(tools) => patch('tools', tools)}
+            onChangeFavorites={(favoriteTools) => patch('favoriteTools', favoriteTools)}
+          />
+        )}
+        {activeId === 'reminders' && (
+          <RemindersPage
+            reminders={data.reminders}
+            settings={data.reminderSettings}
+            onChangeReminders={(reminders) => patch('reminders', reminders)}
+            onChangeSettings={(reminderSettings) => patch('reminderSettings', reminderSettings)}
+          />
         )}
         {activeId === 'settings' && (
           <SettingsPage

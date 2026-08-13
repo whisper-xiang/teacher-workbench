@@ -7,6 +7,7 @@
 .resources-page,
 .news-page,
 .tools-page,
+.reminders-page,
 .settings-page {
   width: 100%;
   max-width: none;
@@ -26,6 +27,7 @@
 .resources-page,
 .news-page,
 .tools-page,
+.reminders-page,
 .settings-page,
 .page {
   padding-top: 12px;
@@ -92,6 +94,7 @@ body,
   .resources-page,
   .news-page,
   .tools-page,
+  .reminders-page,
   .settings-page {
     padding: 12px 32px 40px;
     max-width: none;

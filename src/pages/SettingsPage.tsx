@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import type { TeacherProfile, WorkbenchMeta } from '../data/types'
 import { notify } from '../lib/notify'
+import { confirm } from '../lib/confirm'
 
 type Props = {
   profile: TeacherProfile
@@ -96,10 +97,16 @@ export function SettingsPage({ profile, meta, updatedAt, onSaveProfile, onExport
           <button
             className="danger-action"
             type="button"
-            onClick={() => {
-              if (window.confirm('确定恢复为初始演示数据？当前本地数据将被覆盖。')) {
+            onClick={async () => {
+              try {
+                await confirm.warning('当前本地数据将被覆盖。', '确定恢复为初始演示数据？', {
+                  confirmButtonText: '恢复',
+                  confirmButtonClass: 'danger',
+                })
                 onReset()
                 notify.success('已恢复初始演示数据')
+              } catch {
+                /* cancelled */
               }
             }}
           >

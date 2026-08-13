@@ -2,6 +2,11 @@
 
 .category-violet{background:#ede9fe;color:#6d28d9}
 
+.news-card.has-link .news-card-main:hover h3{color:#08645e;text-decoration:underline;text-underline-offset:3px}
+.news-card.has-link .news-card-main>div span:last-child{color:#43807a}
+.news-detail-title-link{display:inline;border:0;padding:0;background:transparent;color:inherit;font:inherit;font-size:inherit;line-height:inherit;letter-spacing:inherit;text-align:left;cursor:pointer}
+.news-detail-title-link:hover{color:#08645e;text-decoration:underline;text-underline-offset:4px}
+
 /* Simple closed-loop news */
 .news-page-simple .news-list-simple{
   display:grid;

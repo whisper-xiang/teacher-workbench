@@ -4,6 +4,7 @@ import type {
   BoardTask,
   CalendarEvent,
   Course,
+  NewsItem,
   StudentRecord,
   TeachingResource,
   WorkbenchData,
@@ -68,6 +69,20 @@ function normalizeEvent(event: CalendarEvent): CalendarEvent {
   }
 }
 
+function normalizeNews(partial: Partial<WorkbenchData>) {
+  const raw = partial.news ?? []
+  const isLegacySeed = raw.length > 0 && raw.every((item) => !item.id.startsWith('rss-'))
+  if (isLegacySeed) {
+    return { news: [] as NewsItem[], newsBookmarks: [] as string[], newsRead: [] as string[] }
+  }
+  const ids = new Set(raw.map((item) => item.id))
+  return {
+    news: raw,
+    newsBookmarks: (partial.newsBookmarks ?? []).filter((id) => ids.has(id)),
+    newsRead: (partial.newsRead ?? []).filter((id) => ids.has(id)),
+  }
+}
+
 function mergeWithSeed(partial: Partial<WorkbenchData> | null): WorkbenchData {
   const seed = createSeedData()
   if (!partial || partial.version !== 1) return seed
@@ -80,6 +95,7 @@ function mergeWithSeed(partial: Partial<WorkbenchData> | null): WorkbenchData {
   // 日历中的课程/截止事件是派生数据：先清掉历史手写课程事件，再按课程与作业重建
   const baseEvents = (partial.events ?? seed.events).map(normalizeEvent).filter((item) => item.kind !== 'course')
   const events = syncAssignmentDeadlines(syncCourseEvents(baseEvents, courses, meta.weekStart), assignments)
+  const { news, newsBookmarks, newsRead } = normalizeNews(partial)
 
   return {
     ...seed,
@@ -95,14 +111,16 @@ function mergeWithSeed(partial: Partial<WorkbenchData> | null): WorkbenchData {
     tasks: (partial.tasks ?? seed.tasks).map(normalizeTask),
     resources: (partial.resources ?? seed.resources).map(normalizeResource),
     savedResources: partial.savedResources ?? seed.savedResources,
-    news: partial.news ?? seed.news,
-    newsBookmarks: partial.newsBookmarks ?? seed.newsBookmarks,
-    newsRead: partial.newsRead ?? seed.newsRead,
+    news,
+    newsBookmarks,
+    newsRead,
     // If user still has old short tool list, prefer richer seed once.
     tools: (partial.tools?.length ?? 0) >= 10 ? partial.tools! : seed.tools,
     favoriteTools: partial.favoriteTools ?? seed.favoriteTools,
     grades: partial.grades ?? seed.grades,
     dutyConfirmedDates: partial.dutyConfirmedDates ?? seed.dutyConfirmedDates,
+    reminders: partial.reminders?.length ? partial.reminders : seed.reminders,
+    reminderSettings: { ...seed.reminderSettings, ...partial.reminderSettings },
     updatedAt: partial.updatedAt ?? new Date().toISOString(),
   }
 }
