@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { MajorTag } from '../components/MajorTag'
 import type { BoardTask, CalendarEvent, Course, WorkbenchMeta } from '../data/types'
 import { deadlineLinkLabel, inferDeadlineLink } from '../lib/deadlines'
-import { formatDayLabel, times, todayIso } from '../lib/dates'
+import { formatDayLabel, times, todayIso, weekdayLabel } from '../lib/dates'
 import { currentCourseTopic } from '../lib/courses'
 
 type Props = {
@@ -14,7 +14,29 @@ type Props = {
   onSetTaskStatus: (id: string, done: boolean) => void
 }
 
+const FESTIVALS: Record<string, string> = {
+  '01-01': '元旦',
+  '02-14': '情人节',
+  '03-08': '妇女节',
+  '04-01': '愚人节',
+  '05-01': '劳动节',
+  '05-04': '青年节',
+  '06-01': '儿童节',
+  '07-01': '建党节',
+  '08-01': '建军节',
+  '09-10': '教师节',
+  '10-01': '国庆节',
+  '12-24': '平安夜',
+  '12-25': '圣诞节',
+}
+
+function festivalLabel(date: Date) {
+  const key = `${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+  return FESTIVALS[key] ?? '今日无节日'
+}
+
 export function Dashboard({ meta, events, tasks, courses, onNavigate, onSetTaskStatus }: Props) {
+  const now = new Date()
   const today = todayIso()
 
   const schedule = useMemo(
@@ -46,30 +68,27 @@ export function Dashboard({ meta, events, tasks, courses, onNavigate, onSetTaskS
   }, [tasks])
   const pendingCount = focusTasks.filter((task) => task.status !== 'done').length
   const duties = events.filter((item) => item.date === today && (item.kind === 'duty' || item.kind === 'patrol'))
-  const next = schedule[0]
+  const todayLabel = `${formatDayLabel(now)} · ${weekdayLabel(now)}`
+  const termWeekLabel = `${meta.termLabel} · 开学第 ${meta.weekNumber} 周`
 
   return (
     <section className="dashboard" aria-label="工作概览">
-      {next && (
-        <section className="next-event" aria-label="下一件事">
-          <div>
-            <p className="section-label">下一件事</p>
-            <h2>
-              {next.time} {next.title}
-            </h2>
-            <p>{next.meta}</p>
-          </div>
-          <button className="primary-action" onClick={() => onNavigate('calendar')}>
-            查看今日日程
-          </button>
-        </section>
-      )}
+      <section className="overview-banner" aria-label="今日信息">
+        <div className="overview-banner-main">
+          <p className="section-label">今日概览</p>
+          <h2>{todayLabel}</h2>
+        </div>
+        <div className="overview-banner-tags" aria-label="日期标签">
+          <span>{festivalLabel(now)}</span>
+          <span>{termWeekLabel}</span>
+        </div>
+      </section>
 
       <div className="dashboard-grid">
         <section className="dashboard-panel schedule-panel">
           <div className="panel-heading">
             <div>
-              <p className="section-label">今日安排 · {formatDayLabel(new Date())}</p>
+              <p className="section-label">今日安排 · {formatDayLabel(now)}</p>
               <h2>按时间完成今天的工作</h2>
             </div>
             <button className="text-action" onClick={() => onNavigate('calendar')}>
@@ -78,15 +97,16 @@ export function Dashboard({ meta, events, tasks, courses, onNavigate, onSetTaskS
           </div>
           <div className="timeline">
             {schedule.length === 0 && <div className="empty-column">今天暂无日程，可在日历中添加。</div>}
-            {schedule.map((item) => {
+            {schedule.map((item, index) => {
               const link = item.event.kind === 'deadline' ? item.event.linkTo ?? inferDeadlineLink(item.event) : undefined
               return (
-              <div className="timeline-item" key={`${item.time}-${item.title}`}>
+              <div className={index === 0 ? 'timeline-item timeline-item-next' : 'timeline-item'} key={`${item.time}-${item.title}`}>
                 <div className="timeline-time">
                   <strong>{item.time}</strong>
                   <span>{item.end}</span>
                 </div>
                 <div className="timeline-content">
+                  {index === 0 && <span className="timeline-next-badge">下一件事</span>}
                   <span className={item.type === '课程' ? 'event-kind event-course' : 'event-kind'}>{item.type}</span>
                   <strong>{item.title}</strong>
                   <span>{item.meta}</span>
