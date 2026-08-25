@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { uid } from '../data/store'
-import { inferMajorFromText, type Course, type TeachingResource } from '../data/types'
+import { inferMajorFromText, type Assignment, type Course, type StudentRecord, type TeachingResource } from '../data/types'
+import { courseClassLabel, courseStudentCount, ensureCourseClasses } from '../lib/course-classes'
 import { currentCourseTopic, formatSession, SECTIONS, SECTION_TIMES, topicsFromText, topicsToText, WEEK_DAYS } from '../lib/courses'
 import { notify } from '../lib/notify'
 import { confirm } from '../lib/confirm'
+import { CourseDetailPanel } from './CourseDetailPanel'
 
 type SessionDraft = { day: string; section: string; room: string }
 
@@ -63,12 +65,30 @@ function progressPct(course: Course) {
 type Props = {
   courses: Course[]
   resources?: TeachingResource[]
+  students?: StudentRecord[]
+  assignments?: Assignment[]
+  initialCourseId?: string
   onChange: (courses: Course[]) => void
+  onChangeResources?: (resources: TeachingResource[]) => void
+  onChangeAssignments?: (assignments: Assignment[]) => void
   onOpenStudents?: (courseId: string) => void
   onOpenResources?: (courseId: string) => void
+  onSelectCourse?: (courseId: string) => void
 }
 
-export function CoursesPage({ courses, resources = [], onChange, onOpenStudents, onOpenResources }: Props) {
+export function CoursesPage({
+  courses,
+  resources = [],
+  students = [],
+  assignments = [],
+  initialCourseId,
+  onChange,
+  onChangeResources,
+  onChangeAssignments,
+  onOpenStudents,
+  onOpenResources,
+  onSelectCourse,
+}: Props) {
   const [draft, setDraft] = useState<Draft | null>(null)
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
   const menuRef = useRef<HTMLDivElement | null>(null)
@@ -144,13 +164,30 @@ export function CoursesPage({ courses, resources = [], onChange, onOpenStudents,
     const name = draft.name.trim()
     const weeklyTopics = topicsFromText(draft.weeklyTopics, totalWeeks)
     const topic = currentCourseTopic({ weeklyTopics, topic: existing?.topic, currentWeek }) || '待补充教学主题'
+    const studentCount = Math.max(0, Number(draft.students) || 0)
+    const id = draft.id || uid('course')
+    const existingClasses = existing ? ensureCourseClasses(existing) : []
+    const classes =
+      existingClasses.length > 1
+        ? existingClasses.map((item, index) =>
+            index === 0 ? { ...item, name: className, studentCount, currentWeek } : item,
+          )
+        : [
+            {
+              id: existingClasses[0]?.id || `${id}-class-1`,
+              name: className,
+              studentCount,
+              currentWeek,
+              nodes: existingClasses[0]?.nodes ?? [],
+            },
+          ]
 
     const next: Course = {
-      id: draft.id || uid('course'),
+      id,
       name,
       code: draft.code.trim() || existing?.code || 'EDU000',
       className,
-      students: Math.max(0, Number(draft.students) || 0),
+      students: classes.reduce((sum, item) => sum + item.studentCount, 0),
       credits: Math.max(0.5, Number(draft.credits) || existing?.credits || 2),
       major: existing?.major ?? inferMajorFromText(`${className} ${name}`),
       description: draft.description.trim() || existing?.description,
@@ -163,6 +200,7 @@ export function CoursesPage({ courses, resources = [], onChange, onOpenStudents,
       status: existing?.status ?? (progress >= 50 ? '正常' : '待更新'),
       color: existing?.color ?? 'teal',
       sessions,
+      classes,
     }
 
     onChange(draft.id ? courses.map((course) => (course.id === draft.id ? next : course)) : [...courses, next])
@@ -192,13 +230,32 @@ export function CoursesPage({ courses, resources = [], onChange, onOpenStudents,
     })
   }
 
+  const selected = initialCourseId ? courses.find((course) => course.id === initialCourseId) : undefined
+  if (selected) {
+    return (
+      <CourseDetailPanel
+        key={selected.id}
+        course={selected}
+        resources={resources}
+        students={students}
+        assignments={assignments}
+        onBack={() => onSelectCourse?.('')}
+        onOpenStudents={onOpenStudents ? () => onOpenStudents(selected.id) : undefined}
+        onOpenLibrary={onOpenResources ? () => onOpenResources(selected.id) : undefined}
+        onChangeCourse={(course) => onChange(courses.map((item) => (item.id === course.id ? course : item)))}
+        onChangeResources={onChangeResources ?? (() => undefined)}
+        onChangeAssignments={onChangeAssignments}
+      />
+    )
+  }
+
   return (
-    <section className="courses-page courses-page-simple" aria-label="课程与排课">
+    <section className="courses-page courses-page-simple" aria-label="教学 · 课程门类">
       <div className="courses-heading">
         <div>
-          <p className="section-label">教学管理</p>
-          <h1>课程与排课</h1>
-          <p>一门课可排多个时段，周主题会同步到工作概览</p>
+          <p className="section-label">日常工作 · 教学</p>
+          <h1>课程门类</h1>
+          <p>一门课可带多个班级；可记进度、作业发布回收与学生表现，资源可从资源库导入并在此预览编辑</p>
         </div>
         <button type="button" className="primary-action" onClick={() => openCreate()}>
           ＋ 新建课程
@@ -222,8 +279,8 @@ export function CoursesPage({ courses, resources = [], onChange, onOpenStudents,
                   <span className="course-code">{course.code}</span>
                 </div>
                 <div className="course-overview-meta">
-                  <span>{course.className}</span>
-                  <span>{course.students} 人</span>
+                  <span>{courseClassLabel(course)}</span>
+                  <span>{courseStudentCount(course)} 人</span>
                   <span>{course.credits} 学分</span>
                 </div>
                 <div className="course-overview-meta course-overview-sessions">
@@ -255,6 +312,9 @@ export function CoursesPage({ courses, resources = [], onChange, onOpenStudents,
                   </div>
                 </div>
                 <div className="course-overview-actions">
+                  <button type="button" className="text-action" onClick={() => onSelectCourse?.(course.id)}>
+                    进入课程
+                  </button>
                   <button type="button" className="text-action" onClick={() => openEdit(course)}>
                     编辑档案
                   </button>
@@ -320,7 +380,7 @@ export function CoursesPage({ courses, resources = [], onChange, onOpenStudents,
                         >
                           <b>{hit.name}</b>
                           <span>
-                            {hit.className}
+                            {courseClassLabel(hit)}
                             <br />
                             {session.room}
                           </span>
@@ -344,6 +404,16 @@ export function CoursesPage({ courses, resources = [], onChange, onOpenStudents,
           aria-label={`课程操作：${contextCourse.name}`}
           onPointerDown={(event) => event.stopPropagation()}
         >
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              onSelectCourse?.(contextCourse.id)
+              setContextMenu(null)
+            }}
+          >
+            进入课程
+          </button>
           <button type="button" role="menuitem" onClick={() => openEdit(contextCourse)}>
             编辑档案
           </button>
@@ -400,7 +470,7 @@ export function CoursesPage({ courses, resources = [], onChange, onOpenStudents,
 
             <div className="composer-grid">
               <label>
-                班级
+                主班级
                 <input
                   value={draft.className}
                   onChange={(event) => setDraft({ ...draft, className: event.target.value })}

@@ -37,6 +37,7 @@ type Props = {
   onChangeStudents: (students: StudentRecord[]) => void
   onChangeAssignments: (assignments: Assignment[]) => void
   onChangeGrades: (grades: GradeItem[]) => void
+  onBack?: () => void
 }
 
 function homeworkText(student: StudentRecord, assignments: Assignment[]) {
@@ -94,6 +95,7 @@ export function StudentsPage({
   onChangeStudents,
   onChangeAssignments,
   onChangeGrades,
+  onBack,
 }: Props) {
   const [courseId, setCourseId] = useState(initialCourseId || courses[0]?.id || '')
   const [query, setQuery] = useState('')
@@ -348,11 +350,16 @@ export function StudentsPage({
     <section className="students-page" aria-label="学生与评价">
       <div className="students-heading">
         <div>
-          <p className="section-label">教学管理</p>
+          <p className="section-label">日常工作</p>
           <h1>学生与评价</h1>
           <p>过程性评价、作业批改与总评登记 · 数据仅保存在本机</p>
         </div>
         <div className="students-heading-actions">
+          {onBack && (
+            <button type="button" className="outline-action" onClick={onBack}>
+              ← 返回教学
+            </button>
+          )}
           <button type="button" className="outline-action" onClick={() => setImportText('')}>
             导入花名册
           </button>

@@ -56,3 +56,16 @@
 .upcoming-list b{display:inline-flex;flex-wrap:wrap;gap:6px;align-items:center}
 @media(max-width:1100px){.month-workspace{grid-template-columns:1fr}}
 @media(max-width:860px){.week-allday{min-width:650px}}
+.calendar-page-actions{align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.calendar-add-hint{margin:0;max-width:42em;color:var(--muted);font-size:13px;line-height:1.55}
+.calendar-page-actions-btns{display:flex;align-items:center;gap:10px}
+.calendar-add-btn{padding:12px 18px;font-size:15px;box-shadow:0 8px 18px rgba(44,77,61,.22)}
+.day-detail-card .primary-action{padding:8px 12px;font-size:13px}
+.day-detail-item.is-open{border-color:#c9d8ce;background:#fff;box-shadow:0 4px 12px rgba(58,45,28,.04)}
+.day-detail-item.is-done{background:#f3f0ea;opacity:.78}
+.calendar-event.is-done,.month-event.is-done{opacity:.48;filter:grayscale(.15)}
+.calendar-event.is-done b,.month-event.is-done{text-decoration:line-through}
+.kind-badge-journal{background:#e8f3f6;color:#2d6473}
+.day-detail-dot.event-journal{background:#3d7c8c}
+.event-journal,.allday-chip.event-journal{border-color:#3d7c8c;background:#e8f3f6;color:#2d6473}
+.allday-chip.event-journal{border:0}

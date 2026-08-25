@@ -25,9 +25,10 @@ type Props = {
   initialCourseId?: string
   onChangeResources: (resources: TeachingResource[]) => void
   onOpenCourse?: (courseId: string) => void
+  onBack?: () => void
 }
 
-export function ResourcesPage({ resources, courses, initialCourseId, onChangeResources, onOpenCourse }: Props) {
+export function ResourcesPage({ resources, courses, initialCourseId, onChangeResources, onOpenCourse, onBack }: Props) {
   const [query, setQuery] = useState('')
   const [courseFilter, setCourseFilter] = useState(initialCourseId ?? '')
   const [composerOpen, setComposerOpen] = useState(false)
@@ -219,13 +220,20 @@ export function ResourcesPage({ resources, courses, initialCourseId, onChangeRes
     >
       <div className="resources-heading">
         <div>
-          <p className="section-label">教学管理</p>
+          <p className="section-label">日常工作</p>
           <h1>教学资源库</h1>
           <p>文件保存在本机浏览器中，可绑定课程并标记已用</p>
         </div>
-        <button type="button" className="primary-action" onClick={() => openComposer(null)}>
-          ＋ 登记资源
-        </button>
+        <div className="students-heading-actions">
+          {onBack && (
+            <button type="button" className="outline-action" onClick={onBack}>
+              ← 返回教学
+            </button>
+          )}
+          <button type="button" className="primary-action" onClick={() => openComposer(null)}>
+            ＋ 登记资源
+          </button>
+        </div>
       </div>
 
       <div className="students-course-tabs" role="tablist" aria-label="按课程筛选">

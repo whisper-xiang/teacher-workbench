@@ -1,0 +1,64 @@
+/* 立体按压：多数按钮带厚度，点下去会抖动回弹 */
+.app-shell button:not(.scrim):not(.text-action):not(.icon-button):not(.task-link):not(.day-detail-main):not(.week-day-btn):not(.desk-pet-avatar):not(.desk-pet-dock):not(.pet-preset-card) {
+  position: relative;
+  box-shadow:
+    0 3px 0 rgba(44, 77, 61, 0.16),
+    0 8px 16px rgba(58, 45, 28, 0.08);
+  transform: translateY(0);
+  transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+}
+
+.app-shell button:not(.scrim):not(.text-action):not(.icon-button):not(.task-link):not(.day-detail-main):not(.week-day-btn):not(.desk-pet-avatar):not(.desk-pet-dock):not(.pet-preset-card):hover {
+  transform: translateY(-1px);
+  filter: brightness(1.02);
+}
+
+.app-shell button:not(.scrim):not(.text-action):not(.icon-button):not(.task-link):not(.day-detail-main):not(.week-day-btn):not(.desk-pet-avatar):not(.desk-pet-dock):not(.pet-preset-card):active {
+  transform: translateY(3px);
+  box-shadow:
+    0 1px 0 rgba(44, 77, 61, 0.2),
+    0 3px 8px rgba(58, 45, 28, 0.08);
+  animation: tap-wiggle 0.38s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+
+.primary-action,
+button.primary-action {
+  box-shadow:
+    0 4px 0 #243f33,
+    0 10px 18px rgba(44, 77, 61, 0.28) !important;
+}
+
+.primary-action:active,
+button.primary-action:active {
+  box-shadow:
+    0 1px 0 #243f33,
+    0 4px 10px rgba(44, 77, 61, 0.2) !important;
+}
+
+.outline-action,
+button.outline-action,
+.care-punch,
+.goal-step {
+  box-shadow:
+    0 3px 0 #d5cbbd,
+    0 8px 14px rgba(58, 45, 28, 0.08);
+}
+
+@keyframes tap-wiggle {
+  0% { transform: translateY(3px) rotate(0) scale(0.98); }
+  30% { transform: translateY(3px) rotate(-2.2deg) scale(0.96); }
+  62% { transform: translateY(1px) rotate(2deg) scale(1.04); }
+  100% { transform: translateY(0) rotate(0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-shell button:not(.scrim):not(.text-action):not(.icon-button):not(.task-link):not(.day-detail-main):not(.week-day-btn):not(.desk-pet-avatar):not(.desk-pet-dock):not(.pet-preset-card):active {
+    animation: none;
+  }
+}
+
+.month-grid > button,
+.day-column {
+  box-shadow: none !important;
+  animation: none !important;
+}

@@ -79,19 +79,34 @@ export async function clearAllResourceFiles() {
   }
 }
 
+export function canPreviewFile(mime = '', name = '') {
+  const lower = `${mime} ${name}`.toLowerCase()
+  return lower.includes('image/') || lower.includes('pdf') || lower.includes('text/') || /\.(png|jpe?g|gif|webp|pdf|txt|md|html?)$/.test(lower)
+}
+
 export async function openStoredFile(id: string) {
   const stored = await getResourceFile(id)
   if (!stored) throw new Error('找不到本地文件，可能已被清理')
   const url = URL.createObjectURL(stored.blob)
-  const preview = stored.type.startsWith('image/') || stored.type === 'application/pdf' || stored.type.startsWith('text/')
-  if (preview) {
+  if (canPreviewFile(stored.type, stored.name)) {
     window.open(url, '_blank', 'noopener,noreferrer')
     window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
     return
   }
+  await downloadFromUrl(url, stored.name || '教学资源')
+}
+
+export async function downloadStoredFile(id: string) {
+  const stored = await getResourceFile(id)
+  if (!stored) throw new Error('找不到本地文件，可能已被清理')
+  const url = URL.createObjectURL(stored.blob)
+  await downloadFromUrl(url, stored.name || '教学资源')
+}
+
+function downloadFromUrl(url: string, name: string) {
   const anchor = document.createElement('a')
   anchor.href = url
-  anchor.download = stored.name || '教学资源'
+  anchor.download = name
   anchor.click()
   window.setTimeout(() => URL.revokeObjectURL(url), 30_000)
 }

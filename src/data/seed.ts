@@ -1,7 +1,7 @@
 import { dueLabel, iso, mondayOf, shift, todayIso } from '../lib/dates'
 import { DEFAULT_FAVORITE_TOOL_IDS, DEFAULT_TOOLS, PRESET_TOOLS_VERSION } from './default-tools'
 import type { Course, ReminderItem, WorkbenchData } from './types'
-import { syncAssignmentDeadlines, syncCourseEvents } from './sync'
+import { syncDerivedEvents } from './sync'
 
 function pad(n: number) {
   return String(n).padStart(2, '0')
@@ -129,6 +129,27 @@ function buildRawSeed(weekStart: string, today: string): WorkbenchData {
           10: '课堂管理中的动机策略',
           11: '自我效能与归因',
         }),
+        classes: [
+          {
+            id: 'psy-c1',
+            name: '教育学 2024-1 班',
+            studentCount: 52,
+            currentWeek: 9,
+            nodes: [
+              { id: 'psy-n1', week: 9, kind: '进度', note: '已讲到学习动机理论，下节进入期中案例讨论' },
+              { id: 'psy-n2', week: 9, kind: '作业发布', note: '布置期中案例分析，周五回收' },
+            ],
+          },
+          {
+            id: 'psy-c2',
+            name: '教育学 2024-2 班',
+            studentCount: 48,
+            currentWeek: 8,
+            nodes: [
+              { id: 'psy-n3', week: 8, kind: '学生表现', note: '该班进度慢一周，讨论参与度一般，需点名提问' },
+            ],
+          },
+        ],
       }),
       withTopic({
         id: 'pre',
@@ -300,19 +321,238 @@ function buildRawSeed(weekStart: string, today: string): WorkbenchData {
     reminderSettings: {
       systemNotifyEnabled: false,
     },
+    researchNotices: [
+      {
+        id: 'rn-upcoming-1',
+        title: '2026年度陕西省教育科学规划课题即将启动',
+        source: '陕西省教育科学研究院',
+        summary: '面向教育学、课程与教学论方向，预计近期发布指南。可先整理前期成果与团队分工。',
+        category: '省规划',
+        openAt: d(18),
+        closeAt: d(45),
+        status: 'upcoming',
+        url: 'https://jyt.shaanxi.gov.cn/',
+      },
+      {
+        id: 'rn-upcoming-2',
+        title: '教育部人文社会科学研究项目申报预告',
+        source: '教育部社科司',
+        summary: '教育学门类规划基金、青年基金即将进入预报名阶段，需提前核对限项与校内截止。',
+        category: '教育部',
+        openAt: d(25),
+        closeAt: d(55),
+        status: 'upcoming',
+        url: 'https://www.moe.gov.cn/',
+      },
+      {
+        id: 'rn-open-1',
+        title: '2026年大学生创新创业训练计划（校级）申报中',
+        source: '学校教务处 / 创新创业学院',
+        summary: '教师可指导国家级、省级大创。本轮已开放网报，需提交立项书与指导教师意见。',
+        category: '大创',
+        openAt: d(-8),
+        closeAt: d(12),
+        status: 'open',
+      },
+      {
+        id: 'rn-open-2',
+        title: '陕西省哲学社会科学研究专项（教育学）正在受理',
+        source: '陕西省社科联',
+        summary: '聚焦基础教育高质量发展、教师教育与师范人才培养，申报材料已进入校内审核窗口。',
+        category: '省社科',
+        openAt: d(-14),
+        closeAt: d(6),
+        status: 'open',
+      },
+    ],
+    researchProjects: [
+      {
+        id: 'rp-applying-1',
+        title: '课堂观察量表修订与师范生实习评价',
+        category: '校级教改',
+        status: 'applying',
+        summary: '正在撰写申报书，拟对接教育心理学见习环节。',
+        noticeId: 'rn-open-2',
+        startDate: d(-5),
+        endDate: d(6),
+        milestones: [
+          { id: 'rp-a-m1', name: '选题论证', done: true },
+          { id: 'rp-a-m2', name: '申报书初稿', done: true },
+          { id: 'rp-a-m3', name: '校内审核提交', done: false, due: d(4) },
+        ],
+        materials: [],
+        achievements: [],
+      },
+      {
+        id: 'rp-mine-1',
+        title: '2026大创',
+        category: '大创',
+        status: 'closing',
+        summary: '指导学生开展师范生教育实践能力培养路径研究，正在整理结题材料。',
+        startDate: d(-90),
+        endDate: d(20),
+        milestones: [
+          { id: 'rp-d-m1', name: '立项', done: true },
+          { id: 'rp-d-m2', name: '中期检查', done: true },
+          { id: 'rp-d-m3', name: '结题验收', done: false, due: d(20) },
+        ],
+        materials: [
+          { id: 'rp-d-f1', title: '立项通知与任务书', kind: '立项', updated: '三个月前', size: '420 KB' },
+          { id: 'rp-d-f2', title: '中期进展报告', kind: '中期', updated: '上周', size: '1.1 MB' },
+        ],
+        achievements: [
+          { id: 'rp-d-a1', title: '学生实践报告', done: true },
+          { id: 'rp-d-a2', title: '课堂观察案例集', done: true },
+          { id: 'rp-d-a3', title: '成果展板', done: false },
+          { id: 'rp-d-a4', title: '结题报告终稿', done: false },
+        ],
+      },
+      {
+        id: 'rp-mine-2',
+        title: '陕西省十四五',
+        category: '省规划',
+        status: 'closing',
+        summary: '教育高质量发展专题，已过中期，正在按成果清单补结题材料。',
+        startDate: d(-400),
+        endDate: d(40),
+        milestones: [
+          { id: 'rp-s-m1', name: '立项', done: true },
+          { id: 'rp-s-m2', name: '中期检查', done: true },
+          { id: 'rp-s-m3', name: '结题验收', done: false, due: d(40) },
+        ],
+        materials: [
+          { id: 'rp-s-f1', title: '立项批文', kind: '立项', updated: '去年', size: '860 KB' },
+          { id: 'rp-s-f2', title: '中期检查表', kind: '中期', updated: '两月前', size: '540 KB' },
+        ],
+        achievements: [
+          { id: 'rp-s-a1', title: '核心论文 1 篇', done: true },
+          { id: 'rp-s-a2', title: '调研报告', done: true },
+          { id: 'rp-s-a3', title: '政策建议稿', done: false },
+        ],
+      },
+      {
+        id: 'rp-ended-1',
+        title: '学前教师观察素养提升',
+        category: '校级',
+        status: 'ended',
+        summary: '已结题并归档。',
+        startDate: d(-500),
+        endDate: d(-60),
+        milestones: [
+          { id: 'rp-e-m1', name: '立项', done: true },
+          { id: 'rp-e-m2', name: '中期检查', done: true },
+          { id: 'rp-e-m3', name: '结题验收', done: true },
+        ],
+        materials: [{ id: 'rp-e-f1', title: '结题证书扫描件', kind: '结题', updated: '两月前', size: '1.8 MB' }],
+        achievements: [
+          { id: 'rp-e-a1', title: '观察记录模板', done: true },
+          { id: 'rp-e-a2', title: '结题报告', done: true },
+        ],
+      },
+    ],
+    activityProjects: [
+      {
+        id: 'ap-dachuang',
+        title: '教育戏剧融入小学课堂的实践探索',
+        category: '大创',
+        summary: '指导小教学生将教育戏剧用于识字与阅读课，需整理立项与过程材料。',
+        status: 'doing',
+        milestones: [
+          { id: 'ap-d-m1', name: '选题与组队', done: true },
+          { id: 'ap-d-m2', name: '立项答辩', done: true },
+          { id: 'ap-d-m3', name: '课堂实践', done: false },
+          { id: 'ap-d-m4', name: '结题展示', done: false },
+        ],
+        materials: [{ id: 'ap-d-f1', title: '立项申请书', kind: '立项', updated: '上周', size: '780 KB' }],
+      },
+      {
+        id: 'ap-xiaxiang',
+        title: '乡村儿童阅读支持暑期实践',
+        category: '三下乡',
+        summary: '教育学院暑期三下乡团队，材料含方案、安全承诺与实践日志。',
+        status: 'planning',
+        milestones: [
+          { id: 'ap-x-m1', name: '实践方案', done: true },
+          { id: 'ap-x-m2', name: '行前培训', done: false },
+          { id: 'ap-x-m3', name: '驻点实践', done: false },
+        ],
+        materials: [],
+      },
+      {
+        id: 'ap-tiaozhan',
+        title: '家校社协同育人机制调研',
+        category: '挑战杯',
+        summary: '挑战杯课外学术作品，正在补调研问卷与文献综述。',
+        status: 'doing',
+        milestones: [
+          { id: 'ap-t-m1', name: '开题', done: true },
+          { id: 'ap-t-m2', name: '调研实施', done: false },
+          { id: 'ap-t-m3', name: '作品送审', done: false },
+        ],
+        materials: [],
+      },
+      {
+        id: 'ap-internet',
+        title: '幼儿园家园共育小程序',
+        category: '互联网+',
+        summary: '指导学前教育学生参加互联网+，需归档商业计划书与演示材料。',
+        status: 'closing',
+        milestones: [
+          { id: 'ap-i-m1', name: '校赛', done: true },
+          { id: 'ap-i-m2', name: '省赛材料', done: true },
+          { id: 'ap-i-m3', name: '路演彩排', done: false },
+        ],
+        materials: [{ id: 'ap-i-f1', title: '商业计划书 v3', kind: '申报', updated: '昨天', size: '2.4 MB' }],
+      },
+    ],
+    hiddenCourseEventIds: [],
+    workNotes: [
+      {
+        id: 'jn-1',
+        date: today,
+        title: '教育心理学第 9 周课后：期中案例讨论',
+        content: '教育学 2024-1 班完成学习动机案例讨论，已布置期中作业。',
+        kind: '教学',
+        files: [],
+        createdAt: new Date().toISOString(),
+      },
+      {
+        id: 'jn-2',
+        date: d(1),
+        title: '课程组教研会发言要点',
+        content: '汇总本周教学进度与期中命题分工，会后把纪要发到课程组。',
+        kind: '公共事务',
+        files: [],
+        createdAt: new Date().toISOString(),
+      },
+      {
+        id: 'jn-3',
+        date: d(-4),
+        title: '附属小学实习巡视',
+        content: '走访 4 名小教实习生，登记中期检查意见。',
+        kind: '学生工作',
+        files: [],
+        createdAt: new Date().toISOString(),
+      },
+      {
+        id: 'jn-4',
+        date: d(-11),
+        title: '陕西省十四五中期材料核对',
+        content: '核对调研报告与成果清单，待补政策建议稿。',
+        kind: '科研',
+        files: [],
+        createdAt: new Date().toISOString(),
+      },
+    ],
   }
 }
 
 export const createSeedData = (): WorkbenchData => {
   const weekStart = iso(mondayOf(new Date()))
   const rawSeed = buildRawSeed(weekStart, todayIso())
-  const events = syncAssignmentDeadlines(
-    syncCourseEvents(rawSeed.events, rawSeed.courses, rawSeed.meta.weekStart),
-    rawSeed.assignments,
-  )
   return {
     ...rawSeed,
-    events,
+    events: syncDerivedEvents(rawSeed),
     reminders: buildSeedReminders(),
   }
 }
