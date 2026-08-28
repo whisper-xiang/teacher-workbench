@@ -394,6 +394,12 @@ function App() {
             onSetTaskStatus={(id, done) =>
               patch('tasks', data.tasks.map((task) => (task.id === id ? { ...task, status: done ? 'done' : 'todo' } : task)))
             }
+            onSetEventDone={(id, done) =>
+              patch(
+                'events',
+                data.events.map((event) => (event.id === id ? { ...event, done } : event)),
+              )
+            }
           />
         )}
         {activeId === 'calendar' && (

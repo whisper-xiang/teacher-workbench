@@ -166,7 +166,7 @@
   4. 日程页添加按钮更明显；已完成 / 未完成事项有视觉区分。
 - **验收标准**：新建课程后整学期周次出现在日历；删除某一节课后后续同步不再出现；昨日随手记出现在日程；概览可打卡并改每日目标；宠物在各页面走动并说话。
 - **涉及**：`src/data/sync.ts`、`src/pages/CalendarPage.tsx`、`src/pages/Dashboard.tsx`、`src/components/DeskPet.tsx`、`src/components/PetMascots.tsx`、`src/lib/health-pet.ts`、`src/lib/q-pet.ts`、`src/lib/pet-kind.ts`、`src/data/types.ts`。
-- **实现**：2026-08-25。`hiddenCourseEventIds` 记住调课删除；`journal-` 事件由随手记派生。续：桌面宠物 + 健康打卡。设置页可点选仓鼠/狗狗等软萌预设，或上传照片生成本机 Q 版大头立绘；点击宠物会抖动。课程详情可记录课堂表现，并收录/评价学生作业文件。
+- **实现**：2026-08-25。`hiddenCourseEventIds` 记住调课删除；`journal-` 事件由随手记派生。续：桌面宠物 + 健康打卡。设置页可点选仓鼠/狗狗等软萌预设，或上传照片生成本机 Q 版大头立绘。2026-08-26：工作概览将今日日程/值班/待办合成一份清单，完成项进入「已完成」，顶部显示当日完成百分比。
 
 ---
 

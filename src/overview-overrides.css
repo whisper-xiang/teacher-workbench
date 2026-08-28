@@ -175,6 +175,145 @@
   font-size: 14px;
 }
 
+.today-progress {
+  margin-top: 14px;
+}
+
+.today-progress-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.today-progress-head .companion-lead {
+  margin: 0;
+}
+
+.today-progress-head strong {
+  color: #2c4d3d;
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+}
+
+.today-progress-bar {
+  height: 10px;
+  margin-top: 10px;
+  border-radius: 999px;
+  background: #dfe8e2;
+  overflow: hidden;
+}
+
+.today-progress-bar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #2c4d3d, #6f947d);
+}
+
+.today-progress small {
+  display: block;
+  margin-top: 8px;
+  color: #5f7167;
+  font-size: 13px;
+}
+
+.today-work-panel {
+  margin-top: 22px;
+}
+
+.today-work-block + .today-work-block {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px dashed #e4ddd2;
+}
+
+.today-work-kicker {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.today-work-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.today-work-row {
+  display: grid;
+  grid-template-columns: 22px 64px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface, #fffcf7);
+}
+
+.today-work-row.is-next {
+  border-color: #d8e3db;
+  background: linear-gradient(180deg, #f8fbf8 0%, #eef5f0 100%);
+}
+
+.today-work-row.is-done {
+  opacity: 0.72;
+}
+
+.today-work-time strong,
+.today-work-time span,
+.today-work-body strong,
+.today-work-body small {
+  display: block;
+}
+
+.today-work-time strong {
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.today-work-time span {
+  margin-top: 2px;
+  color: var(--subtle);
+  font-size: 12px;
+}
+
+.today-work-body .event-kind {
+  display: inline-block;
+  margin-bottom: 2px;
+}
+
+.today-work-body strong {
+  margin: 2px 0;
+  font-size: 14px;
+}
+
+.today-work-row.is-done .today-work-body strong,
+.today-work-row.is-done .today-work-body small {
+  text-decoration: line-through;
+  color: var(--subtle);
+}
+
+.today-work-body small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+@media (max-width: 620px) {
+  .today-work-row {
+    grid-template-columns: 22px minmax(0, 1fr);
+  }
+
+  .today-work-time {
+    grid-column: 2;
+  }
+}
+
 .companion-tasks {
   margin: 8px 0 0;
   padding-left: 18px;
