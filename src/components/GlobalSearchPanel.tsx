@@ -6,11 +6,12 @@ type Props = {
   open: boolean
   data: WorkbenchData
   query: string
+  onQueryChange: (query: string) => void
   onClose: () => void
   onNavigate: (route: RouteId, param?: string) => void
 }
 
-export function GlobalSearchPanel({ open, data, query, onClose, onNavigate }: Props) {
+export function GlobalSearchPanel({ open, data, query, onQueryChange, onClose, onNavigate }: Props) {
   const index = useMemo(() => buildSearchIndex(data), [data])
   const results = useMemo(() => searchWorkbench(index, query), [index, query])
   const grouped = useMemo(() => groupSearchResults(results), [results])
@@ -40,6 +41,17 @@ export function GlobalSearchPanel({ open, data, query, onClose, onNavigate }: Pr
         aria-label="搜索结果"
         onClick={(event) => event.stopPropagation()}
       >
+        <label className="global-search-input">
+          <span aria-hidden="true">⌕</span>
+          <input
+            autoFocus
+            value={query}
+            onChange={(event) => onQueryChange(event.target.value)}
+            placeholder="搜索课程、学生、资源、任务、资讯…"
+            aria-label="搜索全部内容"
+          />
+          <kbd>⌘K</kbd>
+        </label>
         <div className="global-search-body">
           {!query.trim() ? (
             <p className="global-search-hint">输入关键词，搜索工作台中的课程、学生、资源、任务、资讯等</p>

@@ -1,0 +1,23 @@
+---
+description: 毛玻璃 / 莫兰迪单色 UI 必须遵守 docs/DESIGN.md
+globs: src/**/*.{tsx,css}
+alwaysApply: false
+---
+
+# UI 设计源
+
+改动本仓库界面、样式、图标时，以 `docs/DESIGN.md` 为视觉宪法；提示词模板在 `docs/design-prompts/`。
+
+## 必须
+
+- 哲学：approachable luxury。材料 = 磨砂玻璃 + Morandi sage + watercolor wash。
+- 色彩：单色苔绿（色相约 152°）。token 用 `--moss-*` / `--glass-*` / `--wash-*`。
+- 布局：分层卡片。概览英雄不套大底板；其他路由用 page-sheet + 墨字。
+- 侧栏可收起；图标用 `src/nav-icons.tsx` 线描。
+- 科技气质只在同一色相内变冷、变利，不换霓虹色。
+
+## 禁止
+
+- 紫渐变、Inter、emoji 导航、饱和红绿状态色、玻璃嵌套超过三层、平行造一套颜色或数据。
+
+实现后用 `docs/DESIGN.md` §14 自测。审查任务可套用 `docs/design-prompts/03-critique.md`。

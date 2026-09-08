@@ -1,0 +1,511 @@
+/* Cinematic glass shell — frosted rail over atmospheric landscape */
+
+.app-shell {
+  --nav-w: 228px;
+  --glass: rgba(255, 255, 255, 0.12);
+  --glass-strong: rgba(255, 255, 255, 0.2);
+  --glass-border: rgba(255, 255, 255, 0.26);
+  --glass-text: #f7fbf8;
+  --glass-muted: rgba(247, 251, 248, 0.74);
+  --glass-subtle: rgba(247, 251, 248, 0.52);
+  --font-display-num: "Outfit", "Noto Sans SC", sans-serif;
+  background: #152018;
+}
+
+.app-shell.nav-collapsed {
+  --nav-w: 84px;
+}
+
+html,
+body,
+#root {
+  background: #152018;
+}
+
+.app-shell::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(14, 22, 20, 0.32) 0%, rgba(14, 22, 20, 0.08) 38%, rgba(16, 28, 22, 0.42) 100%),
+    url("/glass-sky.jpg") center / cover no-repeat;
+  background-color: #24362c;
+}
+
+.app-shell .main-content {
+  position: relative;
+  z-index: 1;
+}
+
+.app-shell .sidebar {
+  position: fixed;
+  z-index: 5;
+  inset: 14px auto 14px 14px;
+  width: var(--nav-w);
+  height: auto;
+  border: 1px solid var(--glass-border);
+  border-right: 1px solid var(--glass-border);
+  border-radius: 26px;
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 18px 50px rgba(8, 16, 12, 0.22);
+  backdrop-filter: blur(22px) saturate(1.4);
+  -webkit-backdrop-filter: blur(22px) saturate(1.4);
+  color: var(--glass-text);
+  transition: width 0.28s ease;
+}
+
+.app-shell .main-content {
+  margin-left: calc(var(--nav-w) + 28px);
+  background: transparent;
+  transition: margin-left 0.28s ease;
+}
+
+.app-shell .scrim {
+  z-index: 4;
+}
+
+.app-shell .brand {
+  justify-content: flex-start;
+  gap: 12px;
+  min-height: 76px;
+  padding: 18px 16px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.app-shell.nav-collapsed .brand {
+  justify-content: center;
+  padding-left: 10px;
+  padding-right: 10px;
+}
+
+.app-shell .brand-mark {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28);
+  font-family: var(--font-display-num);
+  font-size: 15px;
+}
+
+.app-shell .brand-copy strong,
+.app-shell .profile-copy strong {
+  color: var(--glass-text);
+  font-family: var(--font-ui);
+}
+
+.app-shell .brand-copy span,
+.app-shell .profile-copy span,
+.app-shell .nav-group h2 {
+  color: var(--glass-subtle);
+}
+
+.app-shell .navigation {
+  padding: 12px 10px;
+}
+
+.app-shell .nav-group h2 {
+  overflow: hidden;
+  max-height: 28px;
+  opacity: 1;
+  transition: max-height 0.2s ease, opacity 0.2s ease, padding 0.2s ease;
+}
+
+.app-shell .nav-item {
+  position: relative;
+  justify-content: flex-start;
+  min-height: 44px;
+  margin: 2px 0;
+  border-radius: 14px;
+  color: var(--glass-muted);
+  font-weight: 500;
+}
+
+.app-shell .nav-item:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--glass-text);
+}
+
+.app-shell .nav-item-active {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+  font-weight: 650;
+}
+
+.app-shell .nav-icon {
+  width: 22px;
+  color: inherit;
+}
+
+.app-shell .nav-item-label {
+  overflow: hidden;
+  max-width: 148px;
+  opacity: 1;
+  white-space: nowrap;
+  transition: max-width 0.24s ease, opacity 0.18s ease, margin 0.24s ease;
+}
+
+.app-shell .nav-item-badge {
+  background: rgba(255, 196, 160, 0.92);
+  color: #7a3412;
+}
+
+.app-shell .profile,
+.app-shell .profile-button {
+  margin: 0 10px 10px;
+  padding: 12px 8px 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.app-shell .avatar {
+  color: #3d2c1c;
+  background: linear-gradient(160deg, #f3e6d2, #d9c3a4);
+}
+
+.app-shell .nav-collapse {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: calc(100% - 16px);
+  min-height: 42px;
+  margin: 0 8px 4px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--glass-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+}
+
+.app-shell .nav-collapse:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--glass-text);
+}
+
+.app-shell.nav-collapsed .brand-copy,
+.app-shell.nav-collapsed .profile-copy,
+.app-shell.nav-collapsed .nav-collapse-label {
+  display: none;
+}
+
+.app-shell.nav-collapsed .nav-group h2 {
+  max-height: 0;
+  padding: 0;
+  overflow: hidden;
+  opacity: 0;
+}
+
+.app-shell.nav-collapsed .nav-item-label {
+  max-width: 0;
+  margin: 0;
+  opacity: 0;
+}
+
+.app-shell.nav-collapsed .nav-item {
+  justify-content: center;
+  width: 48px;
+  min-height: 48px;
+  margin: 4px auto;
+  padding: 0;
+  border-radius: 16px;
+}
+
+.app-shell.nav-collapsed .nav-item-badge {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  min-width: 8px;
+  height: 8px;
+  padding: 0;
+  overflow: hidden;
+  font-size: 0;
+}
+
+.app-shell.nav-collapsed .nav-collapse,
+.app-shell.nav-collapsed .profile-button {
+  justify-content: center;
+  width: 48px;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 0;
+}
+
+.app-shell.nav-collapsed .profile-button {
+  width: auto;
+  padding-top: 12px;
+}
+
+.app-shell .topbar {
+  min-height: 76px;
+  padding: 12px 28px 8px 8px;
+  border-bottom: 0;
+  background: transparent;
+  backdrop-filter: none;
+}
+
+.app-shell .breadcrumb {
+  color: var(--glass-muted);
+}
+
+.app-shell .breadcrumb span {
+  color: var(--glass-subtle);
+}
+
+.app-shell .topbar-welcome {
+  display: grid;
+  gap: 2px;
+}
+
+.app-shell .topbar-welcome span {
+  color: var(--glass-subtle);
+  font-size: 13px;
+}
+
+.app-shell .topbar-welcome strong {
+  color: var(--glass-text);
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+}
+
+.app-shell .topbar-actions {
+  gap: 10px;
+}
+
+.app-shell .glass-icon-btn {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border: 1px solid var(--glass-border);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--glass-text);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  cursor: pointer;
+}
+
+.app-shell .glass-icon-btn:hover,
+.app-shell .glass-icon-btn.active {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.app-shell .glass-icon-btn small,
+.app-shell .glass-icon-btn .glass-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  min-width: 16px;
+  padding: 1px 4px;
+  border-radius: 999px;
+  background: #e07a3a;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.app-shell .glass-avatar-btn {
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.app-shell .glass-avatar-btn .avatar {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+}
+
+.app-shell.is-overview .dashboard {
+  overflow: hidden;
+  padding-top: 0;
+}
+
+@media (max-width: 720px) {
+  .app-shell.is-overview .dashboard {
+    overflow-y: auto;
+  }
+}
+
+.app-shell .global-search-input kbd {
+  padding: 2px 6px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--glass-subtle);
+  font-size: 10px;
+}
+
+.app-shell:not(.is-overview) .main-content > section,
+.app-shell:not(.is-overview) .main-content > .page,
+.app-shell:not(.is-overview) .main-content > .task-board {
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 24px;
+  margin: 0 18px 18px 4px;
+  background: rgba(255, 252, 247, 0.86);
+  box-shadow: 0 16px 40px rgba(12, 20, 16, 0.12);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.app-shell .global-search-overlay {
+  background: rgba(10, 18, 16, 0.28);
+  backdrop-filter: blur(6px);
+}
+
+.app-shell .global-search-panel {
+  width: min(520px, calc(100vw - 48px));
+  margin: 8px 28px 0 auto;
+  border: 1px solid var(--glass-border);
+  border-radius: 18px;
+  background: rgba(28, 40, 34, 0.72);
+  color: var(--glass-text);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(24px) saturate(1.3);
+  -webkit-backdrop-filter: blur(24px) saturate(1.3);
+}
+
+.app-shell .global-search-input {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--glass-muted);
+}
+
+.app-shell .global-search-input input {
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--glass-text);
+  font: inherit;
+  font-size: 15px;
+}
+
+.app-shell .global-search-hint,
+.app-shell .global-search-empty,
+.app-shell .global-search-group span {
+  color: var(--glass-subtle);
+}
+
+.app-shell .global-search-group h3 {
+  color: var(--glass-subtle);
+}
+
+.app-shell .global-search-group strong {
+  color: var(--glass-text);
+}
+
+.app-shell .global-search-group button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.app-shell .menu-toggle {
+  border: 1px solid var(--glass-border);
+  color: var(--glass-text);
+  background: rgba(255, 255, 255, 0.14);
+  box-shadow: none;
+}
+
+@media (max-width: 860px) {
+  .app-shell,
+  .app-shell.nav-collapsed {
+    --nav-w: 0px;
+  }
+
+  .app-shell .sidebar,
+  .app-shell.nav-collapsed .sidebar {
+    inset: 0 auto 0 0;
+    width: min(288px, 86vw);
+    border-radius: 0 24px 24px 0;
+  }
+
+  .app-shell .main-content,
+  .app-shell.nav-collapsed .main-content {
+    margin-left: 0;
+  }
+
+  .app-shell.nav-collapsed .brand-copy,
+  .app-shell.nav-collapsed .profile-copy,
+  .app-shell.nav-collapsed .nav-collapse-label,
+  .app-shell.nav-collapsed .nav-item-label {
+    display: initial;
+    max-width: 160px;
+    opacity: 1;
+  }
+
+  .app-shell.nav-collapsed .nav-group h2 {
+    max-height: 28px;
+    padding: 0 10px 7px;
+    opacity: 1;
+  }
+
+  .app-shell.nav-collapsed .nav-item {
+    justify-content: flex-start;
+    width: 100%;
+    min-height: 44px;
+    margin: 2px 0;
+    padding: 9px 10px;
+    border-radius: 14px;
+  }
+
+  .app-shell.nav-collapsed .nav-item-badge {
+    position: static;
+    min-width: 18px;
+    height: auto;
+    padding: 1px 6px;
+    font-size: 10px;
+  }
+
+  .app-shell .nav-collapse {
+    display: none;
+  }
+
+  .app-shell .topbar {
+    padding: 10px 16px;
+  }
+
+  .app-shell .topbar-welcome strong {
+    font-size: 22px;
+  }
+
+  .app-shell .glass-icon-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .app-shell:not(.is-overview) .main-content > section,
+  .app-shell:not(.is-overview) .main-content > .page,
+  .app-shell:not(.is-overview) .main-content > .task-board {
+    margin: 0 12px 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-shell .sidebar,
+  .app-shell .main-content,
+  .app-shell .nav-item-label,
+  .app-shell .nav-group h2 {
+    transition: none;
+  }
+}

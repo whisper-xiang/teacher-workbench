@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import './App.css'
 import './routes.css'
 import './dashboard.css'
@@ -17,6 +17,7 @@ import './majors.css'
 import './theme.css'
 /* Must load last so page shell padding/width matches overview */
 import './layout-overrides.css'
+import './glass.css'
 import { useWorkbenchStore } from './hooks/useWorkbenchStore'
 import { alignDataToWeekStart, uid } from './data/store'
 import { syncAssignmentDeadlines, syncCourseEvents } from './data/sync'
@@ -42,21 +43,32 @@ import { AiAssistantPanel } from './components/AiAssistantPanel'
 import './components/topbar-tools.css'
 import { useReminderScheduler } from './hooks/useReminderScheduler'
 import { fetchRssNews } from './lib/rss'
+import { NavIcon, type IconName } from './nav-icons'
 
-type NavPage = { id: RouteId; label: string; icon: string }
+type NavPage = { id: RouteId; label: string; icon: IconName }
 
 const pages: NavPage[] = [
-  { id: 'overview', label: '工作概览', icon: '🏠' },
-  { id: 'calendar', label: '日程与值班', icon: '📅' },
-  { id: 'tasks', label: '教学看板', icon: '✅' },
-  { id: 'reminders', label: '通知提醒', icon: '🔔' },
-  { id: 'courses', label: '课程与排课', icon: '📚' },
-  { id: 'students', label: '学生与评价', icon: '👥' },
-  { id: 'resources', label: '教学资源库', icon: '🗂️' },
-  { id: 'news', label: '热点资讯', icon: '📰' },
-  { id: 'tools', label: '工具箱', icon: '🧰' },
-  { id: 'settings', label: '设置与备份', icon: '⚙️' },
+  { id: 'overview', label: '工作概览', icon: 'overview' },
+  { id: 'calendar', label: '日程与值班', icon: 'calendar' },
+  { id: 'tasks', label: '教学看板', icon: 'tasks' },
+  { id: 'reminders', label: '通知提醒', icon: 'reminders' },
+  { id: 'courses', label: '课程与排课', icon: 'courses' },
+  { id: 'students', label: '学生与评价', icon: 'students' },
+  { id: 'resources', label: '教学资源库', icon: 'resources' },
+  { id: 'news', label: '热点资讯', icon: 'news' },
+  { id: 'tools', label: '工具箱', icon: 'tools' },
+  { id: 'settings', label: '设置与备份', icon: 'settings' },
 ]
+
+const NAV_COLLAPSED_KEY = 'teacher-workbench-nav-collapsed'
+
+function readNavCollapsed() {
+  try {
+    return localStorage.getItem(NAV_COLLAPSED_KEY) !== '0'
+  } catch {
+    return true
+  }
+}
 
 const groups = [
   { label: '工作台', ids: ['overview', 'calendar', 'tasks', 'reminders'] as RouteId[] },
@@ -100,10 +112,22 @@ function App() {
   const { activeId, routeParam, navigate } = useWorkbenchRoute()
   const { data, patch, update, reset, exportJson, importJson } = useWorkbenchStore()
   const [navOpen, setNavOpen] = useState(false)
+  const [navCollapsed, setNavCollapsed] = useState(readNavCollapsed)
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [aiOpen, setAiOpen] = useState(false)
-  const searchInputRef = useRef<HTMLInputElement>(null)
+
+  const toggleNavCollapsed = () => {
+    setNavCollapsed((prev) => {
+      const next = !prev
+      try {
+        localStorage.setItem(NAV_COLLAPSED_KEY, next ? '1' : '0')
+      } catch {
+        /* ignore quota / private mode */
+      }
+      return next
+    })
+  }
   const active = pages.find((page) => page.id === activeId) ?? pages[0]
   const selectPage = (id: string, param?: string) => {
     navigate(id as RouteId, param)
@@ -241,7 +265,6 @@ function App() {
         event.preventDefault()
         setSearchOpen(true)
         setAiOpen(false)
-        searchInputRef.current?.focus()
       }
     }
     window.addEventListener('keydown', onKey)
@@ -253,14 +276,24 @@ function App() {
     setSearchQuery('')
   }, [])
 
+  const pendingReminders = data.reminders.filter((item) => item.status === 'pending').length
+  const shellClass = [
+    'app-shell',
+    navCollapsed ? 'nav-collapsed' : '',
+    activeId === 'overview' ? 'is-overview' : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
+
   return (
-    <div className="app-shell">
+    <div className={shellClass}>
       <NotifyHost />
       <ConfirmHost />
       <GlobalSearchPanel
         open={searchOpen}
         data={data}
         query={searchQuery}
+        onQueryChange={setSearchQuery}
         onClose={closeSearch}
         onNavigate={(route, param) => navigate(route, param)}
       />
@@ -273,7 +306,7 @@ function App() {
       <aside className={navOpen ? 'sidebar sidebar-open' : 'sidebar'} aria-label="主导航">
         <div className="brand">
           <div className="brand-mark" aria-hidden="true">教</div>
-          <div>
+          <div className="brand-copy">
             <strong>教学工作台</strong>
             <span>{data.profile.college}教师端 · 本地</span>
           </div>
@@ -293,9 +326,18 @@ function App() {
                   id === 'calendar' ? data.events.filter((e) => e.kind === 'deadline' && !e.done).length :
                   0
                 return (
-                  <button className={selected ? 'nav-item nav-item-active' : 'nav-item'} key={id} onClick={() => selectPage(id)}>
-                    <span className="nav-icon" aria-hidden="true">{page.icon}</span>
-                    <span>{page.label}</span>
+                  <button
+                    className={selected ? 'nav-item nav-item-active' : 'nav-item'}
+                    key={id}
+                    title={page.label}
+                    aria-label={page.label}
+                    aria-current={selected ? 'page' : undefined}
+                    onClick={() => selectPage(id)}
+                  >
+                    <span className="nav-icon" aria-hidden="true">
+                      <NavIcon name={page.icon} />
+                    </span>
+                    <span className="nav-item-label">{page.label}</span>
                     {badge > 0 && <span className="nav-item-badge">{badge}</span>}
                   </button>
                 )
@@ -303,9 +345,19 @@ function App() {
             </section>
           ))}
         </nav>
-        <button className="profile profile-button" onClick={() => selectPage('settings')}>
+        <button
+          type="button"
+          className="nav-collapse"
+          onClick={toggleNavCollapsed}
+          aria-expanded={!navCollapsed}
+          aria-label={navCollapsed ? '展开菜单' : '收起菜单'}
+        >
+          <NavIcon name={navCollapsed ? 'expand' : 'collapse'} />
+          <span className="nav-collapse-label">{navCollapsed ? '展开菜单' : '收起菜单'}</span>
+        </button>
+        <button type="button" className="profile profile-button" onClick={() => selectPage('settings')}>
           <div className="avatar">{data.profile.name.slice(0, 1)}</div>
-          <div>
+          <div className="profile-copy">
             <strong>{data.profile.name}</strong>
             <span>{data.profile.college} · {data.profile.title}</span>
           </div>
@@ -315,30 +367,18 @@ function App() {
       <main className="main-content">
         <header className="topbar">
           <button className="menu-toggle" onClick={() => setNavOpen(true)}>菜单</button>
-          <div className="breadcrumb">教学工作台 <span>/</span> {active.label}</div>
+          {activeId === 'overview' ? (
+            <div className="topbar-welcome">
+              <span>欢迎回来</span>
+              <strong>{data.profile.greetingName}</strong>
+            </div>
+          ) : (
+            <div className="breadcrumb">教学工作台 <span>/</span> {active.label}</div>
+          )}
           <div className="topbar-actions">
-            <label className={`topbar-search${searchOpen ? ' is-open' : ''}`}>
-              <span aria-hidden="true">⌕</span>
-              <input
-                ref={searchInputRef}
-                value={searchQuery}
-                onChange={(event) => {
-                  setSearchQuery(event.target.value)
-                  setSearchOpen(true)
-                  setAiOpen(false)
-                }}
-                onFocus={() => {
-                  setSearchOpen(true)
-                  setAiOpen(false)
-                }}
-                placeholder="搜索课程、学生、资源、任务、资讯…"
-                aria-label="搜索全部内容"
-              />
-              <kbd>⌘K</kbd>
-            </label>
             <button
               type="button"
-              className={`topbar-icon-btn topbar-icon-btn--ai${aiOpen ? ' active' : ''}`}
+              className={`glass-icon-btn${aiOpen ? ' active' : ''}`}
               aria-label="AI 助手"
               title="AI 助手"
               onClick={() => {
@@ -346,8 +386,38 @@ function App() {
                 setSearchOpen(false)
               }}
             >
-              💬
-              <small>AI</small>
+              <NavIcon name="plus" />
+            </button>
+            <button
+              type="button"
+              className={`glass-icon-btn${searchOpen ? ' active' : ''}`}
+              aria-label="搜索全部内容"
+              title="搜索 ⌘K"
+              onClick={() => {
+                setSearchOpen(true)
+                setAiOpen(false)
+              }}
+            >
+              <NavIcon name="search" />
+            </button>
+            <button
+              type="button"
+              className="glass-icon-btn"
+              aria-label="通知提醒"
+              title="通知提醒"
+              onClick={() => selectPage('reminders')}
+            >
+              <NavIcon name="bell" />
+              {pendingReminders > 0 && <span className="glass-badge">{pendingReminders}</span>}
+            </button>
+            <button
+              type="button"
+              className="glass-icon-btn glass-avatar-btn"
+              aria-label="打开设置"
+              title={data.profile.name}
+              onClick={() => selectPage('settings')}
+            >
+              <span className="avatar">{data.profile.name.slice(0, 1)}</span>
             </button>
           </div>
         </header>
@@ -355,6 +425,7 @@ function App() {
         {activeId === 'overview' && (
           <Dashboard
             meta={data.meta}
+            profile={data.profile}
             events={data.events}
             tasks={data.tasks}
             courses={data.courses}
