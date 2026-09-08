@@ -49,7 +49,7 @@ function PetFigure({
 
 export function DeskPet({ greetingName, petAvatarId, petKind }: Props) {
   const kind = resolvePetKind({ petKind, petAvatarId })
-  const { state, punch } = useHealthPet()
+  const { state, punch, setGoals } = useHealthPet()
   const [pos, setPos] = useState({ x: 24, y: 80 })
   const [facing, setFacing] = useState<1 | -1>(-1)
   const [mood, setMood] = useState<Mood>('idle')
@@ -276,7 +276,7 @@ export function DeskPet({ greetingName, petAvatarId, petKind }: Props) {
       {open && (
         <div className="desk-pet-panel">
           <div className="desk-pet-panel-head">
-            <strong>{petDisplayName(kind)}的健康打卡</strong>
+            <strong>{petDisplayName(kind)} · 起身记一回</strong>
             <button type="button" className="desk-pet-mini" onClick={() => setDocked(true)}>
               收起
             </button>
@@ -284,18 +284,37 @@ export function DeskPet({ greetingName, petAvatarId, petKind }: Props) {
           {HEALTH_ITEMS.map((item) => {
             const progress = healthProgress(state, item.id)
             return (
-              <button
-                key={item.id}
-                type="button"
-                className={`desk-pet-punch${progress.done ? ' is-done' : ''}`}
-                onClick={() => checkIn(item.id)}
-              >
-                <b>{item.label}</b>
-                <span>
-                  {progress.count}/{progress.goal}
-                  {item.unit}
-                </span>
-              </button>
+              <div key={item.id} className="desk-pet-row">
+                <button
+                  type="button"
+                  className={`desk-pet-punch${progress.done ? ' is-done' : ''}`}
+                  onClick={() => checkIn(item.id)}
+                >
+                  <b>{item.label}</b>
+                  <span>
+                    {progress.count}/{progress.goal}
+                    {item.unit}
+                  </span>
+                </button>
+                <div className="desk-pet-goal">
+                  <button
+                    type="button"
+                    className="desk-pet-mini"
+                    aria-label={`${item.label}目标减一`}
+                    onClick={() => setGoals({ [item.id]: state.goals[item.id] - 1 })}
+                  >
+                    −
+                  </button>
+                  <button
+                    type="button"
+                    className="desk-pet-mini"
+                    aria-label={`${item.label}目标加一`}
+                    onClick={() => setGoals({ [item.id]: state.goals[item.id] + 1 })}
+                  >
+                    ＋
+                  </button>
+                </div>
+              </div>
             )
           })}
         </div>

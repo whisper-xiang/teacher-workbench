@@ -147,8 +147,16 @@ body,
 }
 
 .app-shell .nav-icon {
+  display: grid;
+  flex: 0 0 22px;
+  place-items: center;
   width: 22px;
+  height: 22px;
   color: inherit;
+}
+
+.app-shell .nav-icon svg {
+  display: block;
 }
 
 .app-shell .nav-item-label {
@@ -216,17 +224,17 @@ body,
 }
 
 .app-shell.nav-collapsed .nav-item-label {
-  max-width: 0;
-  margin: 0;
-  opacity: 0;
+  display: none;
 }
 
 .app-shell.nav-collapsed .nav-item {
   justify-content: center;
+  align-items: center;
   width: 48px;
   min-height: 48px;
   margin: 4px auto;
   padding: 0;
+  gap: 0;
   border-radius: 16px;
 }
 
@@ -347,7 +355,7 @@ body,
 .app-shell.is-overview .dashboard {
   overflow-x: hidden;
   overflow-y: auto;
-  padding-top: 0;
+  padding: 0 24px 20px 8px;
 }
 
 .app-shell .global-search-input kbd {
@@ -466,11 +474,13 @@ body,
   }
 
   .app-shell.nav-collapsed .nav-item {
+    display: flex;
     justify-content: flex-start;
     width: 100%;
     min-height: 44px;
     margin: 2px 0;
     padding: 9px 10px;
+    gap: 10px;
     border-radius: 14px;
   }
 

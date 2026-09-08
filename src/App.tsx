@@ -81,7 +81,7 @@ function readNavCollapsed() {
 
 const groups = [
   { label: '工作台', ids: ['overview', 'calendar', 'tasks', 'journal', 'reminders'] as RouteId[] },
-  { label: '日常工作', ids: ['courses', 'research', 'activities'] as RouteId[] },
+  { label: '日常工作', ids: ['courses', 'students', 'resources', 'research', 'activities'] as RouteId[] },
   { label: '资讯与工具', ids: ['news', 'tools', 'settings'] as RouteId[] },
 ]
 
@@ -346,9 +346,7 @@ function App() {
               <h2>{group.label}</h2>
               {group.ids.map((id) => {
                 const page = pages.find((item) => item.id === id)!
-                const selected =
-                  id === activeId ||
-                  (id === 'courses' && (activeId === 'students' || activeId === 'resources'))
+                const selected = id === activeId
                 const badge =
                   id === 'tasks' ? data.tasks.filter((t) => t.status !== 'done').length :
                   id === 'students' ? data.students.filter((s) => s.status !== '正常').length :
