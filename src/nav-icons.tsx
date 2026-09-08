@@ -2,8 +2,11 @@ type IconName =
   | 'overview'
   | 'calendar'
   | 'tasks'
+  | 'journal'
   | 'reminders'
   | 'courses'
+  | 'research'
+  | 'activities'
   | 'students'
   | 'resources'
   | 'news'
@@ -57,6 +60,13 @@ export function NavIcon({ name, size = 22 }: { name: IconName; size?: number }) 
           <path d="M16.5 5.5 18 7l3-3" />
         </svg>
       )
+    case 'journal':
+      return (
+        <svg {...props}>
+          <path d="M7 4.5h10.5A1.5 1.5 0 0 1 19 6v13.5H8.2A2.2 2.2 0 0 1 6 17.3V6.2A1.7 1.7 0 0 1 7.7 4.5Z" />
+          <path d="M6 8h13M10 12h6M10 15.5h4" />
+        </svg>
+      )
     case 'reminders':
     case 'bell':
       return (
@@ -70,6 +80,21 @@ export function NavIcon({ name, size = 22 }: { name: IconName; size?: number }) 
         <svg {...props}>
           <path d="M4 6.5c2.4-1.4 4.6-1.4 8 0s5.6 1.4 8 0v11c-2.4 1.4-4.6 1.4-8 0s-5.6-1.4-8 0Z" />
           <path d="M12 6.5v11" />
+        </svg>
+      )
+    case 'research':
+      return (
+        <svg {...props}>
+          <circle cx="10.2" cy="10.2" r="5.4" />
+          <path d="m14.2 14.2 5.3 5.3" />
+        </svg>
+      )
+    case 'activities':
+      return (
+        <svg {...props}>
+          <circle cx="12" cy="12" r="8.2" />
+          <circle cx="12" cy="12" r="2.1" />
+          <path d="M12 3.8v2.6M12 17.6v2.6M3.8 12h2.6M17.6 12h2.6" />
         </svg>
       )
     case 'students':

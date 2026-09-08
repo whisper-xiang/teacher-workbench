@@ -11,6 +11,13 @@ const labels: Record<CalendarKind, string> = {
   meeting: '会议',
   patrol: '巡视',
   deadline: '截止',
+  journal: '随手记',
+}
+
+const CREATABLE_KINDS: CalendarKind[] = ['meeting', 'duty', 'patrol', 'deadline', 'course']
+
+function isAllDayKind(kind: CalendarKind) {
+  return kind === 'deadline' || kind === 'journal'
 }
 
 function KindBadge({ kind }: { kind: CalendarKind }) {
@@ -49,8 +56,9 @@ export function CalendarPage({ events, dutyConfirmedDates, weekStart, onChangeEv
       events
         .filter((item) => item.date === selectedDay)
         .sort((a, b) => {
-          if (a.kind === 'deadline' && b.kind !== 'deadline') return -1
-          if (b.kind === 'deadline' && a.kind !== 'deadline') return 1
+          if (Boolean(a.done) !== Boolean(b.done)) return a.done ? 1 : -1
+          if (isAllDayKind(a.kind) && !isAllDayKind(b.kind)) return -1
+          if (isAllDayKind(b.kind) && !isAllDayKind(a.kind)) return 1
           return a.start - b.start
         }),
     [events, selectedDay],
@@ -80,7 +88,7 @@ export function CalendarPage({ events, dutyConfirmedDates, weekStart, onChangeEv
     const next: CalendarEvent = {
       ...base,
       linkTo: editor.kind === 'deadline' ? editor.linkTo ?? inferDeadlineLink(base) : editor.linkTo,
-      done: editor.kind === 'deadline' ? Boolean(editor.done) : undefined,
+      done: Boolean(editor.done),
     }
     onChangeEvents(editor.id ? events.map((item) => (item.id === editor.id ? next : item)) : [...events, next])
     setSelectedDay(next.date)
@@ -114,9 +122,17 @@ export function CalendarPage({ events, dutyConfirmedDates, weekStart, onChangeEv
     setView('week')
   }
 
-  const toggleDeadlineDone = (item: CalendarEvent) => {
+  const toggleEventDone = (item: CalendarEvent) => {
     onChangeEvents(events.map((event) => (event.id === item.id ? { ...event, done: !event.done } : event)))
     notify.success(item.done ? `已恢复「${item.title}」` : `已完成「${item.title}」`)
+  }
+
+  const openItem = (item: CalendarEvent) => {
+    if (item.kind === 'journal') {
+      openDeadlineLink({ ...item, linkTo: item.linkTo ?? { route: 'journal' } })
+      return
+    }
+    setEditor(item)
   }
 
   const openDeadlineLink = (item: CalendarEvent) => {
@@ -141,8 +157,8 @@ export function CalendarPage({ events, dutyConfirmedDates, weekStart, onChangeEv
             {weekdayLabel(new Date(selectedDay + 'T12:00:00'))}
           </h2>
         </div>
-        <button type="button" className="text-action" onClick={() => newEvent(selectedDay)}>
-          ＋ 添加
+        <button type="button" className="primary-action" onClick={() => newEvent(selectedDay)}>
+          ＋ 添加日程
         </button>
       </div>
 
@@ -168,29 +184,32 @@ export function CalendarPage({ events, dutyConfirmedDates, weekStart, onChangeEv
       <div className="day-detail-list">
         {selectedDayEvents.length === 0 && <div className="empty-column">这一天暂无安排</div>}
         {selectedDayEvents.map((item) => (
-          <div key={item.id} className={`day-detail-item${item.done ? ' is-done' : ''}`}>
-            <button type="button" className="day-detail-main" onClick={() => setEditor(item)}>
+          <div key={item.id} className={`day-detail-item${item.done ? ' is-done' : ' is-open'}`}>
+            <button type="button" className="day-detail-main" onClick={() => openItem(item)}>
               <span className={`day-detail-dot event-${item.kind}`} />
               <span className="day-detail-body">
                 <b>{item.title}</b>
                 <small>
-                  {item.kind === 'deadline' ? '全天提醒' : `${times[item.start]} · ${item.detail}`}
+                  {isAllDayKind(item.kind) ? item.detail || '全天' : `${times[item.start]} · ${item.detail}`}
                 </small>
               </span>
               <KindBadge kind={item.kind} />
             </button>
-            {item.kind === 'deadline' && (
-              <span className="deadline-actions">
-                {(item.linkTo || inferDeadlineLink(item)) && onNavigate && (
-                  <button type="button" className="text-action" onClick={() => openDeadlineLink(item)}>
-                    {deadlineLinkLabel(item.linkTo ?? inferDeadlineLink(item)!)}
-                  </button>
-                )}
-                <button type="button" className="text-action" onClick={() => toggleDeadlineDone(item)}>
-                  {item.done ? '恢复' : '完成'}
+            <span className="deadline-actions">
+              {item.kind === 'deadline' && (item.linkTo || inferDeadlineLink(item)) && onNavigate && (
+                <button type="button" className="text-action" onClick={() => openDeadlineLink(item)}>
+                  {deadlineLinkLabel(item.linkTo ?? inferDeadlineLink(item)!)}
                 </button>
-              </span>
-            )}
+              )}
+              {item.kind === 'journal' && onNavigate && (
+                <button type="button" className="text-action" onClick={() => openItem(item)}>
+                  查看随手记
+                </button>
+              )}
+              <button type="button" className="text-action" onClick={() => toggleEventDone(item)}>
+                {item.done ? '恢复未完成' : '标记完成'}
+              </button>
+            </span>
           </div>
         ))}
       </div>
@@ -199,20 +218,23 @@ export function CalendarPage({ events, dutyConfirmedDates, weekStart, onChangeEv
 
   return (
     <section className="calendar-page functional-calendar" aria-label="日程与值班">
-      <div className="page-actions">
-        <button
-          type="button"
-          className="outline-action"
-          onClick={() => {
-            setCursor(seedCursor)
-            setSelectedDay(iso(seedCursor))
-          }}
-        >
-          回到本周
-        </button>
-        <button type="button" className="primary-action" onClick={() => newEvent()}>
-          ＋ 新建日程
-        </button>
+      <div className="page-actions calendar-page-actions">
+        <p className="calendar-add-hint">课表会按周几铺满本学期；调课直接删除该节即可。随手记会在当天结束后出现在全天行。</p>
+        <div className="calendar-page-actions-btns">
+          <button
+            type="button"
+            className="outline-action"
+            onClick={() => {
+              setCursor(seedCursor)
+              setSelectedDay(iso(seedCursor))
+            }}
+          >
+            回到本周
+          </button>
+          <button type="button" className="primary-action calendar-add-btn" onClick={() => newEvent()}>
+            ＋ 添加日程
+          </button>
+        </div>
       </div>
 
       <div className="calendar-toolbar">
@@ -247,25 +269,25 @@ export function CalendarPage({ events, dutyConfirmedDates, weekStart, onChangeEv
       {view === 'week' ? (
         <div className="calendar-workspace">
           <section className="week-calendar functional-week">
-            <div className="week-allday" aria-label="全天与截止事项">
+            <div className="week-allday" aria-label="全天与随手记">
               <span className="allday-label">全天</span>
               {days.map((day) => {
                 const dateStr = iso(day)
-                const deadlines = events.filter((item) => item.date === dateStr && item.kind === 'deadline')
+                const allDay = events.filter((item) => item.date === dateStr && isAllDayKind(item.kind))
                 return (
                   <div className={`allday-cell ${dateStr === focusDate ? 'today-column' : ''}`} key={dateStr}>
-                    {deadlines.map((item) => (
+                    {allDay.map((item) => (
                       <button
                         key={item.id}
                         type="button"
-                        className={`allday-chip event-deadline${item.done ? ' is-done' : ''}`}
-                        onClick={() => setEditor(item)}
-                        title="点击编辑"
+                        className={`allday-chip event-${item.kind}${item.done ? ' is-done' : ''}`}
+                        onClick={() => openItem(item)}
+                        title={item.kind === 'journal' ? '查看随手记' : '点击编辑'}
                       >
                         {item.title}
                       </button>
                     ))}
-                    {deadlines.length === 0 && <span className="allday-empty">—</span>}
+                    {allDay.length === 0 && <span className="allday-empty">—</span>}
                   </div>
                 )
               })}
@@ -296,7 +318,7 @@ export function CalendarPage({ events, dutyConfirmedDates, weekStart, onChangeEv
               <div className="week-grid">
                 {days.map((day) => {
                   const dateStr = iso(day)
-                  const timed = events.filter((item) => item.date === dateStr && item.kind !== 'deadline')
+                  const timed = events.filter((item) => item.date === dateStr && !isAllDayKind(item.kind))
                   return (
                     <div
                       className={`day-column ${dateStr === focusDate ? 'today-column' : ''} ${dateStr === selectedDay ? 'is-selected' : ''}`}
@@ -309,10 +331,10 @@ export function CalendarPage({ events, dutyConfirmedDates, weekStart, onChangeEv
                       {timed.map((item) => (
                         <button
                           type="button"
-                          className={`calendar-event event-${item.kind}`}
+                          className={`calendar-event event-${item.kind}${item.done ? ' is-done' : ''}`}
                           style={{ '--event-start': item.start, '--event-length': item.length } as React.CSSProperties}
                           key={item.id}
-                          onClick={() => setEditor(item)}
+                          onClick={() => openItem(item)}
                           title="点击编辑"
                         >
                           <b>{item.title}</b>
@@ -352,12 +374,12 @@ export function CalendarPage({ events, dutyConfirmedDates, weekStart, onChangeEv
                     <strong>{day.getDate()}</strong>
                     {list.slice(0, 3).map((item) => (
                       <span
-                        className={`month-event event-${item.kind}`}
+                        className={`month-event event-${item.kind}${item.done ? ' is-done' : ''}`}
                         key={item.id}
                         onClick={(event) => {
                           event.stopPropagation()
                           setSelectedDay(dateStr)
-                          setEditor(item)
+                          openItem(item)
                         }}
                       >
                         {item.title}
@@ -396,6 +418,9 @@ export function CalendarPage({ events, dutyConfirmedDates, weekStart, onChangeEv
                 ×
               </button>
             </div>
+            {editor.id.startsWith('course-') && (
+              <p className="composer-hint">这是课表自动生成的一节课。删除后本学期不再出现这一节，适合调课。</p>
+            )}
             <label>
               日程名称
               <input
@@ -428,20 +453,21 @@ export function CalendarPage({ events, dutyConfirmedDates, weekStart, onChangeEv
                     setEditor({
                       ...editor,
                       kind,
-                      start: kind === 'deadline' ? 0 : editor.start || 6,
-                      length: kind === 'deadline' ? 1 : editor.length || 1,
+                      start: isAllDayKind(kind) ? 0 : editor.start || 6,
+                      length: isAllDayKind(kind) ? 1 : editor.length || 1,
                     })
                   }}
+                  disabled={editor.kind === 'journal' || editor.id.startsWith('course-') || editor.id.startsWith('journal-')}
                 >
-                  {Object.entries(labels).map(([value, label]) => (
+                  {(editor.kind === 'journal' ? (Object.keys(labels) as CalendarKind[]) : CREATABLE_KINDS).map((value) => (
                     <option value={value} key={value}>
-                      {label}
+                      {labels[value]}
                     </option>
                   ))}
                 </select>
               </label>
             </div>
-            {editor.kind !== 'deadline' && (
+            {editor.kind !== 'deadline' && editor.kind !== 'journal' && (
               <div className="composer-grid">
                 <label>
                   开始时间
@@ -492,26 +518,30 @@ export function CalendarPage({ events, dutyConfirmedDates, weekStart, onChangeEv
                     <option value="">不关联（保存时按标题推断）</option>
                     <option value="students:">学生与评价</option>
                     <option value="resources:">教学资源库</option>
-                    <option value="courses:">课程与排课</option>
+                    <option value="journal:">随手记</option>
+                    <option value="courses:">教学</option>
                     <option value="tasks:">教学看板</option>
                   </select>
                 </label>
-                {editor.id && (
-                  <label className="settings-check">
-                    <input
-                      type="checkbox"
-                      checked={Boolean(editor.done)}
-                      onChange={(event) => setEditor({ ...editor, done: event.target.checked })}
-                    />
-                    已完成此项
-                  </label>
-                )}
               </>
+            )}
+            {editor.kind === 'journal' && (
+              <p className="composer-hint">随手记由当天结束后自动同步到日程，点「查看随手记」可回到原文。</p>
+            )}
+            {editor.id && editor.kind !== 'journal' && (
+              <label className="settings-check">
+                <input
+                  type="checkbox"
+                  checked={Boolean(editor.done)}
+                  onChange={(event) => setEditor({ ...editor, done: event.target.checked })}
+                />
+                已完成此项
+              </label>
             )}
             <div className="composer-actions">
               {editor.id && (
                 <button type="button" className="delete-action" onClick={remove}>
-                  删除日程
+                  {editor.id.startsWith('course-') ? '删除该节（调课）' : '删除日程'}
                 </button>
               )}
               <span />

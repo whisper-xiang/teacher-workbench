@@ -6,6 +6,7 @@ export function deadlineLinkLabel(link: DeadlineLink): string {
     resources: '打开资源库',
     courses: '打开课程档案',
     tasks: '打开教学看板',
+    journal: '打开随手记',
     calendar: '查看日程',
   }
   return labels[link.route] ?? '前往处理'

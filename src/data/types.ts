@@ -13,7 +13,7 @@ export const MAJORS: Major[] = [
   { id: 'pre', name: '学前教育', short: '学前', color: '#7c3aed' },
 ]
 
-export type CalendarKind = 'course' | 'duty' | 'meeting' | 'patrol' | 'deadline'
+export type CalendarKind = 'course' | 'duty' | 'meeting' | 'patrol' | 'deadline' | 'journal'
 
 export type DeadlineLink = {
   route: RouteId
@@ -64,6 +64,43 @@ export type Course = {
   description?: string
   /** 第 n 周教学主题，下标 0 对应第 1 周 */
   weeklyTopics?: string[]
+  /** 一门课可带多个班级；缺省时由 className 生成 */
+  classes?: CourseClassGroup[]
+}
+
+export type ClassNodeKind = '进度' | '作业发布' | '作业回收' | '学生表现' | '其他'
+
+export const CLASS_NODE_KINDS: ClassNodeKind[] = ['进度', '作业发布', '作业回收', '学生表现', '其他']
+
+export type ClassLessonNode = {
+  id: string
+  week: number
+  kind: ClassNodeKind
+  /** 节点说明，手工填写 */
+  note: string
+  markedAt?: string
+}
+
+export const PERFORMANCE_RATINGS = ['优秀', '良好', '一般', '需关注'] as const
+
+export type PerformanceRating = (typeof PERFORMANCE_RATINGS)[number]
+
+export type StudentPerformance = {
+  id: string
+  studentId: string
+  week: number
+  rating: PerformanceRating
+  note: string
+  markedAt: string
+}
+
+export type CourseClassGroup = {
+  id: string
+  name: string
+  studentCount: number
+  currentWeek: number
+  nodes: ClassLessonNode[]
+  performances?: StudentPerformance[]
 }
 
 export type StudentRecord = {
@@ -81,6 +118,19 @@ export type StudentRecord = {
   notes: string
 }
 
+export type HomeworkSubmission = {
+  id: string
+  studentId: string
+  fileId?: string
+  fileName?: string
+  mimeType?: string
+  size?: string
+  uploadedAt: string
+  score?: number
+  comment?: string
+  evaluatedAt?: string
+}
+
 export type Assignment = {
   id: string
   courseId: string
@@ -91,6 +141,7 @@ export type Assignment = {
   submitted?: number
   total?: number
   major?: MajorId
+  submissions?: HomeworkSubmission[]
 }
 
 export type BoardStatus = 'todo' | 'doing' | 'done'
@@ -202,11 +253,17 @@ export type GradeItem = {
   total: number
 }
 
+export type PetKind = 'ning' | 'hamster' | 'puppy' | 'kitty' | 'bunny' | 'chick' | 'fox' | 'photo'
+
 export type TeacherProfile = {
   name: string
   title: string
   college: string
   greetingName: string
+  /** IndexedDB 中的照片 Q 版大头 */
+  petAvatarId?: string
+  /** 桌宠形象：预设萌宠或照片 Q 版 */
+  petKind?: PetKind
 }
 
 export type WorkbenchMeta = {
@@ -218,6 +275,110 @@ export type WorkbenchMeta = {
   newsFetchedAt?: string
   /** 预置工具版本；低于当前版本时按 id 补齐新入口，不覆盖用户已有项 */
   presetToolsVersion?: number
+}
+
+export type WorkMaterial = {
+  id: string
+  title: string
+  kind: string
+  fileId?: string
+  fileName?: string
+  mimeType?: string
+  size?: string
+  updated: string
+  /** 从文件识别或手工整理的正文 */
+  extractedText?: string
+  /** 处理备注 */
+  note?: string
+  processedAt?: string
+}
+
+export type WorkMilestone = {
+  id: string
+  name: string
+  done: boolean
+  due?: string
+}
+
+export type ResearchNoticeStatus = 'upcoming' | 'open'
+
+export type ResearchNotice = {
+  id: string
+  title: string
+  source: string
+  summary: string
+  category: string
+  openAt: string
+  closeAt: string
+  status: ResearchNoticeStatus
+  url?: string
+  fileId?: string
+  fileName?: string
+  mimeType?: string
+  size?: string
+  extractedText?: string
+  note?: string
+}
+
+export type ResearchProjectStatus = 'applying' | 'closing' | 'ended'
+
+export type ResearchAchievement = {
+  id: string
+  title: string
+  done: boolean
+}
+
+export type ResearchProject = {
+  id: string
+  title: string
+  category: string
+  status: ResearchProjectStatus
+  summary: string
+  noticeId?: string
+  startDate?: string
+  endDate?: string
+  milestones: WorkMilestone[]
+  materials: WorkMaterial[]
+  achievements: ResearchAchievement[]
+}
+
+export const ACTIVITY_CATEGORIES = ['大创', '三下乡', '挑战杯', '互联网+', '其他'] as const
+
+export type ActivityCategory = (typeof ACTIVITY_CATEGORIES)[number]
+
+export type ActivityProjectStatus = 'planning' | 'doing' | 'closing' | 'done'
+
+export type ActivityProject = {
+  id: string
+  title: string
+  category: ActivityCategory
+  summary: string
+  status: ActivityProjectStatus
+  milestones: WorkMilestone[]
+  materials: WorkMaterial[]
+}
+
+export const JOURNAL_KINDS = ['教学', '科研', '学生工作', '公共事务', '其他'] as const
+
+export type JournalKind = (typeof JOURNAL_KINDS)[number]
+
+export type WorkJournalFile = {
+  id: string
+  fileId: string
+  fileName: string
+  mimeType: string
+  size: string
+}
+
+export type WorkJournalNote = {
+  id: string
+  /** YYYY-MM-DD，记下时自动带上，可改 */
+  date: string
+  title: string
+  content: string
+  kind: JournalKind
+  files: WorkJournalFile[]
+  createdAt: string
 }
 
 export type WorkbenchData = {
@@ -242,13 +403,22 @@ export type WorkbenchData = {
   dutyConfirmedDates: string[]
   reminders: ReminderItem[]
   reminderSettings: ReminderSettings
+  researchNotices: ResearchNotice[]
+  researchProjects: ResearchProject[]
+  activityProjects: ActivityProject[]
+  workNotes: WorkJournalNote[]
+  /** 调课删除的课程事件 id，整学期不再自动生成该节 */
+  hiddenCourseEventIds: string[]
 }
 
 export type RouteId =
   | 'overview'
   | 'calendar'
   | 'tasks'
+  | 'journal'
   | 'courses'
+  | 'research'
+  | 'activities'
   | 'students'
   | 'resources'
   | 'news'

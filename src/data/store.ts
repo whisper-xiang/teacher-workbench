@@ -2,18 +2,23 @@ import { currentCourseTopic } from '../lib/courses'
 import { addDaysIso, diffDays, dueLabel, thisMondayIso, todayIso } from '../lib/dates'
 import { mergePresetTools, PRESET_TOOLS_VERSION } from './default-tools'
 import { createSeedData } from './seed'
+import { ensureCourseClasses } from '../lib/course-classes'
 import type {
+  Assignment,
   BoardPriority,
   BoardTask,
   CalendarEvent,
+  ClassLessonNode,
+  ClassNodeKind,
   Course,
+  CourseClassGroup,
   NewsItem,
   StudentRecord,
   TeachingResource,
   WorkbenchData,
 } from './types'
 import { inferMajorFromText } from './types'
-import { syncAssignmentDeadlines, syncCourseEvents } from './sync'
+import { syncDerivedEvents } from './sync'
 
 export const STORAGE_KEY = 'teacher-workbench-data-v1'
 const LEGACY_CALENDAR_KEY = 'teacher-calendar-events'
@@ -38,6 +43,7 @@ function normalizeCourse(course: Course): Course {
     sessions: course.sessions ?? [],
     weeklyTopics,
     topic,
+    classes: ensureCourseClasses({ ...course, currentWeek }).map(normalizeClassGroup),
   }
 }
 
@@ -56,7 +62,7 @@ export function alignDataToWeekStart(data: WorkbenchData, nextWeekStart: string)
     }
   })
   const events = data.events
-    .filter((item) => !item.id.startsWith('course-') && !item.id.startsWith('deadline-'))
+    .filter((item) => !item.id.startsWith('course-') && !item.id.startsWith('deadline-') && !item.id.startsWith('journal-'))
     .map((item) => ({ ...item, date: shiftIf(item.date) }))
 
   return {
@@ -65,7 +71,36 @@ export function alignDataToWeekStart(data: WorkbenchData, nextWeekStart: string)
     assignments,
     tasks,
     dutyConfirmedDates: data.dutyConfirmedDates.map((date) => shiftIf(date)),
-    events: syncAssignmentDeadlines(syncCourseEvents(events, data.courses, nextWeekStart), assignments),
+    events: syncDerivedEvents({ ...data, events, assignments, meta: { ...data.meta, weekStart: nextWeekStart } }),
+  }
+}
+
+function normalizeClassGroup(group: CourseClassGroup): CourseClassGroup {
+  return {
+    ...group,
+    nodes: (group.nodes ?? []).map(normalizeClassNode),
+    performances: group.performances ?? [],
+  }
+}
+
+function normalizeClassNode(node: ClassLessonNode & { phase?: string }): ClassLessonNode {
+  const mapped: ClassNodeKind =
+    node.kind ??
+    (node.phase === '课后' || node.phase === '课前' ? '进度' : '进度')
+  return {
+    id: node.id,
+    week: node.week,
+    kind: mapped,
+    note: node.note,
+    markedAt: node.markedAt,
+  }
+}
+
+function normalizeAssignment(item: Assignment): Assignment {
+  return {
+    ...item,
+    reviewed: item.reviewed ?? [],
+    submissions: item.submissions ?? [],
   }
 }
 
@@ -131,7 +166,7 @@ function mergeWithSeed(partial: Partial<WorkbenchData> | null): WorkbenchData {
 
   const courses = (partial.courses ?? seed.courses).map(normalizeCourse)
   const students = (partial.students ?? seed.students).map(normalizeStudent)
-  const assignments = partial.assignments ?? seed.assignments
+  const assignments = (partial.assignments ?? seed.assignments).map(normalizeAssignment)
   const storedToolsVersion = partial.meta?.presetToolsVersion ?? 0
   const tools =
     storedToolsVersion < PRESET_TOOLS_VERSION ? mergePresetTools(partial.tools) : (partial.tools ?? seed.tools)
@@ -142,8 +177,25 @@ function mergeWithSeed(partial: Partial<WorkbenchData> | null): WorkbenchData {
   }
 
   // 日历中的课程/截止事件是派生数据：先清掉历史手写课程事件，再按课程与作业重建
-  const baseEvents = (partial.events ?? seed.events).map(normalizeEvent).filter((item) => item.kind !== 'course')
-  const events = syncAssignmentDeadlines(syncCourseEvents(baseEvents, courses, meta.weekStart), assignments)
+  const baseEvents = (partial.events ?? seed.events)
+    .map(normalizeEvent)
+    .filter(
+      (item) =>
+        !item.id.startsWith('course-') &&
+        !item.id.startsWith('deadline-') &&
+        !item.id.startsWith('journal-') &&
+        item.kind !== 'course' &&
+        item.kind !== 'journal',
+    )
+  const events = syncDerivedEvents({
+    ...partial,
+    events: baseEvents,
+    courses,
+    assignments,
+    workNotes: partial.workNotes ?? seed.workNotes,
+    hiddenCourseEventIds: partial.hiddenCourseEventIds ?? seed.hiddenCourseEventIds,
+    meta,
+  } as WorkbenchData)
   const { news, newsBookmarks, newsRead } = normalizeNews(partial)
 
   const merged: WorkbenchData = {
@@ -169,6 +221,11 @@ function mergeWithSeed(partial: Partial<WorkbenchData> | null): WorkbenchData {
     dutyConfirmedDates: partial.dutyConfirmedDates ?? seed.dutyConfirmedDates,
     reminders: partial.reminders?.length ? partial.reminders : seed.reminders,
     reminderSettings: { ...seed.reminderSettings, ...partial.reminderSettings },
+    researchNotices: partial.researchNotices ?? seed.researchNotices,
+    researchProjects: partial.researchProjects ?? seed.researchProjects,
+    activityProjects: partial.activityProjects ?? seed.activityProjects,
+    workNotes: partial.workNotes ?? seed.workNotes,
+    hiddenCourseEventIds: partial.hiddenCourseEventIds ?? seed.hiddenCourseEventIds,
     updatedAt: partial.updatedAt ?? new Date().toISOString(),
   }
 
@@ -197,7 +254,7 @@ export function loadWorkbenchData(): WorkbenchData {
       if (Array.isArray(events) && events.length) {
         // 旧版日程并入后，重新按课程/作业生成派生事件
         const merged = [...data.events, ...events.map(normalizeEvent)]
-        data.events = syncAssignmentDeadlines(syncCourseEvents(merged, data.courses, data.meta.weekStart), data.assignments)
+        data.events = syncDerivedEvents({ ...data, events: merged })
       }
       saveWorkbenchData(data)
       return data

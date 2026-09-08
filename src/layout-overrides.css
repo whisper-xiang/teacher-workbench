@@ -6,6 +6,9 @@
 .courses-page,
 .students-page,
 .resources-page,
+.research-page,
+.activities-page,
+.journal-page,
 .news-page,
 .tools-page,
 .reminders-page,
@@ -27,6 +30,9 @@
 .courses-page,
 .students-page,
 .resources-page,
+.research-page,
+.activities-page,
+.journal-page,
 .news-page,
 .tools-page,
 .reminders-page,
@@ -95,6 +101,9 @@ body,
 .courses-page,
 .students-page,
 .resources-page,
+.research-page,
+.activities-page,
+.journal-page,
 .news-page,
   .tools-page,
   .reminders-page,
@@ -106,4 +115,9 @@ body,
   .dashboard {
     padding-top: 0;
   }
+}
+
+.page-actions.calendar-page-actions {
+  justify-content: space-between;
+  align-items: center;
 }

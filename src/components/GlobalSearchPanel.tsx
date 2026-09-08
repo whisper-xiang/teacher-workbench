@@ -54,7 +54,7 @@ export function GlobalSearchPanel({ open, data, query, onQueryChange, onClose, o
         </label>
         <div className="global-search-body">
           {!query.trim() ? (
-            <p className="global-search-hint">输入关键词，搜索工作台中的课程、学生、资源、任务、资讯等</p>
+            <p className="global-search-hint">输入关键词，搜索课程、科研、学生活动、资源、任务等</p>
           ) : results.length === 0 ? (
             <p className="global-search-empty">未找到「{query}」相关结果</p>
           ) : (
