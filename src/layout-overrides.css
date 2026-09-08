@@ -24,6 +24,12 @@
   overflow-x: hidden;
 }
 
+.main-content > .calendar-page,
+.calendar-page.functional-calendar {
+  overflow: hidden;
+  padding-bottom: 0;
+}
+
 /* Pages with top action buttons need breathing room under the topbar */
 .calendar-page,
 .task-board,

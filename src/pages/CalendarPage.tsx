@@ -182,7 +182,14 @@ export function CalendarPage({ events, dutyConfirmedDates, weekStart, onChangeEv
       )}
 
       <div className="day-detail-list">
-        {selectedDayEvents.length === 0 && <div className="empty-column">这一天暂无安排</div>}
+        {selectedDayEvents.length === 0 && (
+          <div className="empty-column">
+            这一天暂无安排，
+            <button type="button" className="text-action" onClick={() => newEvent(selectedDay)}>
+              新建日程
+            </button>
+          </div>
+        )}
         {selectedDayEvents.map((item) => (
           <div key={item.id} className={`day-detail-item${item.done ? ' is-done' : ' is-open'}`}>
             <button type="button" className="day-detail-main" onClick={() => openItem(item)}>
@@ -218,8 +225,39 @@ export function CalendarPage({ events, dutyConfirmedDates, weekStart, onChangeEv
 
   return (
     <section className="calendar-page functional-calendar" aria-label="日程与值班">
-      <div className="page-actions calendar-page-actions">
-        <p className="calendar-add-hint">课表会按周几铺满本学期；调课直接删除该节即可。随手记会在当天结束后出现在全天行。</p>
+      <header className="calendar-heading">
+        <div className="calendar-heading-copy">
+          <p className="section-label">工作台</p>
+          <h1>日程与值班</h1>
+        </div>
+        <div className="calendar-toolbar">
+          <div className="calendar-nav">
+            <button type="button" onClick={() => changePeriod(-1)} aria-label="上一时段">
+              ‹
+            </button>
+            <strong>
+              {cursor.getFullYear()} 年 {cursor.getMonth() + 1} 月
+            </strong>
+            <button type="button" onClick={() => changePeriod(1)} aria-label="下一时段">
+              ›
+            </button>
+          </div>
+          <div className="view-switch">
+            <button type="button" className={view === 'week' ? 'selected' : ''} onClick={() => setView('week')}>
+              周视图
+            </button>
+            <button
+              type="button"
+              className={view === 'month' ? 'selected' : ''}
+              onClick={() => {
+                setView('month')
+                setSelectedDay(iso(cursor))
+              }}
+            >
+              月视图
+            </button>
+          </div>
+        </div>
         <div className="calendar-page-actions-btns">
           <button
             type="button"
@@ -231,40 +269,11 @@ export function CalendarPage({ events, dutyConfirmedDates, weekStart, onChangeEv
           >
             回到本周
           </button>
-          <button type="button" className="primary-action calendar-add-btn" onClick={() => newEvent()}>
+          <button type="button" className="primary-action" onClick={() => newEvent()}>
             ＋ 添加日程
           </button>
         </div>
-      </div>
-
-      <div className="calendar-toolbar">
-        <div className="calendar-nav">
-          <button type="button" onClick={() => changePeriod(-1)} aria-label="上一时段">
-            ‹
-          </button>
-          <strong>
-            {cursor.getFullYear()} 年 {cursor.getMonth() + 1} 月
-          </strong>
-          <button type="button" onClick={() => changePeriod(1)} aria-label="下一时段">
-            ›
-          </button>
-        </div>
-        <div className="view-switch">
-          <button type="button" className={view === 'week' ? 'selected' : ''} onClick={() => setView('week')}>
-            周视图
-          </button>
-          <button
-            type="button"
-            className={view === 'month' ? 'selected' : ''}
-            onClick={() => {
-              setView('month')
-              setSelectedDay(iso(cursor))
-            }}
-          >
-            月视图
-          </button>
-        </div>
-      </div>
+      </header>
 
       {view === 'week' ? (
         <div className="calendar-workspace">
