@@ -2,14 +2,23 @@
 
 .app-shell {
   --nav-w: 228px;
-  --glass: rgba(255, 255, 255, 0.12);
-  --glass-strong: rgba(255, 255, 255, 0.2);
-  --glass-border: rgba(255, 255, 255, 0.26);
+  --moss-05: #152018;
+  --moss-20: #24362c;
+  --moss-30: #2c4d3d;
+  --moss-40: #3f6b56;
+  --mist: #f7fbf8;
+  --wash-ink: rgba(16, 24, 20, 0.32);
+  --wash-mid: rgba(36, 54, 44, 0.18);
+  --wash-sage: rgba(143, 163, 150, 0.16);
+  --wash-fog: rgba(247, 251, 248, 0.1);
+  --glass: rgba(247, 251, 248, 0.12);
+  --glass-strong: rgba(247, 251, 248, 0.2);
+  --glass-border: rgba(247, 251, 248, 0.26);
   --glass-text: #f7fbf8;
   --glass-muted: rgba(247, 251, 248, 0.74);
   --glass-subtle: rgba(247, 251, 248, 0.52);
   --font-display-num: "Outfit", "Noto Sans SC", sans-serif;
-  background: #152018;
+  background: var(--moss-05);
 }
 
 .app-shell.nav-collapsed {
@@ -19,7 +28,7 @@
 html,
 body,
 #root {
-  background: #152018;
+  background: var(--moss-05, #152018);
 }
 
 .app-shell::before {
@@ -29,9 +38,10 @@ body,
   z-index: 0;
   pointer-events: none;
   background:
-    linear-gradient(180deg, rgba(14, 22, 20, 0.32) 0%, rgba(14, 22, 20, 0.08) 38%, rgba(16, 28, 22, 0.42) 100%),
+    linear-gradient(180deg, var(--wash-ink) 0%, var(--wash-fog) 38%, var(--wash-mid) 100%),
+    radial-gradient(80% 50% at 70% 10%, var(--wash-sage), transparent 60%),
     url("/glass-sky.jpg") center / cover no-repeat;
-  background-color: #24362c;
+  background-color: var(--moss-20);
 }
 
 .app-shell .main-content {
@@ -335,14 +345,9 @@ body,
 }
 
 .app-shell.is-overview .dashboard {
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   padding-top: 0;
-}
-
-@media (max-width: 720px) {
-  .app-shell.is-overview .dashboard {
-    overflow-y: auto;
-  }
 }
 
 .app-shell .global-search-input kbd {

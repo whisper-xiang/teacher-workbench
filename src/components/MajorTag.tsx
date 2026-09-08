@@ -1,14 +1,23 @@
 import type { MajorId } from '../data/types'
 
-export function MajorTag({ major, compact = false }: { major?: MajorId | null; compact?: boolean }) {
-  if (!major) return <span className="major-tag major-general">{compact ? '通' : '通用'}</span>
+export function MajorTag({
+  major,
+  compact = false,
+  surface,
+}: {
+  major?: MajorId | null
+  compact?: boolean
+  surface?: 'glass' | 'sheet'
+}) {
+  const glass = surface === 'glass' ? ' major-on-glass' : ''
+  if (!major) return <span className={`major-tag major-general${glass}`}>{compact ? '通' : '通用'}</span>
   const map = {
     edu: { label: compact ? '教育' : '教育学', cls: 'major-edu' },
     pri: { label: compact ? '小教' : '小学教育', cls: 'major-pri' },
     pre: { label: compact ? '学前' : '学前教育', cls: 'major-pre' },
   } as const
   const item = map[major]
-  return <span className={`major-tag ${item.cls}`}>{item.label}</span>
+  return <span className={`major-tag ${item.cls}${glass}`}>{item.label}</span>
 }
 
 export function MajorFilter({

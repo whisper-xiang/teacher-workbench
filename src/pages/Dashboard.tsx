@@ -25,6 +25,10 @@ const KIND_LABEL: Record<CalendarEvent['kind'], string> = {
   meeting: '会议',
 }
 
+function hourLabel(item: CalendarEvent) {
+  return item.kind === 'deadline' ? '截止' : times[item.start]
+}
+
 function periodWord(start: number) {
   if (start <= 2) return '上午'
   if (start <= 5) return '午间'
@@ -150,31 +154,40 @@ export function Dashboard({ meta, profile, events, tasks, courses, onNavigate, o
           <p className="dash-story">{story}</p>
 
           <div className="dash-hours" aria-label="今日安排">
-            {(schedule.length ? schedule.slice(0, 6) : []).map((item) => {
-              const link = item.kind === 'deadline' ? item.linkTo ?? inferDeadlineLink(item) : undefined
-              return (
-                <button
-                  type="button"
-                  className="dash-hour"
-                  key={item.id}
-                  onClick={() => (link ? onNavigate(link.route, link.param) : onNavigate('calendar'))}
-                >
-                  <b>{`${Number(times[item.start].slice(0, 2))}°`}</b>
-                  <small>{KIND_LABEL[item.kind]}</small>
-                  <span>{item.title}</span>
+            {schedule.length === 0 ? (
+              <p className="dash-empty">
+                今天暂无日程，
+                <button type="button" className="dash-text-link" onClick={() => onNavigate('calendar')}>
+                  去日历添加
                 </button>
-              )
-            })}
-            {schedule.length === 0 && (
-              <div className="dash-hour dash-hour-empty">
-                <b>—°</b>
-                <small>空档</small>
-                <span>今天暂无日程</span>
-              </div>
+              </p>
+            ) : (
+              schedule.slice(0, 6).map((item) => {
+                const link = item.kind === 'deadline' ? item.linkTo ?? inferDeadlineLink(item) : undefined
+                return (
+                  <button
+                    type="button"
+                    className={item.kind === 'deadline' ? 'dash-hour dash-hour-deadline' : 'dash-hour'}
+                    key={item.id}
+                    onClick={() => (link ? onNavigate(link.route, link.param) : onNavigate('calendar'))}
+                  >
+                    <b>{hourLabel(item)}</b>
+                    {item.kind !== 'deadline' && <small>{KIND_LABEL[item.kind]}</small>}
+                    <span>{item.title}</span>
+                  </button>
+                )
+              })
             )}
           </div>
 
-          {focusTasks.length > 0 && (
+          {pendingCount === 0 ? (
+            <p className="dash-empty">
+              {tasks.length ? '今日事项已完成，' : '还没有待办，'}
+              <button type="button" className="dash-text-link" onClick={() => onNavigate('tasks')}>
+                进入看板
+              </button>
+            </p>
+          ) : (
             <ul className="dash-task-pills">
               {focusTasks.map((task) => {
                 const done = task.status === 'done'
@@ -185,6 +198,7 @@ export function Dashboard({ meta, profile, events, tasks, courses, onNavigate, o
                         type="checkbox"
                         checked={done}
                         onChange={(event) => onSetTaskStatus(task.id, event.target.checked)}
+                        aria-label={done ? `取消完成 ${task.title}` : `完成 ${task.title}`}
                       />
                       <span>{task.title}</span>
                     </label>
@@ -237,7 +251,7 @@ export function Dashboard({ meta, profile, events, tasks, courses, onNavigate, o
               </span>
               {next && <small>{KIND_LABEL[next.kind]}</small>}
             </header>
-            <div className="dash-now-temp">
+            <div className={next?.kind === 'deadline' ? 'dash-now-temp is-deadline' : 'dash-now-temp'}>
               <strong>{nextTime}</strong>
               {nextUnit && <em>{nextUnit}</em>}
             </div>
@@ -269,27 +283,36 @@ export function Dashboard({ meta, profile, events, tasks, courses, onNavigate, o
             })()}
           </article>
 
-          {featuredCourses.map((course) => {
-            const topic = currentCourseTopic(course)
-            return (
-              <button
-                type="button"
-                className="glass-card dash-place"
-                key={course.id}
-                onClick={() => onNavigate('courses')}
-              >
-                <div>
-                  <strong>{course.name}</strong>
-                  <span>{topic || course.status}</span>
-                </div>
-                <b>
-                  {course.currentWeek}
-                  <small>周</small>
-                </b>
-                <MajorTag major={course.major} compact />
+          {featuredCourses.length === 0 ? (
+            <div className="glass-card dash-empty-card">
+              <p>还没有课程档案。</p>
+              <button type="button" className="dash-text-link" onClick={() => onNavigate('courses')}>
+                去课程管理添加
               </button>
-            )
-          })}
+            </div>
+          ) : (
+            featuredCourses.map((course) => {
+              const topic = currentCourseTopic(course)
+              return (
+                <button
+                  type="button"
+                  className="glass-card dash-place"
+                  key={course.id}
+                  onClick={() => onNavigate('courses')}
+                >
+                  <div>
+                    <strong>{course.name}</strong>
+                    <span>{topic || course.status}</span>
+                  </div>
+                  <b>
+                    {course.currentWeek}
+                    <small>周</small>
+                  </b>
+                  <MajorTag major={course.major} compact surface="glass" />
+                </button>
+              )
+            })
+          )}
         </aside>
       </div>
       <p className="sr-only">{today}</p>
