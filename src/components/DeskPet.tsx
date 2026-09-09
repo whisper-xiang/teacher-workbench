@@ -1,12 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import { useHealthPet } from '../hooks/useHealthPet'
-import {
-  HEALTH_ITEMS,
-  healthProgress,
-  pickPhrase,
-  weakestGoal,
-  type HealthId,
-} from '../lib/health-pet'
 import type { PetKind } from '../data/types'
 import { getResourceFile } from '../lib/resource-files'
 import { PET_AVATAR_EVENT } from '../lib/q-pet'
@@ -18,9 +10,12 @@ type Mood = 'idle' | 'walk' | 'talk' | 'celebrate'
 
 type Props = {
   greetingName: string
+  pageId?: string
   petAvatarId?: string
   petKind?: PetKind
 }
+
+const REFLECT_PROMPT = '吾日三省吾身：喝水、走动、提肛。'
 
 function PetFigure({
   mood,
@@ -47,14 +42,12 @@ function PetFigure({
   return <PetMascot kind={mascot} mood={mood} facing={facing} />
 }
 
-export function DeskPet({ greetingName, petAvatarId, petKind }: Props) {
+export function DeskPet({ greetingName, pageId, petAvatarId, petKind }: Props) {
   const kind = resolvePetKind({ petKind, petAvatarId })
-  const { state, punch, setGoals } = useHealthPet()
   const [pos, setPos] = useState({ x: 24, y: 80 })
   const [facing, setFacing] = useState<1 | -1>(-1)
   const [mood, setMood] = useState<Mood>('idle')
   const [speech, setSpeech] = useState('')
-  const [open, setOpen] = useState(false)
   const [docked, setDocked] = useState(false)
   const [shaking, setShaking] = useState(false)
   const [photoUrl, setPhotoUrl] = useState<string | null>(null)
@@ -62,6 +55,7 @@ export function DeskPet({ greetingName, petAvatarId, petKind }: Props) {
   const moved = useRef(false)
   const pauseUntil = useRef(0)
   const dirRef = useRef({ x: -0.7, y: 0.25 })
+  const mounted = useRef(false)
 
   useEffect(() => {
     let url: string | null = null
@@ -93,7 +87,12 @@ export function DeskPet({ greetingName, petAvatarId, petKind }: Props) {
   const say = (text: string, next: Mood = 'talk') => {
     setSpeech(text)
     setMood(next)
-    pauseUntil.current = Date.now() + (next === 'celebrate' ? 2400 : 4200)
+    pauseUntil.current = Date.now() + 4200
+  }
+
+  const remind = () => {
+    const name = greetingName || '老师'
+    say(`${name}，${REFLECT_PROMPT}`)
   }
 
   useEffect(() => {
@@ -104,31 +103,14 @@ export function DeskPet({ greetingName, petAvatarId, petKind }: Props) {
   }, [])
 
   useEffect(() => {
-    const t = window.setTimeout(() => {
-      const weak = weakestGoal(state)
-      const name = greetingName || '老师'
-      if (!weak) say(`${name}，今日健康打卡都完成啦，我好骄傲～`, 'celebrate')
-      else {
-        const item = HEALTH_ITEMS.find((row) => row.id === weak)
-        if (item) say(`${name}，${pickPhrase(item.remind)}`)
-      }
-    }, 1400)
+    const first = !mounted.current
+    mounted.current = true
+    if (!first && pageId !== 'overview') return undefined
+    const t = window.setTimeout(remind, first ? 1400 : 400)
     return () => window.clearTimeout(t)
-    // greet once
+    // 打开应用、以及每次回到概览时提示一次
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  useEffect(() => {
-    const onPunch = (event: Event) => {
-      const id = (event as CustomEvent<HealthId>).detail
-      const item = HEALTH_ITEMS.find((row) => row.id === id)
-      if (!item) return
-      setDocked(false)
-      say(pickPhrase(item.cheer), 'celebrate')
-    }
-    window.addEventListener('health-pet-punch', onPunch as EventListener)
-    return () => window.removeEventListener('health-pet-punch', onPunch as EventListener)
-  }, [])
+  }, [pageId])
 
   useEffect(() => {
     if (docked) return undefined
@@ -154,12 +136,12 @@ export function DeskPet({ greetingName, petAvatarId, petKind }: Props) {
         return { x, y }
       })
       setFacing(dir.x >= 0 ? 1 : -1)
-      setMood((current) => (current === 'celebrate' || current === 'talk' ? current : 'walk'))
+      setMood((current) => (current === 'talk' ? current : 'walk'))
     }, 40)
     const pauseWalk = window.setInterval(() => {
       if (drag.current) return
       pauseUntil.current = Date.now() + 2200 + Math.random() * 1800
-      setMood((current) => (current === 'celebrate' ? current : 'idle'))
+      setMood('idle')
     }, 7000)
     return () => {
       window.clearInterval(tick)
@@ -169,26 +151,23 @@ export function DeskPet({ greetingName, petAvatarId, petKind }: Props) {
 
   useEffect(() => {
     const id = window.setInterval(() => {
-      if (open || docked) return
-      const weak = weakestGoal(state)
-      if (!weak) return
-      const item = HEALTH_ITEMS.find((row) => row.id === weak)
-      if (item) say(`${greetingName || '老师'}，${pickPhrase(item.remind)}`)
+      if (docked) return
+      remind()
     }, 4 * 60 * 1000)
     return () => window.clearInterval(id)
-  }, [state, greetingName, open, docked])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [greetingName, docked])
 
   useEffect(() => {
-    if (mood !== 'celebrate' && mood !== 'talk') return undefined
+    if (mood !== 'talk') return undefined
     const t = window.setTimeout(() => {
       setMood('idle')
-      if (mood === 'talk') setSpeech('')
-    }, mood === 'celebrate' ? 2200 : 5000)
+      setSpeech('')
+    }, 5000)
     return () => window.clearTimeout(t)
   }, [mood])
 
   const onPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
-    if ((event.target as HTMLElement).closest('.desk-pet-panel')) return
     event.currentTarget.setPointerCapture(event.pointerId)
     moved.current = false
     drag.current = { x: pos.x, y: pos.y, px: event.clientX, py: event.clientY }
@@ -211,15 +190,6 @@ export function DeskPet({ greetingName, petAvatarId, petKind }: Props) {
     drag.current = null
   }
 
-  const checkIn = (id: HealthId) => {
-    const before = healthProgress(state, id)
-    if (before.done) {
-      say('这项今天已经打满啦，明天再来～')
-      return
-    }
-    punch(id)
-  }
-
   if (docked) {
     return (
       <button
@@ -230,9 +200,9 @@ export function DeskPet({ greetingName, petAvatarId, petKind }: Props) {
           setShaking(true)
           window.setTimeout(() => setShaking(false), 480)
           setDocked(false)
-          say('我又溜达回来啦～')
+          remind()
         }}
-        aria-label="展开桌面宠物"
+        aria-label={`展开${petDisplayName(kind)}`}
       >
         <PetFigure mood="idle" facing={-1} kind={kind} photoUrl={photoUrl} />
       </button>
@@ -241,15 +211,15 @@ export function DeskPet({ greetingName, petAvatarId, petKind }: Props) {
 
   return (
     <div
-      className={`desk-pet-stage mood-${mood}${open ? ' is-open' : ''}`}
+      className={`desk-pet-stage mood-${mood}`}
       style={{ left: pos.x, top: pos.y }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
     >
-      {(speech || mood === 'talk' || mood === 'celebrate') && (
+      {(speech || mood === 'talk') && (
         <div className="desk-pet-bubble" role="status">
-          {speech || '嘿嘿，点我可以打卡哦'}
+          {speech || REFLECT_PROMPT}
         </div>
       )}
       <button
@@ -259,66 +229,15 @@ export function DeskPet({ greetingName, petAvatarId, petKind }: Props) {
           if (moved.current) return
           setShaking(true)
           window.setTimeout(() => setShaking(false), 480)
-          setOpen((value) => !value)
-          if (!open) say('今天的健康打卡，我帮你记着。点一下就行～')
+          remind()
         }}
-        aria-label="桌面宠物"
+        aria-label={`${petDisplayName(kind)}，点击听三省提示`}
       >
         <PetFigure mood={mood} facing={facing} kind={kind} photoUrl={photoUrl} />
-        {mood === 'celebrate' && (
-          <span className="desk-pet-sparkles" aria-hidden="true">
-            <i />
-            <i />
-            <i />
-          </span>
-        )}
       </button>
-      {open && (
-        <div className="desk-pet-panel">
-          <div className="desk-pet-panel-head">
-            <strong>{petDisplayName(kind)} · 起身记一回</strong>
-            <button type="button" className="desk-pet-mini" onClick={() => setDocked(true)}>
-              收起
-            </button>
-          </div>
-          {HEALTH_ITEMS.map((item) => {
-            const progress = healthProgress(state, item.id)
-            return (
-              <div key={item.id} className="desk-pet-row">
-                <button
-                  type="button"
-                  className={`desk-pet-punch${progress.done ? ' is-done' : ''}`}
-                  onClick={() => checkIn(item.id)}
-                >
-                  <b>{item.label}</b>
-                  <span>
-                    {progress.count}/{progress.goal}
-                    {item.unit}
-                  </span>
-                </button>
-                <div className="desk-pet-goal">
-                  <button
-                    type="button"
-                    className="desk-pet-mini"
-                    aria-label={`${item.label}目标减一`}
-                    onClick={() => setGoals({ [item.id]: state.goals[item.id] - 1 })}
-                  >
-                    −
-                  </button>
-                  <button
-                    type="button"
-                    className="desk-pet-mini"
-                    aria-label={`${item.label}目标加一`}
-                    onClick={() => setGoals({ [item.id]: state.goals[item.id] + 1 })}
-                  >
-                    ＋
-                  </button>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
+      <button type="button" className="desk-pet-mini" onClick={() => setDocked(true)}>
+        收起
+      </button>
     </div>
   )
 }

@@ -1,17 +1,12 @@
 import { useMemo } from 'react'
-import { MajorTag } from '../components/MajorTag'
-import type { BoardTask, CalendarEvent, Course, DeadlineLink, TeacherProfile, WorkbenchMeta } from '../data/types'
+import type { BoardTask, CalendarEvent, Course, DeadlineLink, WorkbenchMeta } from '../data/types'
+import { COURSE_EVENT_PREFIX } from '../data/sync'
 import { deadlineLinkLabel, inferDeadlineLink } from '../lib/deadlines'
 import { currentCourseTopic } from '../lib/courses'
-import { formatDayLabel, iso, shift, times, todayIso, weekdayLabel } from '../lib/dates'
-import { festivalLabel, lunarDateLabel } from '../lib/festivals'
-import { useHealthPet } from '../hooks/useHealthPet'
-import { HEALTH_ITEMS, healthProgress } from '../lib/health-pet'
-import { NavIcon } from '../nav-icons'
+import { formatDayLabel, times, todayIso, weekdayLabel } from '../lib/dates'
 
 type Props = {
   meta: WorkbenchMeta
-  profile: TeacherProfile
   events: CalendarEvent[]
   tasks: BoardTask[]
   courses: Course[]
@@ -37,50 +32,32 @@ type TodayItem = {
   time: string
   start: number
   done: boolean
+  detail?: string
   link?: DeadlineLink
+  actionLabel?: string
 }
 
 function hourLabel(item: CalendarEvent) {
   return item.kind === 'deadline' ? '截止' : times[item.start]
 }
 
-function periodWord(start: number) {
-  if (start <= 2) return '上午'
-  if (start <= 5) return '午间'
-  if (start <= 8) return '午后'
-  return '晚间'
+function matchCourse(event: CalendarEvent, courses: Course[]) {
+  if (event.kind !== 'course') return undefined
+  return (
+    courses.find((course) => event.id.startsWith(`${COURSE_EVENT_PREFIX}${course.id}-`)) ??
+    courses.find((course) => course.name === event.title)
+  )
 }
 
-function wavePath(values: number[], width: number, height: number) {
-  const padX = 18
-  const padY = 16
-  const max = Math.max(1.5, ...values)
-  const pts = values.map((value, index) => ({
-    x: padX + (index * (width - padX * 2)) / Math.max(1, values.length - 1),
-    y: height - padY - (value / max) * (height - padY * 2) * 0.82,
-  }))
-  if (pts.length === 0) return { line: '', area: '' }
-  let line = `M ${pts[0].x} ${pts[0].y}`
-  for (let i = 0; i < pts.length - 1; i += 1) {
-    const p0 = pts[i === 0 ? i : i - 1]
-    const p1 = pts[i]
-    const p2 = pts[i + 1]
-    const p3 = pts[i + 2] ?? p2
-    const c1x = p1.x + (p2.x - p0.x) / 6
-    const c1y = p1.y + (p2.y - p0.y) / 6
-    const c2x = p2.x - (p3.x - p1.x) / 6
-    const c2y = p2.y - (p3.y - p1.y) / 6
-    line += ` C ${c1x} ${c1y}, ${c2x} ${c2y}, ${p2.x} ${p2.y}`
-  }
-  const area = `${line} L ${pts[pts.length - 1].x} ${height} L ${pts[0].x} ${height} Z`
-  return { line, area }
-}
-
-function buildTodayWork(events: CalendarEvent[], tasks: BoardTask[], today: string): TodayItem[] {
+function buildTodayWork(events: CalendarEvent[], tasks: BoardTask[], courses: Course[], today: string): TodayItem[] {
   const fromEvents: TodayItem[] = events
     .filter((item) => item.date === today && item.kind !== 'journal')
     .map((item) => {
-      const link = item.kind === 'deadline' ? item.linkTo ?? inferDeadlineLink(item) : undefined
+      const course = matchCourse(item, courses)
+      const deadlineLink = item.kind === 'deadline' ? item.linkTo ?? inferDeadlineLink(item) : undefined
+      const courseLink = course ? { route: 'courses' as const, param: course.id } : undefined
+      const link = courseLink ?? deadlineLink
+      const topic = course ? currentCourseTopic(course) : ''
       return {
         id: item.id,
         source: 'event' as const,
@@ -89,7 +66,9 @@ function buildTodayWork(events: CalendarEvent[], tasks: BoardTask[], today: stri
         time: hourLabel(item),
         start: item.kind === 'deadline' ? 0 : item.start,
         done: Boolean(item.done),
+        detail: topic || item.detail || undefined,
         link,
+        actionLabel: courseLink ? '打开课程' : deadlineLink ? deadlineLinkLabel(deadlineLink) : undefined,
       }
     })
   const titles = new Set(fromEvents.map((item) => item.title.trim()))
@@ -104,13 +83,13 @@ function buildTodayWork(events: CalendarEvent[], tasks: BoardTask[], today: stri
       time: '待办',
       start: 80,
       done: task.status === 'done',
+      detail: task.course || task.desc || undefined,
     }))
   return [...fromEvents, ...fromTasks].sort((a, b) => a.start - b.start || a.title.localeCompare(b.title, 'zh'))
 }
 
 export function Dashboard({
   meta,
-  profile,
   events,
   tasks,
   courses,
@@ -120,89 +99,13 @@ export function Dashboard({
 }: Props) {
   const now = new Date()
   const today = todayIso()
-  const festival = festivalLabel(now)
-  const lunarLabel = lunarDateLabel(now)
-  const termWeekLabel = `${meta.termLabel} · 开学第 ${meta.weekNumber} 周`
-  const { state: health, punch } = useHealthPet()
+  const kicker = `${formatDayLabel(now)} ${weekdayLabel(now)} · 开学第 ${meta.weekNumber} 周`
 
-  const schedule = useMemo(
-    () =>
-      events
-        .filter((item) => item.date === today && !item.done && item.kind !== 'journal')
-        .sort((a, b) => a.start - b.start),
-    [events, today],
-  )
-
-  const todayWork = useMemo(() => buildTodayWork(events, tasks, today), [events, tasks, today])
+  const todayWork = useMemo(() => buildTodayWork(events, tasks, courses, today), [events, tasks, courses, today])
   const pendingWork = todayWork.filter((item) => !item.done)
-  const workChips = pendingWork.slice(0, 4)
   const total = todayWork.length
-  const doneCount = todayWork.length - pendingWork.length
+  const doneCount = total - pendingWork.length
   const pct = total === 0 ? 100 : Math.round((doneCount / total) * 100)
-
-  const pendingCount = tasks.filter((task) => task.status !== 'done').length
-  const courseToday = schedule.filter((item) => item.kind === 'course')
-  const dutyToday = schedule.filter((item) => item.kind === 'duty' || item.kind === 'patrol')
-  const next = schedule[0]
-
-  const headline = useMemo(() => {
-    if (total > 0 && pct === 100) return '今日事项已完成'
-    if (festival.includes('教师节')) return '教师节快乐'
-    if (dutyToday.some((item) => item.kind === 'patrol')) return '实习巡视日'
-    if (courseToday.length >= 3) return '今日连堂满课'
-    if (courseToday.length === 2) return `${periodWord(courseToday[0].start)}两门课`
-    if (courseToday.length === 1) return `${periodWord(courseToday[0].start)}有课`
-    if (dutyToday.length) return '今日值班在岗'
-    if (pendingWork.length) return '今日适合备课'
-    return '今日节奏从容'
-  }, [festival, dutyToday, courseToday, pendingWork.length, total, pct])
-
-  const story = useMemo(() => {
-    const bits = [`${formatDayLabel(now)} ${weekdayLabel(now)}，${termWeekLabel}。`]
-    if (lunarLabel) bits[0] = `${bits[0].slice(0, -1)}，${lunarLabel}。`
-    if (next) {
-      const extra = next.detail?.replace(/[。．.]+$/u, '')
-      if (next.kind === 'deadline') {
-        bits.push(`下一件是「${next.title}」${extra ? `，${extra}` : ''}。`)
-      } else {
-        bits.push(`下一件是「${next.title}」，${times[next.start]} 开始${extra ? `，${extra}` : ''}。`)
-      }
-    } else if (total > 0 && pct === 100) {
-      bits.push('今天的安排都勾完了，可以把时间留给备课或整理资源。')
-    } else {
-      bits.push('今天日程较轻，可以把时间留给备课、批改或整理教学资源。')
-    }
-    if (festival && festival !== '今日无节日') bits.push(`今天是${festival}。`)
-    return bits.join('')
-  }, [now, termWeekLabel, lunarLabel, next, festival, total, pct])
-
-  const weekDays = useMemo(() => {
-    const start = new Date(`${meta.weekStart}T12:00:00`)
-    return Array.from({ length: 6 }, (_, index) => {
-      const date = shift(start, index)
-      const dateIso = iso(date)
-      const count = events.filter((item) => item.date === dateIso && !item.done && item.kind !== 'journal').length
-      return {
-        iso: dateIso,
-        label: weekdayLabel(date).replace('周', ''),
-        count,
-        current: dateIso === today,
-      }
-    })
-  }, [events, meta.weekStart, today])
-
-  const pulse = useMemo(() => wavePath(weekDays.map((day) => day.count + 0.4), 640, 148), [weekDays])
-
-  const featuredCourses = useMemo(() => {
-    const todayNames = new Set(courseToday.map((item) => item.title))
-    return [...courses]
-      .sort((a, b) => Number(todayNames.has(b.name)) - Number(todayNames.has(a.name)) || a.name.localeCompare(b.name, 'zh'))
-      .slice(0, 3)
-  }, [courses, courseToday])
-
-  const nextTime = next ? (next.kind === 'deadline' ? '截止' : times[next.start]) : `${meta.weekNumber}`
-  const nextUnit = next ? '' : '周'
-  const nextPlace = next?.detail || profile.college
 
   const toggleWork = (item: TodayItem, done: boolean) => {
     if (item.source === 'task') onSetTaskStatus(item.id, done)
@@ -213,202 +116,69 @@ export function Dashboard({
     <section className="dashboard glass-dashboard" aria-label="工作概览">
       <div className="dash-stage">
         <div className="dash-hero">
-          <h2>{headline}</h2>
-          <p className="dash-story">{story}</p>
-
-          <div className="dash-hours" aria-label="今日安排">
-            {schedule.length === 0 ? (
+          <p className="dash-kicker">{kicker}</p>
+          {total === 0 ? (
+            <>
+              <h2>今天暂无事项</h2>
               <p className="dash-empty">
-                今天暂无日程，
+                还没有安排，
                 <button type="button" className="dash-text-link" onClick={() => onNavigate('calendar')}>
-                  去日历添加
+                  去日历
+                </button>
+                {' 或 '}
+                <button type="button" className="dash-text-link" onClick={() => onNavigate('tasks')}>
+                  进入看板
                 </button>
               </p>
-            ) : (
-              schedule.slice(0, 6).map((item) => {
-                const link = item.kind === 'deadline' ? item.linkTo ?? inferDeadlineLink(item) : undefined
-                return (
-                  <button
-                    type="button"
-                    className={item.kind === 'deadline' ? 'dash-hour dash-hour-deadline' : 'dash-hour'}
-                    key={item.id}
-                    onClick={() => (link ? onNavigate(link.route, link.param) : onNavigate('calendar'))}
-                  >
-                    <b>{hourLabel(item)}</b>
-                    {item.kind !== 'deadline' && <small>{KIND_LABEL[item.kind]}</small>}
-                    <span>{item.title}</span>
-                  </button>
-                )
-              })
-            )}
-          </div>
-
-          {pendingWork.length === 0 ? (
-            <p className="dash-empty">
-              {total > 0 ? '今日事项已完成，' : '还没有待办，'}
-              <button type="button" className="dash-text-link" onClick={() => onNavigate('tasks')}>
-                进入看板
-              </button>
-            </p>
+            </>
           ) : (
-            <ul className="dash-task-pills">
-              {workChips.map((item) => (
-                <li key={`${item.source}-${item.id}`}>
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={false}
-                      onChange={() => toggleWork(item, true)}
-                      aria-label={`完成 ${item.title}`}
-                    />
-                    <span>{item.title}</span>
-                  </label>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          <div className="dash-week">
-            <svg className="dash-wave" viewBox="0 0 640 148" preserveAspectRatio="none" aria-hidden="true">
-              <defs>
-                <linearGradient id="dash-wave-fill" x1="0" x2="0" y1="0" y2="1">
-                  <stop offset="0%" stopColor="#fff" stopOpacity="0.28" />
-                  <stop offset="100%" stopColor="#fff" stopOpacity="0" />
-                </linearGradient>
-                <filter id="dash-wave-glow" x="-20%" y="-20%" width="140%" height="140%">
-                  <feGaussianBlur stdDeviation="3.5" result="blur" />
-                  <feMerge>
-                    <feMergeNode in="blur" />
-                    <feMergeNode in="SourceGraphic" />
-                  </feMerge>
-                </filter>
-              </defs>
-              <path d={pulse.area} fill="url(#dash-wave-fill)" />
-              <path d={pulse.line} fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" filter="url(#dash-wave-glow)" />
-            </svg>
-            <div className="dash-week-days">
-              {weekDays.map((day) => (
-                <button
-                  type="button"
-                  key={day.iso}
-                  className={day.current ? 'is-current' : undefined}
-                  onClick={() => onNavigate('calendar')}
-                >
-                  <b>周{day.label}</b>
-                  <small>{day.count} 项</small>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <aside className="dash-widgets" aria-label="今日卡片">
-          <article className="glass-card dash-now">
-            <header>
-              <span>
-                <NavIcon name="pin" size={16} />
-                {nextPlace}
-              </span>
-              {next && <small>{KIND_LABEL[next.kind]}</small>}
-            </header>
-            <div className={next?.kind === 'deadline' ? 'dash-now-temp is-deadline' : 'dash-now-temp'}>
-              <strong>{nextTime}</strong>
-              {nextUnit && <em>{nextUnit}</em>}
-            </div>
-            <p>{next ? next.title : total > 0 && pct === 100 ? '今日事项已完成' : '本学期推进中'}</p>
-            {total > 0 && (
-              <div className="dash-now-progress" aria-label={`今日工作已完成 ${pct}%`}>
-                <i style={{ width: `${pct}%` }} />
+            <>
+              <h2>{pendingWork.length === 0 ? '今日事项已完成' : '今日事项'}</h2>
+              <div className="dash-progress" aria-label={`今日工作已完成 ${doneCount} / ${total}`}>
+                <span>
+                  已完成 {doneCount} / {total}
+                </span>
+                <div className="dash-progress-bar">
+                  <i style={{ width: `${pct}%` }} />
+                </div>
               </div>
-            )}
-            <div className="dash-now-stats">
-              <button type="button" onClick={() => onNavigate('tasks')}>
-                <NavIcon name="wind" size={16} />
-                <b>{pendingCount}</b>
-                <span>待办</span>
-              </button>
-              <button type="button" onClick={() => onNavigate('calendar')}>
-                <NavIcon name="drop" size={16} />
-                <b>{courseToday.length}</b>
-                <span>今日课</span>
-              </button>
-              <button type="button" onClick={() => onNavigate('calendar')}>
-                <NavIcon name="eye" size={16} />
-                <b>{dutyToday.length}</b>
-                <span>值班</span>
-              </button>
-            </div>
-            {next?.kind === 'deadline' &&
-              (() => {
-                const link = next.linkTo ?? inferDeadlineLink(next)
-                return link ? (
-                  <button type="button" className="dash-now-link" onClick={() => onNavigate(link.route, link.param)}>
-                    {deadlineLinkLabel(link)}
-                  </button>
-                ) : null
-              })()}
-          </article>
-
-          <article className="glass-card dash-health" aria-label="起身记一回">
-            <header>
-              <span>起身舒展</span>
-              <small>点一次记一回</small>
-            </header>
-            <p>接杯水、走两步、望远二十秒。</p>
-            <div className="dash-health-list">
-              {HEALTH_ITEMS.map((item) => {
-                const progress = healthProgress(health, item.id)
-                return (
-                  <button
-                    type="button"
-                    key={item.id}
-                    className={progress.done ? 'dash-health-chip is-done' : 'dash-health-chip'}
-                    onClick={() => punch(item.id)}
-                    disabled={progress.done}
-                    aria-label={progress.done ? `${item.label}今日已记满` : `记下一次${item.label}`}
-                  >
-                    <b>{item.label}</b>
-                    <span>
-                      {progress.count}/{progress.goal}
-                      {item.unit}
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
-          </article>
-
-          {featuredCourses.length === 0 ? (
-            <div className="glass-card dash-empty-card">
-              <p>还没有课程档案。</p>
-              <button type="button" className="dash-text-link" onClick={() => onNavigate('courses')}>
-                去教学添加
-              </button>
-            </div>
-          ) : (
-            featuredCourses.map((course) => {
-              const topic = currentCourseTopic(course)
-              return (
-                <button
-                  type="button"
-                  className="glass-card dash-place"
-                  key={course.id}
-                  onClick={() => onNavigate('courses', course.id)}
-                >
-                  <div>
-                    <strong>{course.name}</strong>
-                    <span>{topic || course.status}</span>
-                  </div>
-                  <b>
-                    {course.currentWeek}
-                    <small>周</small>
-                  </b>
-                  <MajorTag major={course.major} compact surface="glass" />
-                </button>
-              )
-            })
+              <ul className="dash-today" aria-label="今日全部事项">
+                {todayWork.map((item) => {
+                  const link = item.link
+                  const key = `${item.source}-${item.id}`
+                  const className = item.done ? 'dash-item is-done' : 'dash-item'
+                  return (
+                    <li key={key} className={className}>
+                      <b className={item.time === '截止' || item.time === '待办' ? 'is-word' : undefined}>{item.time}</b>
+                      <div className="dash-item-body">
+                        <small>{item.typeLabel}</small>
+                        <strong>{item.title}</strong>
+                        {item.detail && <span>{item.detail}</span>}
+                      </div>
+                      {link && (
+                        <button
+                          type="button"
+                          className="dash-text-link"
+                          onClick={() => onNavigate(link.route, link.param)}
+                        >
+                          {item.actionLabel}
+                        </button>
+                      )}
+                      <label className="dash-item-check">
+                        <input
+                          type="checkbox"
+                          checked={item.done}
+                          onChange={() => toggleWork(item, !item.done)}
+                          aria-label={item.done ? `取消完成 ${item.title}` : `完成 ${item.title}`}
+                        />
+                      </label>
+                    </li>
+                  )
+                })}
+              </ul>
+            </>
           )}
-        </aside>
+        </div>
       </div>
       <p className="sr-only">{today}</p>
     </section>

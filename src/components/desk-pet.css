@@ -61,7 +61,7 @@
 }
 
 .desk-pet-bubble {
-  max-width: 156px;
+  max-width: 188px;
   padding: 8px 10px;
   border: 1px solid var(--glass-border, rgba(247, 251, 248, 0.26));
   border-radius: 14px 14px 14px 6px;

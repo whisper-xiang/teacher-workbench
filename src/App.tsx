@@ -316,6 +316,7 @@ function App() {
       <ConfirmHost />
       <DeskPet
         greetingName={data.profile.greetingName || `${data.profile.name}老师`}
+        pageId={activeId}
         petAvatarId={data.profile.petAvatarId}
         petKind={data.profile.petKind}
       />
@@ -340,6 +341,16 @@ function App() {
             <strong>教学工作台</strong>
             <span>{data.profile.college}教师端 · 本地</span>
           </div>
+          <button
+            type="button"
+            className="nav-collapse"
+            onClick={toggleNavCollapsed}
+            aria-expanded={!navCollapsed}
+            aria-label={navCollapsed ? '展开菜单' : '收起菜单'}
+            title={navCollapsed ? '展开菜单' : '收起菜单'}
+          >
+            <NavIcon name={navCollapsed ? 'expand' : 'collapse'} size={16} />
+          </button>
         </div>
         <nav className="navigation">
           {groups.map((group) => (
@@ -375,16 +386,6 @@ function App() {
             </section>
           ))}
         </nav>
-        <button
-          type="button"
-          className="nav-collapse"
-          onClick={toggleNavCollapsed}
-          aria-expanded={!navCollapsed}
-          aria-label={navCollapsed ? '展开菜单' : '收起菜单'}
-        >
-          <NavIcon name={navCollapsed ? 'expand' : 'collapse'} />
-          <span className="nav-collapse-label">{navCollapsed ? '展开菜单' : '收起菜单'}</span>
-        </button>
         <button type="button" className="profile profile-button" onClick={() => selectPage('settings')}>
           <div className="avatar">{data.profile.name.slice(0, 1)}</div>
           <div className="profile-copy">
@@ -455,7 +456,6 @@ function App() {
         {activeId === 'overview' && (
           <Dashboard
             meta={data.meta}
-            profile={data.profile}
             events={data.events}
             tasks={data.tasks}
             courses={data.courses}

@@ -24,6 +24,8 @@ export const STORAGE_KEY = 'teacher-workbench-data-v1'
 const LEGACY_CALENDAR_KEY = 'teacher-calendar-events'
 /** 旧版演示周起始日，加载时若仍处于演示模式则对齐到本周 */
 export const LEGACY_DEMO_WEEK_START = '2025-05-12'
+/** 旧版种子教师姓名；仍为此名时改写为当前种子资料 */
+const LEGACY_DEMO_TEACHER_NAME = '李明华'
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
@@ -198,18 +200,26 @@ function mergeWithSeed(partial: Partial<WorkbenchData> | null): WorkbenchData {
   } as WorkbenchData)
   const { news, newsBookmarks, newsRead } = normalizeNews(partial)
 
+  const storedProfile = partial.profile
+  const isLegacyDemoProfile = storedProfile?.name === LEGACY_DEMO_TEACHER_NAME
+  const profile = isLegacyDemoProfile
+    ? { ...seed.profile, petAvatarId: storedProfile.petAvatarId, petKind: storedProfile.petKind }
+    : { ...seed.profile, ...storedProfile }
+
   const merged: WorkbenchData = {
     ...seed,
     ...partial,
     version: 1,
-    profile: { ...seed.profile, ...partial.profile },
+    profile,
     meta,
     events,
     dutyRoster: partial.dutyRoster?.length ? partial.dutyRoster : seed.dutyRoster,
     courses,
     students,
     assignments,
-    tasks: (partial.tasks ?? seed.tasks).map(normalizeTask),
+    tasks: (partial.tasks ?? seed.tasks).map(normalizeTask).map((task) =>
+      task.assignee === LEGACY_DEMO_TEACHER_NAME ? { ...task, assignee: seed.profile.name } : task,
+    ),
     resources: (partial.resources ?? seed.resources).map(normalizeResource),
     savedResources: partial.savedResources ?? seed.savedResources,
     news,
@@ -241,7 +251,10 @@ export function loadWorkbenchData(): WorkbenchData {
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<WorkbenchData>
       const data = mergeWithSeed(parsed)
-      if ((parsed.meta?.presetToolsVersion ?? 0) < PRESET_TOOLS_VERSION) {
+      if (
+        (parsed.meta?.presetToolsVersion ?? 0) < PRESET_TOOLS_VERSION ||
+        parsed.profile?.name === LEGACY_DEMO_TEACHER_NAME
+      ) {
         saveWorkbenchData(data)
       }
       return data
