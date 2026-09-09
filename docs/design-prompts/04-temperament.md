@@ -9,7 +9,7 @@
 
 映射（DESIGN.md §9）：
 - daily：风景暖一点（保留现有 glass-sky + wash-ink/fog/mid），英雄字大，L3 卡片 22px。
-- futurist-glass：提高 --wash-ink；减弱田野暖黄；圆角 16–20px；更细的 1px 边；Outfit 数字更多；去掉水彩径向暖洗；仍用 sage 玻璃 fill。
+- futurist-glass：提高 --wash-ink；减弱田野暖黄；圆角 16–20px；更细的 1px 边；去掉水彩径向暖洗；仍用 sage 玻璃 fill。不换字体。
 - editorial：sheet 内标题层级拉开，列表优于宫格。
 - humane：状态色只用灰陶/枯叶/苔；行高 1.6；少图表。
 - quiet-util：几乎全 sheet，无英雄、无大数字展示。

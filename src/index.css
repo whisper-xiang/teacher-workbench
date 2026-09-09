@@ -1,5 +1,5 @@
 :root {
-  font-family: "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  font-family: "Noto Serif SC", "Songti SC", "STSong", "Hiragino Mincho ProN", serif;
   color: #2c2925;
   background: #f2eee7;
   font-synthesis: none;
@@ -8,5 +8,5 @@
 }
 * { box-sizing: border-box; }
 body { margin: 0; min-width: 320px; min-height: 100dvh; }
-button { font: inherit; }
+button, input, textarea, select { font: inherit; }
 .app-icon{display:inline-flex;align-items:center;justify-content:center;font-size:1.05em;font-style:normal;line-height:1}

@@ -37,9 +37,9 @@
   --radius-sm: 10px;
   --shadow-sm: 0 1px 2px rgba(28, 40, 36, 0.04), 0 4px 14px rgba(28, 40, 36, 0.04);
   --shadow-md: 0 8px 28px rgba(28, 40, 36, 0.08);
-  --font-ui: "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
-  --font-display: "Noto Sans SC", "PingFang SC", sans-serif;
-  --font-display-num: "Outfit", "Noto Sans SC", sans-serif;
+  --font-ui: "Noto Serif SC", "Songti SC", "STSong", "Hiragino Mincho ProN", serif;
+  --font-display: "Noto Serif SC", "Songti SC", "STSong", serif;
+  --font-display-num: "Noto Serif SC", "Songti SC", "STSong", serif;
 }
 
 html,
@@ -328,8 +328,6 @@ button.outline-action {
   color: #355a48 !important;
 }
 
-.week-head,
-.month-head,
 .table-head,
 .grades-table th,
 .duty-table th,
@@ -345,8 +343,6 @@ button.outline-action {
   border-color: var(--line) !important;
 }
 
-.today-column,
-.month-grid > button:hover,
 .timetable-cell:hover {
   background: rgba(63, 107, 86, 0.06) !important;
 }

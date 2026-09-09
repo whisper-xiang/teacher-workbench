@@ -83,7 +83,7 @@ export async function buildYearJournalHtml(notes: WorkJournalNote[], year: numbe
   <meta charset="UTF-8" />
   <title>${year}年工作量随手记 · ${escapeHtml(profile.name)}</title>
   <style>
-    body { font-family: "Noto Sans SC", "PingFang SC", sans-serif; max-width: 820px; margin: 32px auto; padding: 0 24px 64px; color: #1f2a24; line-height: 1.65; }
+    body { font-family: "Noto Serif SC", "Songti SC", "STSong", serif; max-width: 820px; margin: 32px auto; padding: 0 24px 64px; color: #1f2a24; line-height: 1.65; }
     h1 { font-size: 26px; margin-bottom: 6px; }
     .meta, .stats { color: #5b6b63; font-size: 14px; }
     .stats { margin: 16px 0 28px; padding: 12px 14px; background: #f4f7f5; border-radius: 10px; }

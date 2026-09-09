@@ -16,7 +16,7 @@
 布局策略：card-based design with layered elements。
 L0 风景大气层 → L1 侧栏/圆钮壳层 → L2 概览英雄（无底板）→ L3 玻璃卡 / page-sheet → L4 胶囊 → L5 overlay。
 
-字体：Noto Sans SC（中文 UI）+ Outfit（数字）。禁止 Inter / Roboto / Space Grotesk / Arial。
+字体：全站 Noto Serif SC（含数字与时刻）。禁止 Inter / Roboto / Space Grotesk / Arial / Outfit / Noto Sans。
 
 组件：侧栏可收起（84 / 228）、四枚玻璃圆钮、玻璃卡配方见 DESIGN.md §5。图标只用 src/nav-icons.tsx 线描。
 

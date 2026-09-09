@@ -70,17 +70,17 @@
 .event-journal,.allday-chip.event-journal{border-color:#3d7c8c;background:#e8f3f6;color:#2d6473}
 .allday-chip.event-journal{border:0}
 
-/* Sheet recipe — moss tokens, no rainbow event hues */
+/* Page-sheet is the only filled surface. Inner calendar = hairlines, no nested cards. */
 .calendar-page {
   --moss-10: #1c2a22;
   --moss-30: #2c4d3d;
   --moss-40: #3f6b56;
   --moss-50: #5f7f70;
+  --moss-70: #9bb0a4;
   --moss-80: #c5d4cc;
   --moss-90: #e4ece7;
   --moss-95: #f3f7f4;
   --clay: #8f5b50;
-  --clay-wash: rgba(176, 137, 104, 0.18);
 }
 
 .calendar-page.functional-calendar {
@@ -98,7 +98,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px 16px;
-  margin: 0 0 10px;
+  margin: 0 0 8px;
 }
 
 .calendar-page .calendar-heading-copy {
@@ -106,13 +106,13 @@
 }
 
 .calendar-page .calendar-heading .section-label {
-  margin: 0;
+  display: none;
 }
 
 .calendar-page .calendar-heading h1 {
-  margin: 2px 0 0;
+  margin: 0;
   color: var(--moss-10);
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 700;
   letter-spacing: -0.04em;
   line-height: 1.2;
@@ -137,13 +137,13 @@
 .calendar-page .view-switch {
   padding: 3px;
   border-radius: 999px;
-  background: rgba(247, 251, 248, 0.28);
-  backdrop-filter: blur(12px);
+  background: var(--moss-95);
+  backdrop-filter: none;
 }
 
 .calendar-page .view-switch button.selected {
   color: var(--moss-30);
-  background: rgba(247, 251, 248, 0.72);
+  background: #fff;
   box-shadow: none;
   font-weight: 650;
 }
@@ -152,12 +152,24 @@
 .calendar-page .month-workspace {
   display: grid;
   flex: 1;
-  grid-template-columns: minmax(0, 1fr) minmax(240px, 280px);
-  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 272px);
+  gap: 0 20px;
   min-height: 0;
   margin: 0;
   overflow: hidden;
   align-items: stretch;
+}
+
+.calendar-page .week-calendar,
+.calendar-page .month-calendar,
+.calendar-page .side-card,
+.calendar-page .month-day-detail,
+.calendar-page .week-allday,
+.calendar-page .functional-week {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
 .calendar-page .week-calendar,
@@ -175,16 +187,8 @@
   min-height: 0;
   overflow: hidden;
   gap: 10px;
-}
-
-.calendar-page .week-calendar,
-.calendar-page .month-calendar,
-.calendar-page .side-card,
-.calendar-page .month-day-detail,
-.calendar-page .week-allday {
-  border-color: rgba(247, 251, 248, 0.28) !important;
-  background: rgba(247, 251, 248, 0.22) !important;
-  box-shadow: inset 0 1px 0 rgba(247, 251, 248, 0.18);
+  padding: 2px 0 0 20px;
+  border-left: 1px solid var(--moss-90);
 }
 
 .calendar-page .side-card {
@@ -192,13 +196,24 @@
   flex: 1;
   flex-direction: column;
   min-height: 0;
-  padding: 14px;
+  padding: 0;
   overflow: hidden;
+}
+
+.calendar-page .side-card-title {
+  margin-bottom: 4px;
+}
+
+.calendar-page .side-card-title h2 {
+  margin: 2px 0 0;
+  font-size: 16px;
 }
 
 .calendar-page .day-detail-list {
   flex: 1;
   min-height: 0;
+  gap: 0;
+  margin-top: 4px;
   overflow-x: hidden;
   overflow-y: auto;
   align-content: start;
@@ -206,16 +221,16 @@
 
 .calendar-page .week-allday {
   flex: 0 0 auto;
-  border-radius: 16px 16px 0 0;
+  border-bottom: 1px solid var(--moss-90) !important;
 }
 
 .calendar-page .functional-week {
   margin-top: 0;
-  border-radius: 0 0 16px 16px;
 }
 
 .calendar-page .week-head {
   min-height: 44px;
+  border-bottom-color: var(--moss-90);
 }
 
 .calendar-page .week-body {
@@ -226,11 +241,16 @@
 
 .calendar-page .month-calendar {
   margin-top: 0;
-  border-radius: 16px;
+}
+
+.calendar-page .week-head,
+.calendar-page .month-head {
+  background: transparent !important;
+  border-bottom: 1px solid var(--moss-90);
 }
 
 .calendar-page .month-head span {
-  padding: 8px;
+  padding: 8px 4px;
 }
 
 .calendar-page .month-grid {
@@ -242,21 +262,24 @@
 .calendar-page .month-grid > button {
   min-height: 0;
   padding: 6px 7px;
-  gap: 3px;
+  gap: 2px;
   overflow: hidden;
+  border-right: 1px solid var(--moss-90);
+  border-bottom: 1px solid var(--moss-90);
   background: transparent !important;
+  box-shadow: none !important;
+}
+
+.calendar-page .month-grid > button:hover {
+  background: var(--moss-95) !important;
 }
 
 .calendar-page .month-grid > button.other-month {
-  background: rgba(16, 24, 20, 0.04) !important;
-}
-
-.calendar-page .today-column {
-  background: rgba(63, 107, 86, 0.1) !important;
+  background: transparent !important;
+  color: var(--moss-70);
 }
 
 .calendar-page .week-head,
-.calendar-page .month-head,
 .calendar-page .time-axis,
 .calendar-page .day-column,
 .calendar-page .grid-cell,
@@ -264,10 +287,6 @@
 .calendar-page .allday-cell,
 .calendar-page .week-day-btn {
   border-color: var(--moss-90);
-}
-
-.calendar-page .month-head {
-  background: var(--moss-95);
 }
 
 .calendar-page .time-axis span,
@@ -278,30 +297,35 @@
 }
 
 .calendar-page .allday-label {
-  background: var(--moss-95);
+  background: transparent;
 }
 
-.calendar-page .today-column {
-  background: rgba(63, 107, 86, 0.06);
+.calendar-page .today-column,
+.calendar-page .week-day-btn.is-selected,
+.calendar-page .day-column.is-selected {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.calendar-page .month-grid > button.is-selected {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.calendar-page .month-grid > button.is-selected strong {
+  box-shadow: inset 0 0 0 1.5px var(--moss-40);
 }
 
 .calendar-page .week-head .today-column strong,
 .calendar-page .month-grid > button.is-today strong {
-  color: var(--moss-30);
-  background: var(--moss-90);
+  color: #fff;
+  background: var(--moss-40);
 }
 
-.calendar-page .week-day-btn.is-selected,
-.calendar-page .day-column.is-selected,
-.calendar-page .month-grid > button.is-selected {
-  background: rgba(63, 107, 86, 0.08) !important;
-  box-shadow: inset 0 0 0 1px rgba(63, 107, 86, 0.16);
-}
-
-.calendar-page .calendar-event,
-.calendar-page .month-event {
+.calendar-page .calendar-event {
   border: 0;
   border-left: 3px solid var(--moss-40);
+  border-radius: 0 6px 6px 0;
   background: var(--moss-95);
   color: var(--moss-30);
 }
@@ -314,36 +338,43 @@
 .calendar-page .calendar-event.event-meeting,
 .calendar-page .calendar-event.event-duty,
 .calendar-page .calendar-event.event-patrol,
-.calendar-page .calendar-event.event-journal,
+.calendar-page .calendar-event.event-journal {
+  border-left-color: var(--moss-40);
+  background: var(--moss-95);
+  color: var(--moss-30);
+}
+
+.calendar-page .month-event,
+.calendar-page .allday-chip {
+  border: 0;
+  border-radius: 0;
+  border-left: 2px solid var(--moss-40);
+  padding: 1px 6px;
+  background: transparent;
+  color: var(--moss-30);
+}
+
 .calendar-page .month-event.event-course,
 .calendar-page .month-event.event-meeting,
 .calendar-page .month-event.event-duty,
 .calendar-page .month-event.event-patrol,
-.calendar-page .month-event.event-journal {
+.calendar-page .month-event.event-journal,
+.calendar-page .allday-chip.event-journal {
   border-left-color: var(--moss-40);
-  background: var(--moss-95);
+  background: transparent;
   color: var(--moss-30);
 }
 
 .calendar-page .calendar-event.event-deadline,
 .calendar-page .month-event.event-deadline,
 .calendar-page .allday-chip.event-deadline {
-  border-left: 3px solid var(--clay);
-  background: var(--clay-wash);
+  border-left-color: var(--clay);
+  background: transparent;
   color: var(--clay);
 }
 
-.calendar-page .allday-chip {
-  border-radius: 8px;
-  border-left: 3px solid var(--moss-40);
-  background: var(--moss-95);
-  color: var(--moss-30);
-}
-
-.calendar-page .allday-chip.event-journal {
-  border-left-color: var(--moss-40);
-  background: var(--moss-95);
-  color: var(--moss-30);
+.calendar-page .calendar-event.event-deadline {
+  background: rgba(176, 137, 104, 0.1);
 }
 
 .calendar-page .kind-badge,
@@ -352,12 +383,14 @@
 .calendar-page .kind-badge-duty,
 .calendar-page .kind-badge-patrol,
 .calendar-page .kind-badge-journal {
-  background: var(--moss-90);
-  color: var(--moss-30);
+  padding: 0;
+  background: transparent;
+  color: var(--moss-50);
+  font-weight: 650;
 }
 
 .calendar-page .kind-badge-deadline {
-  background: var(--clay-wash);
+  background: transparent;
   color: var(--clay);
 }
 
@@ -374,23 +407,33 @@
   background: var(--clay);
 }
 
-.calendar-page .day-detail-item {
-  border-color: var(--moss-90);
-  background: #fff;
+.calendar-page .day-detail-item,
+.calendar-page .day-detail-item.is-open,
+.calendar-page .day-detail-item.is-done {
+  padding: 10px 0;
+  border: 0;
+  border-bottom: 1px solid var(--moss-90);
+  border-radius: 0;
+  background: transparent;
   box-shadow: none;
+  opacity: 1;
 }
 
-.calendar-page .day-detail-item.is-open {
-  border-color: var(--moss-80);
-  box-shadow: none;
+.calendar-page .day-detail-item.is-done {
+  opacity: 0.62;
 }
 
 .calendar-page .day-duty-strip {
-  border-color: var(--moss-90);
-  background: var(--moss-95);
+  margin: 8px 0 4px;
+  padding: 8px 0;
+  border: 0;
+  border-bottom: 1px solid var(--moss-90);
+  border-radius: 0;
+  background: transparent;
 }
 
 .calendar-page .empty-column {
+  padding: 12px 0;
   color: var(--moss-50);
   font-size: 13px;
   line-height: 1.6;
@@ -420,6 +463,11 @@
   color: var(--moss-10);
 }
 
+.calendar-page .composer-hint {
+  background: var(--moss-95);
+  color: var(--moss-30);
+}
+
 .calendar-page .calendar-composer input,
 .calendar-page .calendar-composer select {
   border: 1px solid var(--moss-80);
@@ -445,7 +493,7 @@
 .calendar-page .outline-action {
   border: 1px solid var(--moss-80);
   border-radius: 10px;
-  background: #fff;
+  background: transparent;
   color: var(--moss-30);
 }
 
@@ -455,24 +503,16 @@
 
 .calendar-page .confirmed-action {
   border-color: var(--moss-80);
-  background: var(--moss-95);
+  background: transparent;
   color: var(--moss-30);
 }
 
 .calendar-page .month-event {
-  font-size: 10px;
-}
-
-.calendar-page .day-detail-item {
-  padding: 8px 10px;
+  font-size: 11px;
 }
 
 .calendar-page .month-detail-actions {
   flex: 0 0 auto;
-}
-
-.calendar-page .outline-action {
-  background: rgba(247, 251, 248, 0.45);
 }
 
 @media (max-width: 1100px) {
@@ -503,6 +543,12 @@
     grid-template-columns: 1fr;
     min-height: 520px;
   }
+
+  .calendar-page .calendar-side {
+    padding: 12px 0 0;
+    border-left: 0;
+    border-top: 1px solid var(--moss-90);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -512,4 +558,3 @@
     transform: none;
   }
 }
-

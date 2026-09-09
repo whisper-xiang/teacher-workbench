@@ -19,7 +19,7 @@
 - 色彩策略是 **monochromatic sage**：同一色相（约 148°–158°）的深浅与灰化，用水彩叠洗分层，而不是多色品牌盘。
 - 布局是 **card-based + layered**：大气层 → 壳层 → 舞台 → 卡片 → 嵌套碎片。英雄区可以不装进卡片，但右侧/次级信息必须成卡。
 - 毛玻璃配方固定：半透明底 + `backdrop-filter: blur(16–24px) saturate(1.3–1.45)` + 1px 高光描边 + 内高光。
-- 中文 UI 用 **Noto Sans SC**；数字/时刻用 **Outfit**。禁止 Inter / Roboto / Arial / Space Grotesk 作为主字体。
+- 全部文字用 **Noto Serif SC**（含导航、正文、标题、时刻与数字）。禁止 Inter / Roboto / Arial / Space Grotesk / Outfit / Noto Sans 作为主字体。
 - 概览页（`#/overview`）走沉浸风景玻璃；其他路由把原有内容放进 **page-sheet**（浅色磨砂底板），不要把深色字直接写在风景上。
 - 侧栏桌面可收起为 84px 图标轨，展开 228px；窄屏用抽屉，不把图标轨硬塞进 390px。
 
@@ -149,23 +149,21 @@ background-color: var(--moss-20);
 
 | 角色 | 字体 | 字重 | 用法 |
 |---|---|---|---|
-| UI | `"Noto Sans SC", "PingFang SC", sans-serif` | 400 / 500 / 600 / 650 | 导航、正文、按钮 |
-| Display number | `"Outfit", "Noto Sans SC", sans-serif` | 500 / 650 / 700 | 时刻、周次、大数字 |
-| Display Chinese | 仍用 Noto Sans SC 700 | 700 | 概览英雄标题（不换衬线） |
-| Welcome | `"Noto Serif SC", "Songti SC", serif` | 500 / 600 | 仅顶栏「欢迎回来」+ 姓名；字距略松 |
+| UI | `"Noto Serif SC", "Songti SC", serif` | 400 / 500 / 600 / 700 | 导航、正文、按钮、标题 |
+| Display number | 同 UI，Noto Serif SC | 500 / 600 / 700 | 时刻、周次、大数字，不另换无衬线 |
 
 **尺度（概览）**
 
-- 欢迎名：Noto Serif SC 26px / 600 / tracking 0.04em；「欢迎回来」同族 15px / 500
+- 欢迎名：26px / 600 / tracking 0.04em；「欢迎回来」15px / 500
 - 英雄标题：`clamp(40px, 5.4vw, 72px)` / 700 / tracking -0.045em / 行高 1.08 / 最大 16ch
 - 叙述：15px / 行高 1.75 / 最大 58ch
-- 卡片大数字：52–64px Outfit
+- 卡片大数字：52–64px，仍用 Noto Serif SC
 - 导航：14px / 500；激活 650
 - 标签/胶囊：11–12px / 600 / tracking 0.04em
 
 **底板页**保留原工作面尺度（标题 32–46px），不要把 72px 英雄标题复制到课表。
 
-禁止：全大写英文导航、过度 tracking（>0.16em）、标题用 Noto Serif 做装饰墙（旧 campus-paper 衬线仅可出现在尚未迁移的底板内文，新玻璃面不用）。
+禁止：全大写英文导航、过度 tracking（>0.16em）、第二套字体家族（含 Outfit、Noto Sans、Georgia、等宽）。
 
 ---
 
@@ -287,7 +285,7 @@ Disabled：opacity 0.45，不改色相。
 
 ### 7.4 Welcome block
 
-- 一行：Noto Serif SC，「欢迎回来」15px / 500 + 姓名 26px / 600，字距 0.04em，垂直居中。仅此一行用衬线，英雄标题仍用 Noto Sans SC。
+- 一行：「欢迎回来」15px / 500 + 姓名 26px / 600，字距 0.04em，垂直居中。与全站同用 Noto Serif SC。
 - 不要再在英雄区重复姓名。
 
 ### 7.5 Pill（`.dash-pill`）
@@ -303,7 +301,7 @@ Disabled：opacity 0.45，不改色相。
 ### 7.7 Today list
 
 - 一条清单罗列当天全部事项：课 / 值班 / 巡视 / 会议 / 截止 / 到期任务，含已完成。按时刻排列，不另做「已完成」专区。
-- 行结构：时刻（Outfit）· 种类 · 标题 · 当周主题或地点 · 行动文字链 · 勾选。各条字号一致；已完成项降透明度并划掉标题，可取消勾选。
+- 行结构：时刻 · 种类 · 标题 · 当周主题或地点 · 行动文字链 · 勾选。各条字号一致；已完成项降透明度并划掉标题，可取消勾选。
 - 闭环：课 → 打开课程档案；截止 → 去录入/资源/课程；值班与待办 → 就地勾完。
 - 打开应用或回到概览时，桌面宠物口头提示「吾日三省吾身：喝水、走动、提肛」。不统计次数、不打卡。不要横向小时带、周曲线、右侧统计卡或课程小卡。
 
@@ -369,8 +367,8 @@ Disabled：opacity 0.45，不改色相。
 | 内容气质 | 风格标签 | 允许的偏移 | 禁止 |
 |---|---|---|---|
 | 日常教学、概览、日程、值班 | Approachable luxury + landscape glass | 默认全开：风景、英雄字、今日清单 | 商务蓝、办公插画 |
-| 科技 / AI / 工具箱 | Futuristic minimalism + glassmorphism | 风景叠洗更冷（提高 `--wash-ink`）、圆角收到 16–20px、网格更准、数字更 Outfit、少用田野暖黄 | 霓虹青、电路纹理、黑镜 |
-| 课程档案 / 资源 | Editorial academic | sheet 内字号层级拉大，卡片留白 +1 | 杂志花体、大衬线墙 |
+| 科技 / AI / 工具箱 | Futuristic minimalism + glassmorphism | 风景叠洗更冷（提高 `--wash-ink`）、圆角收到 16–20px、网格更准、少用田野暖黄 | 霓虹青、电路纹理、黑镜、换字体 |
+| 课程档案 / 资源 | Editorial academic | sheet 内字号层级拉大，卡片留白 +1 | 杂志花体、第二套衬线 |
 | 学生与评价 | Humane, close | 状态用灰陶/枯叶；列表行高 1.6 | 游戏化徽章彩虹 |
 | 资讯 | Quiet editorial | 标题 20–24px，摘要 14px，少卡多列表 | 门户红黄条 |
 | 设置 / 备份 | Utilitarian quiet | 几乎不露风景，sheet 铺满，表单密度高 | 英雄标题、大数字展示 |
