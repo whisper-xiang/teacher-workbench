@@ -26,6 +26,30 @@ export function thisMondayIso(date = new Date()) {
   return iso(mondayOf(date))
 }
 
+/** 相对学期当前周，计算某日所在教学周次 */
+export function termWeekOf(date: Date, weekStart: string, weekNumber = 1) {
+  const anchor = new Date(`${weekStart}T12:00:00`)
+  if (Number.isNaN(anchor.getTime())) return Math.max(1, weekNumber)
+  const diff = Math.round((mondayOf(date).getTime() - mondayOf(anchor).getTime()) / 86_400_000 / 7)
+  return Math.max(1, weekNumber || 1) + diff
+}
+
+/** 某日所在周（周一起）在当月的周次，如 9 月 7 日 → { month: 9, week: 2 } */
+export function monthWeekOf(date: Date) {
+  const monday = mondayOf(date)
+  const first = new Date(monday.getFullYear(), monday.getMonth(), 1)
+  const offset = (first.getDay() + 6) % 7
+  return {
+    month: monday.getMonth() + 1,
+    week: Math.ceil((monday.getDate() + offset) / 7),
+  }
+}
+
+export function monthWeekLabel(date: Date) {
+  const { month, week } = monthWeekOf(date)
+  return `${month} 月第 ${week} 周`
+}
+
 export function addDaysIso(value: string, days: number): string {
   const datePart = value.slice(0, 10)
   if (!/^\d{4}-\d{2}-\d{2}$/.test(datePart)) return value

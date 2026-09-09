@@ -20,6 +20,7 @@ import './interaction.css'
 /* Must load last so page shell padding/width matches overview */
 import './layout-overrides.css'
 import './glass.css'
+import './journal.css'
 import { useWorkbenchStore } from './hooks/useWorkbenchStore'
 import { alignDataToWeekStart, uid } from './data/store'
 import { syncDerivedEvents } from './data/sync'
@@ -81,7 +82,7 @@ function readNavCollapsed() {
 }
 
 const groups = [
-  { label: '工作台', ids: ['overview', 'calendar', 'tasks', 'journal', 'reminders'] as RouteId[] },
+  { label: '工作台', ids: ['overview', 'calendar', 'journal', 'reminders'] as RouteId[] },
   { label: '日常工作', ids: ['courses', 'students', 'resources', 'research', 'activities'] as RouteId[] },
   { label: '资讯与工具', ids: ['news', 'tools', 'settings'] as RouteId[] },
 ]
@@ -474,8 +475,9 @@ function App() {
         {activeId === 'calendar' && (
           <CalendarPage
             events={data.events}
-            dutyConfirmedDates={data.dutyConfirmedDates}
+            courses={data.courses}
             weekStart={data.meta.weekStart}
+            weekNumber={data.meta.weekNumber}
             onChangeEvents={(events) =>
               update((current) => {
                 const previous = new Set(current.events.filter((item) => item.id.startsWith('course-')).map((item) => item.id))
@@ -487,14 +489,6 @@ function App() {
               })
             }
             onNavigate={(route, param) => selectPage(route, param)}
-            onToggleDuty={(date) =>
-              patch(
-                'dutyConfirmedDates',
-                data.dutyConfirmedDates.includes(date)
-                  ? data.dutyConfirmedDates.filter((item) => item !== date)
-                  : [...data.dutyConfirmedDates, date],
-              )
-            }
           />
         )}
         {activeId === 'tasks' && <TaskBoardPage tasks={data.tasks} onChange={(tasks) => patch('tasks', tasks)} />}

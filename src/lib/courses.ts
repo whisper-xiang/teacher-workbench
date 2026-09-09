@@ -1,8 +1,20 @@
-import type { Course } from '../data/types'
+import { COURSE_EVENT_PREFIX } from '../data/sync'
+import type { CalendarEvent, Course } from '../data/types'
 
 export const WEEK_DAYS = ['周一', '周二', '周三', '周四', '周五'] as const
 export const SECTIONS = ['1–2 节', '3–4 节', '5–6 节', '7–8 节', '晚上'] as const
 export const SECTION_TIMES = ['08:00–09:40', '10:00–11:40', '14:00–15:40', '16:00–17:40', '19:00–20:40'] as const
+
+export function matchCourseFromEvent(
+  event: Pick<CalendarEvent, 'id' | 'kind' | 'title'>,
+  courses: Course[],
+) {
+  if (event.kind !== 'course') return undefined
+  return (
+    courses.find((course) => event.id.startsWith(`${COURSE_EVENT_PREFIX}${course.id}-`)) ??
+    courses.find((course) => course.name === event.title)
+  )
+}
 
 export function currentCourseTopic(
   course: Pick<Course, 'weeklyTopics' | 'topic' | 'currentWeek'>,

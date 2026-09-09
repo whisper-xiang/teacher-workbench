@@ -418,7 +418,8 @@ body,
   -webkit-backdrop-filter: blur(18px);
 }
 
-.app-shell:not(.is-overview) .main-content > .calendar-page {
+.app-shell:not(.is-overview) .main-content > .calendar-page,
+.app-shell:not(.is-overview) .main-content > .journal-page {
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -569,4 +570,13 @@ body,
   .app-shell .nav-group h2 {
     transition: none;
   }
+}
+
+/* The three kanban status cards provide their own glass surface. */
+.app-shell:not(.is-overview) .main-content > .task-board {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }

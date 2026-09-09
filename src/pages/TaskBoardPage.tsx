@@ -160,12 +160,6 @@ export function TaskBoardPage({ tasks, onChange }: Props) {
 
   return (
     <section className="task-board" aria-label="教学看板">
-      <div className="page-actions">
-        <button type="button" className="primary-action board-add" onClick={() => openCreate()}>
-          ＋ 新建任务
-        </button>
-      </div>
-
       <div className="kanban-grid">
         {boardColumns.map((column) => {
           const columnTasks = tasks.filter((task) => task.status === column.id)

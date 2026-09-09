@@ -1,8 +1,7 @@
 import { useMemo } from 'react'
 import type { BoardTask, CalendarEvent, Course, DeadlineLink, WorkbenchMeta } from '../data/types'
-import { COURSE_EVENT_PREFIX } from '../data/sync'
 import { deadlineLinkLabel, inferDeadlineLink } from '../lib/deadlines'
-import { currentCourseTopic } from '../lib/courses'
+import { currentCourseTopic, matchCourseFromEvent } from '../lib/courses'
 import { formatDayLabel, times, todayIso, weekdayLabel } from '../lib/dates'
 
 type Props = {
@@ -41,19 +40,11 @@ function hourLabel(item: CalendarEvent) {
   return item.kind === 'deadline' ? '截止' : times[item.start]
 }
 
-function matchCourse(event: CalendarEvent, courses: Course[]) {
-  if (event.kind !== 'course') return undefined
-  return (
-    courses.find((course) => event.id.startsWith(`${COURSE_EVENT_PREFIX}${course.id}-`)) ??
-    courses.find((course) => course.name === event.title)
-  )
-}
-
 function buildTodayWork(events: CalendarEvent[], tasks: BoardTask[], courses: Course[], today: string): TodayItem[] {
   const fromEvents: TodayItem[] = events
     .filter((item) => item.date === today && item.kind !== 'journal')
     .map((item) => {
-      const course = matchCourse(item, courses)
+      const course = matchCourseFromEvent(item, courses)
       const deadlineLink = item.kind === 'deadline' ? item.linkTo ?? inferDeadlineLink(item) : undefined
       const courseLink = course ? { route: 'courses' as const, param: course.id } : undefined
       const link = courseLink ?? deadlineLink

@@ -25,7 +25,9 @@
 }
 
 .main-content > .calendar-page,
-.calendar-page.functional-calendar {
+.calendar-page.functional-calendar,
+.main-content > .journal-page,
+.journal-page {
   overflow: hidden;
   padding-bottom: 0;
 }

@@ -283,11 +283,7 @@
 }
 
 /* Column-local scroll */
-.task-board .page-actions {
-  flex: 0 0 auto;
-}
-
-.task-board .kanban-grid {
+.app-shell .task-board .kanban-grid {
   flex: 1;
   min-height: 0;
   align-items: stretch;
@@ -435,9 +431,15 @@
 }
 
 .task-board .kanban-column {
-  border-color: var(--moss-90);
-  border-radius: 16px;
-  background: rgba(243, 247, 244, 0.72);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0 4px;
+}
+
+.task-board .kanban-column + .kanban-column {
+  border-left: 1px solid var(--moss-90);
+  padding-left: 18px;
 }
 
 .task-board .kanban-column > header {
@@ -448,8 +450,13 @@
 .task-board .column-doing header > b,
 .task-board .column-review header > b,
 .task-board .column-done header > b {
+  min-width: 0;
+  height: auto;
+  border-radius: 0;
   color: var(--moss-50);
-  background: var(--moss-90);
+  background: transparent;
+  font-size: 12px;
+  font-weight: 650;
 }
 
 .task-board .kanban-column-dot.todo { background: var(--moss-60); }
@@ -458,17 +465,21 @@
 .task-board .kanban-column-dot.done { background: var(--moss-40); }
 
 .task-board .kanban-column.drag-over {
-  background: rgba(63, 107, 86, 0.1);
-  border-color: var(--moss-70);
+  background: transparent;
+  border-color: var(--moss-90);
+}
+
+.task-board .kanban-column.drag-over > header {
+  border-bottom-color: var(--moss-40);
 }
 
 .task-board .task-card {
   border: 1px solid var(--moss-90);
   border-left: 3px solid var(--moss-80);
   border-radius: 12px;
-  background: #fff;
+  background: transparent;
   box-shadow: none;
-  transition: border-color 0.16s ease, background 0.16s ease;
+  transition: border-color 0.16s ease;
 }
 
 .task-board .task-card:hover {
@@ -501,7 +512,13 @@
 }
 
 .task-board .task-card.is-overdue {
-  background: #fffcf7;
+  background: transparent;
+}
+
+.task-board .empty-column {
+  border: 0;
+  background: transparent;
+  padding: 12px 2px;
 }
 
 .task-board .task-card.is-overdue .due,
@@ -565,5 +582,75 @@
 @media (prefers-reduced-motion: reduce) {
   .task-board .task-card {
     transition: none;
+  }
+}
+
+/* Three status cards — separated, calm frosted-glass hierarchy. */
+.task-board .kanban-grid {
+  gap: 18px;
+  padding: 2px;
+}
+
+.app-shell .task-board .kanban-column,
+.app-shell .task-board .kanban-column + .kanban-column {
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.56) !important;
+  border-radius: 18px;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.58), rgba(240, 247, 243, 0.34)),
+    rgba(246, 250, 247, 0.34) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.72),
+    0 12px 30px rgba(28, 50, 39, 0.08);
+  backdrop-filter: blur(18px) saturate(125%);
+  -webkit-backdrop-filter: blur(18px) saturate(125%);
+}
+
+.app-shell .task-board .kanban-column > header {
+  padding: 2px 2px 13px;
+  border-bottom: 1px solid rgba(197, 212, 204, 0.78);
+}
+
+.app-shell .task-board .task-card {
+  border-color: rgba(197, 212, 204, 0.78) !important;
+  background: rgba(255, 255, 255, 0.54) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+.app-shell .task-board .task-card:hover {
+  border-color: var(--moss-70);
+  background: rgba(255, 255, 255, 0.7) !important;
+  box-shadow: 0 8px 18px rgba(28, 50, 39, 0.07);
+}
+
+.app-shell .task-board .kanban-column.drag-over {
+  border-color: rgba(63, 107, 86, 0.48);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.68), rgba(228, 238, 231, 0.5)),
+    rgba(246, 250, 247, 0.42) !important;
+  box-shadow:
+    inset 0 0 0 1px rgba(63, 107, 86, 0.14),
+    0 14px 34px rgba(28, 50, 39, 0.1);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .app-shell .task-board .kanban-column,
+  .app-shell .task-board .kanban-column + .kanban-column {
+    background: #f3f7f4 !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .app-shell .task-board .kanban-column,
+  .app-shell .task-board .kanban-column + .kanban-column {
+    background: #f3f7f4 !important;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+@media (max-width: 1120px) {
+  .app-shell .task-board .kanban-grid {
+    gap: 14px;
   }
 }

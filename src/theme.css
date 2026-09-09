@@ -239,7 +239,6 @@ button.outline-action {
 .settings-card,
 .duty-roster,
 .week-overview,
-.kanban-column,
 .assignment-card,
 .kanban-summary-item {
   border-color: var(--line) !important;
@@ -276,21 +275,21 @@ button.outline-action {
   background: #f7efe3 !important;
 }
 
-.task-board {
+.task-board .kanban-column {
+  border: 0 !important;
   background: transparent !important;
+  box-shadow: none;
 }
 
-.task-board .kanban-column {
-  border-color: var(--moss-90) !important;
-  background: rgba(243, 247, 244, 0.72) !important;
-  box-shadow: none;
+.task-board .kanban-column + .kanban-column {
+  border-left: 1px solid var(--moss-90) !important;
 }
 
 .task-board .task-card {
   border-top-color: var(--moss-90) !important;
   border-right-color: var(--moss-90) !important;
   border-bottom-color: var(--moss-90) !important;
-  background: #fff !important;
+  background: transparent !important;
   box-shadow: none;
 }
 
