@@ -81,19 +81,20 @@
   --mist:    #f7fbf8;
 
   /* Glass on atmosphere (深色风景上) */
-  --glass:        rgba(247, 251, 248, 0.12);
-  --glass-strong: rgba(247, 251, 248, 0.20);
-  --glass-border: rgba(247, 251, 248, 0.26);
+  --glass:        rgba(247, 251, 248, 0.10);
+  --glass-strong: rgba(247, 251, 248, 0.18);
+  --glass-border: rgba(247, 251, 248, 0.20);
+  --glass-highlight: rgba(247, 251, 248, 0.22);
   --glass-text:   #f7fbf8;
   --glass-muted:  rgba(247, 251, 248, 0.74);
   --glass-subtle: rgba(247, 251, 248, 0.52);
 
   /* Watercolor washes — 叠在照片或卡片里，不是实心色块 */
-  --wash-ink:  rgba(16, 24, 20, 0.32);
-  --wash-mid:  rgba(36, 54, 44, 0.18);
-  --wash-sage: rgba(143, 163, 150, 0.16);
-  --wash-fog:  rgba(247, 251, 248, 0.10);
-  --wash-clay: rgba(176, 137, 104, 0.14); /* 仅节日/警告轻涂，面积 < 4% */
+  --wash-ink:  rgba(16, 24, 20, 0.28);
+  --wash-mid:  rgba(36, 54, 44, 0.14);
+  --wash-sage: rgba(143, 163, 150, 0.14);
+  --wash-fog:  rgba(247, 251, 248, 0.08);
+  --wash-clay: rgba(176, 137, 104, 0.10); /* 黄昏暖光轻涂，面积 < 4% */
 
   --radius-xs: 10px;
   --radius-sm: 14px;
@@ -127,8 +128,9 @@
 
 ```css
 background:
-  linear-gradient(180deg, var(--wash-ink) 0%, var(--wash-fog) 38%, var(--wash-mid) 100%),
-  radial-gradient(80% 50% at 70% 10%, var(--wash-sage), transparent 60%),
+  linear-gradient(180deg, var(--wash-ink) 0%, var(--wash-fog) 42%, var(--wash-mid) 100%),
+  radial-gradient(36% 28% at 78% 62%, var(--wash-clay), transparent 72%),
+  radial-gradient(80% 50% at 70% 8%, var(--wash-sage), transparent 62%),
   url("/glass-sky.jpg") center / cover no-repeat;
 background-color: var(--moss-20);
 ```
@@ -203,18 +205,23 @@ z 与材料从下到上。**新 UI 必须能指出自己在哪一层。**
 .glass-l3 {
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-md); /* 22px */
-  background: var(--glass);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
-  backdrop-filter: blur(22px) saturate(1.35);
-  -webkit-backdrop-filter: blur(22px) saturate(1.35);
+  background:
+    linear-gradient(165deg, rgba(247, 251, 248, 0.08) 0%, transparent 46%),
+    var(--glass);
+  box-shadow:
+    inset 0 1px 0 var(--glass-highlight),
+    inset 1px 0 0 rgba(247, 251, 248, 0.08);
+  backdrop-filter: blur(24px) saturate(1.42);
+  -webkit-backdrop-filter: blur(24px) saturate(1.42);
   color: var(--glass-text);
 }
 
 .glass-l4 {
-  border: 1px solid rgba(247, 251, 248, 0.18);
+  border: 1px solid rgba(247, 251, 248, 0.16);
   border-radius: var(--radius-pill);
-  background: rgba(247, 251, 248, 0.10);
-  backdrop-filter: blur(12px);
+  background: rgba(247, 251, 248, 0.08);
+  box-shadow: inset 0 1px 0 var(--glass-highlight);
+  backdrop-filter: blur(14px) saturate(1.3);
 }
 
 .glass-icon-btn {
@@ -222,15 +229,17 @@ z 与材料从下到上。**新 UI 必须能指出自己在哪一层。**
   height: 46px;
   border-radius: 50%;
   border: 1px solid var(--glass-border);
-  background: var(--glass);
+  background:
+    linear-gradient(165deg, var(--glass-highlight), transparent 48%),
+    var(--glass);
   color: var(--glass-text);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
-  backdrop-filter: blur(16px);
+  box-shadow: inset 0 1px 0 var(--glass-highlight);
+  backdrop-filter: blur(18px) saturate(1.35);
 }
 ```
 
-Hover：只把 fill 从 0.12 → 0.20，或加 `--glass-strong`。不要放大、不要彩色描边。
-Active 导航：fill 0.20 + inset 1px 边。
+Hover：只把 fill 从 0.10 → 0.18，或加 `--glass-strong`。不要放大、不要彩色描边。
+Active 导航：fill 0.18 + inset 1px 边。
 Disabled：opacity 0.45，不改色相。
 
 ---
