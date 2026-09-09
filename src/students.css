@@ -417,3 +417,102 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Sheet recipe — humane */
+.students-page {
+  padding: 0;
+}
+
+.students-heading h1 {
+  margin: 2px 0 6px;
+  color: var(--moss-10);
+  font-family: var(--font-ui);
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+
+.students-notice {
+  border-color: var(--moss-80);
+  background: var(--moss-95);
+  color: var(--moss-30);
+}
+
+.students-course-tabs button.active,
+.students-tabs .selected {
+  border-color: var(--moss-70);
+  background: var(--moss-90);
+  color: var(--moss-30) !important;
+}
+
+.students-overview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px 28px;
+  margin-top: 16px;
+  padding: 12px 0;
+  border: 0;
+  border-bottom: 1px solid var(--moss-90);
+  border-radius: 0;
+  background: transparent;
+}
+
+.students-overview > div {
+  padding: 0;
+  border: 0;
+}
+
+.students-overview strong {
+  font-family: var(--font-display-num);
+  color: var(--moss-10);
+}
+
+.students-table td,
+.students-table th {
+  line-height: 1.6;
+}
+
+.students-table tr.is-follow {
+  background: rgba(176, 137, 104, 0.08);
+}
+
+.letter-success { color: var(--moss-30); }
+.letter-info { color: var(--moss-40); }
+.letter-warning { color: var(--leaf); }
+.letter-muted { color: var(--moss-50); }
+.letter-danger { color: var(--clay); }
+
+.status-正常 { color: var(--moss-30); }
+.status-关注 { color: var(--leaf); }
+.status-待跟进 { color: var(--clay); }
+
+.students-empty {
+  border: 1px dashed var(--moss-80);
+  border-radius: 12px;
+  color: var(--moss-50);
+  line-height: 1.6;
+}
+
+.students-page .grade-input {
+  border-color: var(--moss-80);
+  border-radius: 10px;
+}
+
+.students-page .grade-input:focus {
+  border-color: var(--moss-40);
+  outline: 3px solid var(--moss-90);
+  outline-offset: 0;
+}
+
+.students-page .students-modal-backdrop,
+.students-page .courses-modal-backdrop {
+  background: rgba(16, 24, 20, 0.4);
+  backdrop-filter: blur(6px);
+}
+
+.students-page .courses-composer,
+.students-page .board-composer {
+  border: 1px solid var(--moss-80);
+  border-radius: 22px;
+  background: #fffcf7;
+}

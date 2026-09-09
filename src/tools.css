@@ -309,12 +309,12 @@
 
 .tool-favorite:hover,
 .tool-menu-btn:hover {
-  background: #edf4f3;
-  color: #0d9488;
+  background: var(--moss-95);
+  color: var(--moss-30);
 }
 
 .tool-favorite.saved {
-  color: #0d9488;
+  color: var(--moss-30) !important;
 }
 
 .tools-empty {
@@ -427,4 +427,153 @@
   .tools-filter-count {
     margin-left: 0;
   }
+}
+
+/* Sheet recipe — futurist-glass (same hue, colder, sharper) */
+.tools-page {
+  --tools-radius: 18px;
+  padding: 0;
+}
+
+.tools-banner {
+  align-items: center;
+  margin-bottom: 18px;
+  padding: 20px 22px;
+  border: 1px solid var(--moss-80);
+  border-radius: var(--tools-radius);
+  background: linear-gradient(160deg, rgba(16, 24, 20, 0.06), rgba(63, 107, 86, 0.1));
+  color: var(--moss-10);
+  box-shadow: none;
+}
+
+.tools-banner::after {
+  display: none;
+}
+
+.tools-banner-text h1 {
+  margin: 0 0 4px;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  color: var(--moss-10);
+}
+
+.tools-banner-text p {
+  color: var(--moss-50);
+  opacity: 1;
+  font-size: 13px;
+}
+
+.tools-banner-add {
+  border: 1px solid var(--moss-70);
+  border-radius: 10px;
+  background: var(--moss-40);
+  color: #fff;
+}
+
+.tools-banner-add:hover {
+  background: var(--accent-hover);
+}
+
+.tools-search {
+  border-color: var(--moss-80);
+  border-radius: 10px;
+}
+
+.tools-search:focus-within {
+  border-color: var(--moss-40);
+  box-shadow: 0 0 0 3px var(--moss-90);
+}
+
+.tools-section-icon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--moss-40);
+  font-size: 0;
+}
+
+.tools-section-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.tools-section-desc {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: var(--moss-50);
+}
+
+.tools-section-count {
+  border-color: var(--moss-90);
+  border-radius: 8px;
+  background: var(--moss-95);
+  color: var(--moss-50);
+  font-family: var(--font-display-num);
+}
+
+.tool-card {
+  border-color: var(--moss-90);
+  border-radius: var(--tools-radius);
+  background: #fff;
+  box-shadow: none;
+  transition: border-color 0.16s ease, background 0.16s ease;
+}
+
+.tool-card:hover {
+  border-color: var(--moss-70);
+  box-shadow: none;
+  transform: none;
+}
+
+.tool-card.is-favorite {
+  border-color: var(--moss-70);
+}
+
+.tool-card.is-menu-open {
+  outline: 1px solid var(--moss-40);
+  outline-offset: 1px;
+}
+
+.tool-card-icon,
+.tool-card-icon.tone-teal,
+.tool-card-icon.tone-blue,
+.tool-card-icon.tone-amber,
+.tool-card-icon.tone-violet,
+.tool-card-icon.tone-slate {
+  border: 1px solid var(--moss-90);
+  border-radius: 12px;
+  background: var(--moss-95);
+  color: var(--moss-30);
+  font-family: var(--font-display-num);
+  font-size: 16px;
+}
+
+.tool-favorite.saved {
+  color: var(--moss-30);
+}
+
+.tool-card-icon.tone-gold {
+  background: var(--moss-95) !important;
+  color: var(--moss-30) !important;
+}
+
+.tools-empty > span[aria-hidden] {
+  display: none;
+}
+
+.tools-page .courses-modal-backdrop,
+.tools-page .board-modal-backdrop {
+  background: rgba(16, 24, 20, 0.4);
+  backdrop-filter: blur(6px);
+}
+
+.tools-page .board-composer,
+.tools-page .courses-composer {
+  border: 1px solid var(--moss-80);
+  border-radius: 18px;
+  background: #fffcf7;
 }

@@ -295,7 +295,16 @@ export function ResourcesPage({ resources, courses, initialCourseId, onChangeRes
         ))}
         {visible.length === 0 && (
           <div className="resource-empty-simple">
-            {resources.length === 0 ? '把课件拖到这里，或点击右上角登记' : '没有匹配的资源'}
+            {resources.length === 0 ? (
+              <>
+                还没有资源，可从课程卡进来补传。
+                <button type="button" className="text-action" onClick={() => openComposer(null)}>
+                  登记资源
+                </button>
+              </>
+            ) : (
+              '没有匹配的资源'
+            )}
           </div>
         )}
       </div>

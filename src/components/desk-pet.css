@@ -243,6 +243,8 @@
     width: 48px;
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
   .desk-pet-avatar,
   .desk-pet-dock,
   .mood-walk .desk-pet-avatar,

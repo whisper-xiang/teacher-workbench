@@ -84,3 +84,146 @@
   font-size:13px;
   text-align:center;
 }
+
+/* Sheet recipe — quiet editorial */
+.news-page {
+  max-width: none;
+  padding: 0;
+}
+
+.news-heading h1 {
+  margin: 2px 0 6px;
+  color: var(--moss-10);
+  font-family: var(--font-ui);
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+
+.news-notice {
+  border-color: var(--moss-80);
+  background: var(--moss-95);
+  color: var(--moss-30);
+}
+
+.news-sources button.active {
+  border-color: var(--moss-70);
+  background: var(--moss-90);
+  color: var(--moss-30);
+}
+
+.news-sources a:hover,
+.news-sources button:hover {
+  border-color: var(--moss-70);
+  color: var(--moss-30);
+}
+
+.news-overview {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 22px;
+  margin-top: 16px;
+  padding: 10px 0 14px;
+  border: 0;
+  border-bottom: 1px solid var(--moss-90);
+  border-radius: 0;
+  background: transparent;
+}
+
+.news-overview > div {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 0;
+}
+
+.news-overview > div + div {
+  border-left: 0;
+}
+
+.news-overview span {
+  order: 2;
+  font-size: 12px;
+}
+
+.news-overview strong {
+  order: 1;
+  margin: 0;
+  font-family: var(--font-display-num);
+  font-size: 20px;
+  color: var(--moss-10);
+}
+
+.news-overview small {
+  display: none;
+}
+
+.news-search:focus-within {
+  border-color: var(--moss-40);
+  box-shadow: 0 0 0 3px var(--moss-90);
+}
+
+.news-filters button.active {
+  background: var(--moss-90);
+  color: var(--moss-30) !important;
+}
+
+.news-card-main h3 {
+  font-size: 20px;
+  line-height: 1.4;
+  letter-spacing: -0.025em;
+}
+
+.news-card-main p {
+  font-size: 14px;
+}
+
+.news-card:not(.is-unread) .news-card-main {
+  opacity: 0.72;
+}
+
+.news-card.is-unread .news-card-main {
+  opacity: 1;
+}
+
+.news-category,
+.category-teal,
+.category-blue,
+.category-amber,
+.category-slate,
+.category-violet {
+  color: var(--moss-30) !important;
+  background: var(--moss-90) !important;
+}
+
+.news-hot,
+.news-card-main > div span:nth-child(3) {
+  color: var(--leaf);
+  background: transparent;
+}
+
+.news-card.selected {
+  background: var(--moss-95);
+}
+
+.news-card.has-link .news-card-main:hover h3,
+.news-detail-title-link:hover {
+  color: var(--moss-30);
+}
+
+.news-empty {
+  color: var(--moss-50);
+}
+
+.news-empty > span[aria-hidden] {
+  display: none;
+}
+
+.news-reading-note {
+  background: var(--moss-95);
+}
+
+.news-reading-note span {
+  color: var(--moss-50);
+}

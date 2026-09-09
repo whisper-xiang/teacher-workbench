@@ -38,3 +38,93 @@
 .composer-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
 @media(max-width:860px){.settings-page{padding:28px 20px}.settings-grid,.composer-grid,.pet-maker,.pet-preset-grid{grid-template-columns:1fr 1fr}}
+
+/* Sheet recipe — quiet util */
+.settings-page {
+  max-width: 720px;
+  padding: 0;
+}
+
+.settings-heading h1 {
+  margin: 0 0 6px;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--moss-10);
+}
+
+.settings-card {
+  margin-top: 16px;
+  padding: 20px;
+  border-color: var(--moss-90);
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: none;
+}
+
+.settings-card .section-label {
+  margin-bottom: 12px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--moss-50);
+}
+
+.settings-grid {
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.settings-grid input,
+.settings-grid select,
+.settings-card input,
+.settings-card select {
+  border: 1px solid var(--moss-80);
+  border-radius: 10px;
+  padding: 9px 11px;
+}
+
+.settings-grid input:focus,
+.settings-card input:focus,
+.settings-card select:focus {
+  border-color: var(--moss-40);
+  outline: 3px solid var(--moss-90);
+  outline-offset: 0;
+}
+
+.settings-notice {
+  border: 1px solid var(--moss-80);
+  background: var(--moss-95);
+  color: var(--moss-30);
+}
+
+.danger-action {
+  border: 1px solid rgba(143, 91, 80, 0.4);
+  background: #fffcf7;
+  color: var(--clay);
+}
+
+.danger-action:hover {
+  background: rgba(143, 91, 80, 0.08);
+}
+
+.settings-actions {
+  gap: 8px;
+}
+
+.pet-preset-card {
+  border-color: var(--moss-90);
+  background: #fff;
+  box-shadow: none;
+  color: var(--moss-30);
+}
+
+.pet-preset-card.is-on {
+  border-color: var(--moss-40);
+  background: var(--moss-95);
+  box-shadow: 0 0 0 1px var(--moss-40);
+}
+
+.pet-maker-preview {
+  border-color: var(--moss-80);
+  background: var(--moss-95);
+}

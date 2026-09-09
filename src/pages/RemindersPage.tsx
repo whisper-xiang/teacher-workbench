@@ -286,7 +286,7 @@ export function RemindersPage({ reminders, settings, onChangeReminders, onChange
           <span>{pending.length} 条</span>
         </div>
         {pending.length === 0 ? (
-          <div className="reminders-empty">暂无待触发提醒，试试用自然语言添加一条</div>
+          <div className="reminders-empty">还没有提醒，可以说「明天 8 点提醒带教案」</div>
         ) : (
           <div className="reminders-list">
             {pending.map((item) => (

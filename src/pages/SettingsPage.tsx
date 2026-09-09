@@ -63,6 +63,11 @@ export function SettingsPage({ profile, meta, updatedAt, onSaveProfile, onExport
 
   return (
     <section className="settings-page" aria-label="设置与备份">
+      <div className="settings-heading">
+        <p className="section-label">本机设置</p>
+        <h1>设置与备份</h1>
+        <p>资料、学期与备份都保存在本机浏览器</p>
+      </div>
       <form className="settings-card" onSubmit={save}>
         <p className="section-label">教师资料</p>
         <div className="settings-grid">

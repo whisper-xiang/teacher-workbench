@@ -378,3 +378,192 @@
 .task-context-menu button.is-danger:hover {
   background: #f8e6e2;
 }
+
+/* Sheet recipe — moss mono, column scroll, no rainbow */
+.task-board {
+  display: flex;
+  flex-direction: column;
+  max-width: none;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+  background: transparent;
+}
+
+.task-board .board-heading h1,
+.task-board #task-board-title {
+  margin: 2px 0 0;
+  color: var(--moss-10);
+  font-family: var(--font-ui);
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+
+.task-board .summary-number {
+  color: var(--moss-30);
+  font-family: var(--font-display-num);
+}
+
+.task-board .summary-warm { color: var(--clay); }
+.task-board .summary-soft { color: var(--moss-50); }
+
+.task-board .board-summary,
+.task-board .kanban-status-summary {
+  border-color: var(--moss-90);
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: none;
+}
+
+.task-board .board-filter .selected {
+  color: var(--moss-30) !important;
+  background: var(--moss-90);
+  font-weight: 650;
+}
+
+.task-board .board-search {
+  border-color: var(--moss-80);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--moss-50);
+}
+
+.task-board .board-search:focus-within {
+  border-color: var(--moss-40);
+  box-shadow: 0 0 0 3px var(--moss-90);
+}
+
+.task-board .kanban-column {
+  border-color: var(--moss-90);
+  border-radius: 16px;
+  background: rgba(243, 247, 244, 0.72);
+}
+
+.task-board .kanban-column > header {
+  border-bottom-color: var(--moss-90);
+}
+
+.task-board .kanban-column header > b,
+.task-board .column-doing header > b,
+.task-board .column-review header > b,
+.task-board .column-done header > b {
+  color: var(--moss-50);
+  background: var(--moss-90);
+}
+
+.task-board .kanban-column-dot.todo { background: var(--moss-60); }
+.task-board .kanban-column-dot.doing { background: var(--leaf); }
+.task-board .kanban-column-dot.review { background: var(--leaf); }
+.task-board .kanban-column-dot.done { background: var(--moss-40); }
+
+.task-board .kanban-column.drag-over {
+  background: rgba(63, 107, 86, 0.1);
+  border-color: var(--moss-70);
+}
+
+.task-board .task-card {
+  border: 1px solid var(--moss-90);
+  border-left: 3px solid var(--moss-80);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: none;
+  transition: border-color 0.16s ease, background 0.16s ease;
+}
+
+.task-board .task-card:hover {
+  transform: none;
+  border-color: var(--moss-80);
+  box-shadow: none;
+}
+
+.task-board .task-card.priority-high { border-left-color: #8f5b50; }
+.task-board .task-card.priority-medium { border-left-color: #9a7b56; }
+.task-board .task-card.priority-low { border-left-color: var(--moss-40); }
+
+.task-board .kind-tag,
+.task-board .kind-教学,
+.task-board .kind-学生,
+.task-board .kind-教务,
+.task-board .kind-教研 {
+  color: var(--moss-30);
+  background: var(--moss-90);
+}
+
+.task-board .priority-tag {
+  color: var(--moss-50);
+  background: var(--moss-95);
+}
+
+.task-board .priority-tag.urgent {
+  color: var(--clay);
+  background: rgba(143, 91, 80, 0.12);
+}
+
+.task-board .task-card.is-overdue {
+  background: #fffcf7;
+}
+
+.task-board .task-card.is-overdue .due,
+.task-board .due,
+.task-board .urgent-due {
+  color: var(--clay);
+  font-weight: 650;
+}
+
+.task-board .board-modal-backdrop {
+  background: rgba(16, 24, 20, 0.4);
+  backdrop-filter: blur(6px);
+}
+
+.task-board .board-composer {
+  border: 1px solid var(--moss-80);
+  border-radius: 22px;
+  background: #fffcf7;
+  box-shadow: 0 18px 48px rgba(16, 24, 20, 0.16);
+}
+
+.task-board .board-composer input,
+.task-board .board-composer select {
+  border: 1px solid var(--moss-80);
+  border-radius: 10px;
+  outline: none;
+}
+
+.task-board .board-composer input:focus,
+.task-board .board-composer select:focus {
+  border-color: var(--moss-40);
+  outline: 3px solid var(--moss-90);
+  outline-offset: 0;
+}
+
+.task-board .danger-action {
+  border-color: rgba(143, 91, 80, 0.35);
+  background: #fffcf7;
+  color: var(--clay);
+}
+
+.task-context-menu {
+  border: 1px solid var(--moss-80);
+  border-radius: 12px;
+  background: #fffcf7;
+  box-shadow: 0 12px 28px rgba(16, 24, 20, 0.14);
+}
+
+.task-context-menu button:hover {
+  background: var(--moss-95);
+}
+
+.task-context-menu button.is-danger {
+  color: var(--clay);
+}
+
+.task-context-menu button.is-danger:hover {
+  background: rgba(143, 91, 80, 0.1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .task-board .task-card {
+    transition: none;
+  }
+}

@@ -253,9 +253,9 @@ export function CoursesPage({
     <section className="courses-page courses-page-simple" aria-label="教学 · 课程门类">
       <div className="courses-heading">
         <div>
-          <p className="section-label">日常工作 · 教学</p>
+          <p className="section-label kicker">教学管理</p>
           <h1>课程门类</h1>
-          <p>一门课可带多个班级；可记进度、作业发布回收与学生表现，资源可从资源库导入并在此预览编辑</p>
+          <p>一门课可带多个班级；记进度、作业与学生表现，资源可从资源库导入</p>
         </div>
         <button type="button" className="primary-action" onClick={() => openCreate()}>
           ＋ 新建课程
@@ -333,7 +333,14 @@ export function CoursesPage({
             </article>
           )
         })}
-        {courses.length === 0 && <div className="course-empty">暂无课程，点击右上角新建</div>}
+        {courses.length === 0 && (
+          <div className="course-empty">
+            还没有课程，先建一门课再排时段。
+            <button type="button" className="text-action" onClick={() => openCreate()}>
+              新建课程
+            </button>
+          </div>
+        )}
       </div>
 
       <section className="week-overview" aria-label="总周课表">

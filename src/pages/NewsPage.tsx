@@ -206,9 +206,8 @@ export function NewsPage({ news, readItems, bookmarks, fetchedAt, onChangeRead, 
 
           {isEmpty ? (
             <div className="news-empty">
-              <span aria-hidden="true">{refreshing ? '⏳' : '📡'}</span>
-              <h3>{refreshing ? '正在拉取 RSS 资讯…' : '暂无资讯'}</h3>
-              <p>{refreshing ? '首次进入会自动从 RSS 源获取最新内容' : '请检查网络后点击「刷新资讯」'}</p>
+              <h3>{refreshing ? '正在拉取 RSS 资讯…' : '没拉到资讯'}</h3>
+              <p>{refreshing ? '首次进入会自动从 RSS 源获取最新内容' : '检查网络后再试'}</p>
               {!refreshing && (
                 <button type="button" className="text-action" onClick={() => refreshNews()}>
                   重新拉取
@@ -217,7 +216,6 @@ export function NewsPage({ news, readItems, bookmarks, fetchedAt, onChangeRead, 
             </div>
           ) : isFilteredEmpty ? (
             <div className="news-empty">
-              <span aria-hidden="true">📭</span>
               <h3>没有匹配的资讯</h3>
               <p>试试调整搜索词、分类或资讯源筛选</p>
               <button type="button" className="text-action" onClick={clearFilters}>
@@ -230,7 +228,7 @@ export function NewsPage({ news, readItems, bookmarks, fetchedAt, onChangeRead, 
               const isSelected = selected?.id === item.id
               const saved = bookmarks.includes(item.id)
               return (
-                <article key={item.id} className={`news-card has-link${isSelected ? ' selected' : ''}`}>
+                <article key={item.id} className={`news-card has-link${isSelected ? ' selected' : ''}${unread ? ' is-unread' : ''}`}>
                   {unread && <span className="news-unread" aria-label="未读" />}
                   <button
                     type="button"

@@ -59,3 +59,129 @@
   .courses-page-simple .courses-composer .composer-grid,
   .courses-page-simple .course-session-row{grid-template-columns:1fr}
 }
+
+/* Sheet recipe — editorial academic */
+.courses-page {
+  max-width: none;
+  padding: 0;
+}
+
+.courses-page .courses-heading h1 {
+  margin: 2px 0 6px;
+  color: var(--moss-10);
+  font-family: var(--font-ui);
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+
+.courses-page .courses-heading p:not(.section-label):not(.kicker) {
+  max-width: 52ch;
+  line-height: 1.65;
+}
+
+.courses-page-simple .course-overview-card {
+  border-color: var(--moss-90);
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: none;
+  padding: 2px;
+}
+
+.courses-page-simple .course-overview-main {
+  padding: 20px 20px 14px;
+  gap: 12px;
+}
+
+.courses-page-simple .course-overview-progress strong {
+  color: var(--moss-30);
+}
+
+.courses-page .progress-track {
+  background: var(--moss-90);
+}
+
+.courses-page .progress-track i {
+  background: linear-gradient(90deg, var(--moss-30), var(--moss-60));
+}
+
+.courses-page .status-正常 { background: var(--moss-40); }
+.courses-page .status-待更新 { background: var(--leaf); }
+.courses-page .status-需关注 { background: var(--clay); }
+
+.courses-page .course-color-teal,
+.courses-page .course-color-blue,
+.courses-page .course-color-amber,
+.courses-page .course-color-slate {
+  background: var(--moss-40);
+}
+
+.courses-page .course-empty {
+  border: 1px dashed var(--moss-80);
+  border-radius: 12px;
+  padding: 36px 16px;
+  color: var(--moss-50);
+  line-height: 1.6;
+}
+
+.courses-page .courses-modal-backdrop,
+.courses-modal-backdrop {
+  background: rgba(16, 24, 20, 0.4);
+  backdrop-filter: blur(6px);
+}
+
+.courses-page-simple .courses-composer,
+.courses-composer {
+  border: 1px solid var(--moss-80);
+  border-radius: 22px;
+  background: #fffcf7;
+  box-shadow: 0 18px 48px rgba(16, 24, 20, 0.16);
+}
+
+.courses-page-simple .courses-composer input,
+.courses-page-simple .courses-composer select,
+.courses-page-simple .courses-composer textarea,
+.courses-composer input,
+.courses-composer select,
+.courses-composer textarea {
+  border: 1px solid var(--moss-80);
+  border-radius: 10px;
+}
+
+.courses-page-simple .courses-composer textarea {
+  line-height: 1.6;
+}
+
+.courses-page-simple .courses-composer input:focus,
+.courses-page-simple .courses-composer select:focus,
+.courses-page-simple .courses-composer textarea:focus {
+  border-color: var(--moss-40);
+  outline: 3px solid var(--moss-90);
+  outline-offset: 0;
+}
+
+.courses-page-simple .danger-action {
+  border-color: rgba(143, 91, 80, 0.35);
+  background: #fffcf7;
+  color: var(--clay);
+}
+
+.courses-page-simple .week-slot,
+.courses-page-simple .week-slot.edu,
+.courses-page-simple .week-slot.pri,
+.courses-page-simple .week-slot.pre {
+  background: var(--moss-95);
+}
+
+.courses-page-simple .week-slot b,
+.courses-page-simple .week-slot.edu b,
+.courses-page-simple .week-slot.pri b,
+.courses-page-simple .week-slot.pre b {
+  color: var(--moss-30);
+}
+
+.courses-page-simple .week-cell.has-course:hover .week-slot {
+  transform: none;
+  box-shadow: none;
+  outline: 1px solid var(--moss-70);
+}

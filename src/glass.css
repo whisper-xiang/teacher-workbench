@@ -91,14 +91,16 @@ body,
 }
 
 .app-shell .brand-mark {
+  display: block;
+  flex-shrink: 0;
   width: 42px;
   height: 42px;
-  border-radius: 50%;
-  color: #fff;
-  background: rgba(255, 255, 255, 0.16);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28);
-  font-family: var(--font-display-num);
-  font-size: 15px;
+  overflow: hidden;
+  border-radius: 14px;
+  background: #3f6b56;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 .app-shell .brand-copy strong,

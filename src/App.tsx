@@ -28,6 +28,7 @@ import type { AssistantDraft } from './lib/assistant'
 import { dueLabel, thisMondayIso } from './lib/dates'
 import { notify } from './lib/notify'
 import { clearAllResourceFiles } from './lib/resource-files'
+import { BrandMark } from './components/BrandMark'
 import { CalendarPage } from './pages/CalendarPage'
 import { CoursesPage } from './pages/CoursesPage'
 import { Dashboard } from './pages/Dashboard'
@@ -334,7 +335,7 @@ function App() {
       />
       <aside className={navOpen ? 'sidebar sidebar-open' : 'sidebar'} aria-label="主导航">
         <div className="brand">
-          <div className="brand-mark" aria-hidden="true">教</div>
+          <BrandMark />
           <div className="brand-copy">
             <strong>教学工作台</strong>
             <span>{data.profile.college}教师端 · 本地</span>

@@ -545,7 +545,11 @@ export function StudentsPage({
         </table>
         {visible.length === 0 && (
           <div className="students-empty">
-            {roster.length === 0 ? '这门课还没有花名册，可以添加或导入。' : '没有匹配的学生。'}
+            {roster.length === 0
+              ? course
+                ? '这门课还没有花名册，可以添加或导入。'
+                : '先选课程，粘贴名单即可'
+              : '没有匹配的学生。'}
           </div>
         )}
       </div>

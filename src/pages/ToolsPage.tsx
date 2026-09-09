@@ -4,6 +4,7 @@ import { uid } from '../data/store'
 import type { ToolCategory, ToolItem } from '../data/types'
 import { notify } from '../lib/notify'
 import { confirm } from '../lib/confirm'
+import { NavIcon, type IconName } from '../nav-icons'
 
 type Draft = {
   id: string
@@ -21,16 +22,16 @@ type MenuState = {
 
 const emptyDraft: Draft = { id: '', name: '', description: '', url: '', category: '备课工具' }
 
-const CAT_META: Record<string, { icon: string; desc: string }> = {
-  政策与学会: { icon: '🏛️', desc: '教育部、学会与教育媒体入口' },
-  备课工具: { icon: '📚', desc: '课件制作、教学设计、课堂互动工具' },
-  教学平台: { icon: '🏫', desc: '课程管理、在线教学、教务协同平台' },
-  学术工具: { icon: '📖', desc: '文献检索、数据分析、质性研究工具' },
-  效率工具: { icon: '⚡', desc: '问卷、协作文档、录屏、PDF 处理等效率工具' },
-  AI工具: { icon: '🤖', desc: 'AI 对话、文档解析、学术搜索等 AI 辅助工具' },
-  备课与课堂: { icon: '📝', desc: '备课与课堂相关入口' },
-  研究与写作: { icon: '✍️', desc: '研究与写作相关入口' },
-  协作与事务: { icon: '🤝', desc: '协作与事务相关入口' },
+const CAT_META: Record<string, { icon: IconName; desc: string }> = {
+  政策与学会: { icon: 'news', desc: '教育部、学会与教育媒体入口' },
+  备课工具: { icon: 'courses', desc: '课件制作、教学设计、课堂互动工具' },
+  教学平台: { icon: 'students', desc: '课程管理、在线教学、教务协同平台' },
+  学术工具: { icon: 'research', desc: '文献检索、数据分析、质性研究工具' },
+  效率工具: { icon: 'tasks', desc: '问卷、协作文档、录屏、PDF 处理等效率工具' },
+  AI工具: { icon: 'tools', desc: 'AI 对话、文档解析、学术搜索等 AI 辅助工具' },
+  备课与课堂: { icon: 'courses', desc: '备课与课堂相关入口' },
+  研究与写作: { icon: 'research', desc: '研究与写作相关入口' },
+  协作与事务: { icon: 'activities', desc: '协作与事务相关入口' },
 }
 
 type Props = {
@@ -203,7 +204,6 @@ export function ToolsPage({ tools, favorites, onChangeTools, onChangeFavorites }
 
       {sections.length === 0 ? (
         <div className="tools-empty">
-          <span aria-hidden="true">🧰</span>
           <h3>没有匹配的工具</h3>
           <p>试试其他关键词，或清空搜索</p>
           <button type="button" className="text-action" onClick={() => setQuery('')}>
@@ -212,13 +212,13 @@ export function ToolsPage({ tools, favorites, onChangeTools, onChangeFavorites }
         </div>
       ) : (
         sections.map((section) => {
-          const meta = CAT_META[section.category] ?? { icon: '🔧', desc: '' }
+          const meta = CAT_META[section.category] ?? { icon: 'tools' as IconName, desc: '' }
           return (
             <section key={section.category} className="tools-section">
               <div className="tools-section-header">
                 <h2 className="tools-section-title">
                   <span className="tools-section-icon" aria-hidden="true">
-                    {meta.icon}
+                    <NavIcon name={meta.icon} size={18} />
                   </span>
                   {section.category}
                 </h2>

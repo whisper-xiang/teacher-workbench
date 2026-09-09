@@ -719,3 +719,58 @@ button.activity-card.is-active {
     grid-template-columns: 1fr;
   }
 }
+
+/* Sheet recipe — journal / research / activities share courses shell */
+.daily-work-page .courses-heading h1,
+.journal-head h1 {
+  margin: 2px 0 6px;
+  color: var(--moss-10);
+  font-family: var(--font-ui);
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+
+.daily-work-page .resource-type-pill,
+.daily-work-page .students-course-tabs button.active {
+  background: var(--moss-90);
+  color: var(--moss-30);
+  border-color: var(--moss-70);
+}
+
+.daily-work-page .course-empty,
+.daily-detail-empty,
+.work-empty-row {
+  border: 1px dashed var(--moss-80);
+  border-radius: 12px;
+  color: var(--moss-50);
+  line-height: 1.6;
+}
+
+.daily-work-page input,
+.daily-work-page select,
+.daily-work-page textarea,
+.course-detail-panel input,
+.course-detail-panel select,
+.course-detail-panel textarea {
+  border-color: var(--moss-80);
+  border-radius: 10px;
+}
+
+.daily-work-page input:focus,
+.daily-work-page select:focus,
+.daily-work-page textarea:focus,
+.course-detail-panel input:focus,
+.course-detail-panel select:focus,
+.course-detail-panel textarea:focus {
+  border-color: var(--moss-40);
+  outline: 3px solid var(--moss-90);
+  outline-offset: 0;
+}
+
+.daily-work-page .settings-card,
+.course-detail-panel .settings-card {
+  border-color: var(--moss-90);
+  border-radius: 14px;
+  box-shadow: none;
+}
