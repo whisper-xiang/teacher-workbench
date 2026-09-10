@@ -23,3 +23,11 @@
 @media (max-width: 620px) {
   .route-indicator { display: none; }
 }
+.route-loading {
+  display: grid;
+  flex: 1;
+  min-height: 0;
+  place-items: center;
+  color: var(--glass-muted);
+  font-size: 14px;
+}

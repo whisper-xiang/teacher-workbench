@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import '../papers.css'
 import { uid } from '../data/store'
 import { THESIS_STAGES, type CalendarEvent, type ThesisAdvisee, type ThesisDraft, type ThesisStage } from '../data/types'
 import { confirm } from '../lib/confirm'

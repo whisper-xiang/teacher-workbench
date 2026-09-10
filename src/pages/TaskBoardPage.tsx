@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import '../task-board.css'
 import { uid } from '../data/store'
 import type { BoardPriority, BoardStatus, BoardTask } from '../data/types'
 import { notify } from '../lib/notify'

@@ -1,4 +1,5 @@
 import type { MajorId } from '../data/types'
+import '../majors.css'
 
 export function MajorTag({
   major,

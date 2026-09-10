@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import '../settings.css'
 import type { TeacherProfile, WorkbenchMeta } from '../data/types'
 import { thisMondayIso, termWeekOf } from '../lib/dates'
 import { notify } from '../lib/notify'

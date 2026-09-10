@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
+import '../news.css'
 import type { NewsItem } from '../data/types'
 import { NEWS_PORTALS, RSS_FEEDS } from '../lib/rss'
 import { notify } from '../lib/notify'

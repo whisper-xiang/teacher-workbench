@@ -1,32 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
+import '../components/course-tabs.css'
+import '../students.css'
 import { calcGradeTotal, uid } from '../data/store'
 import type { Assignment, Course, GradeItem, StudentRecord } from '../data/types'
-import { letterGrade } from '../data/types'
-import { MajorTag } from '../components/MajorTag'
+import {
+  AssignmentPanel,
+  StudentDialogs,
+  StudentRosterTable,
+  type AssignmentDraft,
+  type StudentDraft,
+} from '../components/students/StudentSections'
+import { STUDENT_STATUSES } from '../components/students/student-model'
 import { notify } from '../lib/notify'
 import { confirm } from '../lib/confirm'
-
-const STATUSES: StudentRecord['status'][] = ['正常', '关注', '待跟进']
-
-type StudentDraft = {
-  id: string
-  name: string
-  number: string
-  group: string
-  attendance: string
-  processScore: string
-  status: StudentRecord['status']
-  notes: string
-  usual: string
-  midterm: string
-  final: string
-}
-
-type AssignmentDraft = {
-  title: string
-  due: string
-  description: string
-}
 
 type Props = {
   courses: Course[]
@@ -424,7 +410,7 @@ export function StudentsPage({
           <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索姓名、学号或备注" />
         </label>
         <div className="students-filters">
-          {(['全部', ...STATUSES] as const).map((item) => (
+          {(['全部', ...STUDENT_STATUSES] as const).map((item) => (
             <button
               key={item}
               type="button"
@@ -446,7 +432,7 @@ export function StudentsPage({
           <button type="button" onClick={() => markAttendance('迟交')}>
             本次迟交
           </button>
-          {STATUSES.map((status) => (
+          {STUDENT_STATUSES.map((status) => (
             <button type="button" key={status} onClick={() => applyBatch(status)}>
               标为{status}
             </button>
@@ -454,308 +440,40 @@ export function StudentsPage({
         </div>
       )}
 
-      <div className="students-table-wrap">
-        <table className="students-table">
-          <thead>
-            <tr>
-              <th>
-                <input
-                  type="checkbox"
-                  checked={visible.length > 0 && selected.length === visible.length}
-                  onChange={selectVisible}
-                  aria-label="全选当前列表"
-                />
-              </th>
-              <th>学生</th>
-              <th>到勤</th>
-              <th>作业</th>
-              <th>过程分</th>
-              <th>平时</th>
-              <th>期中</th>
-              <th>期末</th>
-              <th>总评</th>
-              <th>状态</th>
-            </tr>
-          </thead>
-          <tbody>
-            {visible.map((student) => {
-              const grade = gradeOf(student.id)
-              const total = grade?.total ?? student.processScore
-              const letter = letterGrade(total)
-              return (
-                <tr key={student.id} className={student.status !== '正常' ? 'is-follow' : ''}>
-                  <td>
-                    <input
-                      type="checkbox"
-                      checked={selected.includes(student.id)}
-                      onChange={() => toggleSelect(student.id)}
-                      aria-label={`选择 ${student.name}`}
-                    />
-                  </td>
-                  <td>
-                    <button type="button" className="student-name-btn" onClick={() => openEdit(student)}>
-                      <strong>{student.name}</strong>
-                      <small>
-                        {student.number || '无学号'} · {student.group}
-                      </small>
-                    </button>
-                  </td>
-                  <td>{student.attendance}</td>
-                  <td>{student.homework}</td>
-                  <td>{student.processScore}</td>
-                  <td>
-                    <input
-                      className="grade-input"
-                      value={grade?.usual ?? ''}
-                      onChange={(event) => updateGradeField(student, 'usual', Number(event.target.value) || 0)}
-                      inputMode="numeric"
-                      aria-label={`${student.name} 平时成绩`}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      className="grade-input"
-                      value={grade?.midterm ?? ''}
-                      onChange={(event) => updateGradeField(student, 'midterm', Number(event.target.value) || 0)}
-                      inputMode="numeric"
-                      aria-label={`${student.name} 期中成绩`}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      className="grade-input"
-                      value={grade?.final || ''}
-                      onChange={(event) => updateGradeField(student, 'final', Number(event.target.value) || 0)}
-                      inputMode="numeric"
-                      aria-label={`${student.name} 期末成绩`}
-                    />
-                  </td>
-                  <td>
-                    <strong className={`letter-${letter.tone}`}>
-                      {total} {letter.grade}
-                    </strong>
-                  </td>
-                  <td>
-                    <em className={`student-status status-${student.status}`}>{student.status}</em>
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-        {visible.length === 0 && (
-          <div className="students-empty">
-            {roster.length === 0
-              ? course
-                ? '这门课还没有花名册，可以添加或导入。'
-                : '先选课程，粘贴名单即可'
-              : '没有匹配的学生。'}
-          </div>
-        )}
-      </div>
+      <StudentRosterTable
+        students={visible}
+        selectedIds={selected}
+        rosterSize={roster.length}
+        hasCourse={Boolean(course)}
+        gradeFor={gradeOf}
+        onToggleStudent={toggleSelect}
+        onToggleVisible={selectVisible}
+        onEditStudent={openEdit}
+        onGradeChange={updateGradeField}
+      />
 
-      <section className="assignment-panel" aria-label="本课作业">
-        <div className="assignment-panel-head">
-          <div>
-            <p className="section-label">作业与批改</p>
-            <h2>{course ? `${course.name} · 过程性任务` : '作业'}</h2>
-          </div>
-          <button
-            type="button"
-            className="outline-action"
-            disabled={!course}
-            onClick={() => setAssignmentDraft({ title: '', due: '', description: '' })}
-          >
-            ＋ 发布作业
-          </button>
-        </div>
-        {courseAssignments.length === 0 && <p className="students-empty">尚未发布作业。</p>}
-        <div className="assignment-list">
-          {courseAssignments.map((assignment) => (
-            <article className="assignment-card" key={assignment.id}>
-              <div className="assignment-card-head">
-                <div>
-                  <strong>{assignment.title}</strong>
-                  <small>截止 {assignment.due.slice(0, 10) || '未定'} · 已批 {assignment.reviewed.length}/{roster.length || assignment.total || 0}</small>
-                </div>
-                <button type="button" className="text-action" onClick={() => removeAssignment(assignment.id)}>
-                  删除
-                </button>
-              </div>
-              {assignment.description && <p>{assignment.description}</p>}
-              <div className="assignment-review-chips">
-                {roster.map((student) => {
-                  const done = assignment.reviewed.includes(student.name)
-                  return (
-                    <button
-                      key={student.id}
-                      type="button"
-                      className={done ? 'is-reviewed' : ''}
-                      onClick={() => toggleReviewed(assignment, student.name)}
-                    >
-                      {done ? '✓ ' : ''}
-                      {student.name}
-                    </button>
-                  )
-                })}
-                {roster.length === 0 && <span>先导入花名册后再批改</span>}
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
+      <AssignmentPanel
+        course={course}
+        assignments={courseAssignments}
+        roster={roster}
+        onCreate={() => setAssignmentDraft({ title: '', due: '', description: '' })}
+        onRemove={(id) => void removeAssignment(id)}
+        onToggleReviewed={toggleReviewed}
+      />
 
-      {studentDraft && course && (
-        <div className="students-modal-backdrop" onMouseDown={() => setStudentDraft(null)}>
-          <form className="students-composer" onSubmit={saveStudent} onMouseDown={(event) => event.stopPropagation()}>
-            <div>
-              <p className="section-label">{studentDraft.id ? '过程性评价' : '添加学生'}</p>
-              <h2>
-                {studentDraft.id ? studentDraft.name : course.name}
-                {studentDraft.id && <MajorTag major={course.major} compact />}
-              </h2>
-            </div>
-            <label>
-              姓名
-              <input required autoFocus value={studentDraft.name} onChange={(event) => setStudentDraft({ ...studentDraft, name: event.target.value })} />
-            </label>
-            <div className="composer-grid">
-              <label>
-                学号
-                <input value={studentDraft.number} onChange={(event) => setStudentDraft({ ...studentDraft, number: event.target.value })} />
-              </label>
-              <label>
-                小组
-                <input value={studentDraft.group} onChange={(event) => setStudentDraft({ ...studentDraft, group: event.target.value })} />
-              </label>
-            </div>
-            <div className="composer-grid">
-              <label>
-                到勤
-                <input value={studentDraft.attendance} onChange={(event) => setStudentDraft({ ...studentDraft, attendance: event.target.value })} />
-              </label>
-              <label>
-                过程分
-                <input value={studentDraft.processScore} onChange={(event) => setStudentDraft({ ...studentDraft, processScore: event.target.value })} />
-              </label>
-            </div>
-            <label>
-              状态
-              <select
-                value={studentDraft.status}
-                onChange={(event) => setStudentDraft({ ...studentDraft, status: event.target.value as StudentRecord['status'] })}
-              >
-                {STATUSES.map((item) => (
-                  <option key={item} value={item}>
-                    {item}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <div className="composer-grid">
-              <label>
-                平时
-                <input value={studentDraft.usual} onChange={(event) => setStudentDraft({ ...studentDraft, usual: event.target.value })} />
-              </label>
-              <label>
-                期中
-                <input value={studentDraft.midterm} onChange={(event) => setStudentDraft({ ...studentDraft, midterm: event.target.value })} />
-              </label>
-            </div>
-            <label>
-              期末
-              <input value={studentDraft.final} onChange={(event) => setStudentDraft({ ...studentDraft, final: event.target.value })} />
-            </label>
-            <label>
-              跟进备注
-              <textarea rows={3} value={studentDraft.notes} onChange={(event) => setStudentDraft({ ...studentDraft, notes: event.target.value })} />
-            </label>
-            <div className={`composer-actions${studentDraft.id ? ' composer-actions-split' : ''}`}>
-              {studentDraft.id && (
-                <button type="button" className="danger-action" onClick={() => removeStudent(studentDraft.id)}>
-                  移除
-                </button>
-              )}
-              <div className="composer-actions-right">
-                <button type="button" className="outline-action" onClick={() => setStudentDraft(null)}>
-                  取消
-                </button>
-                <button type="submit" className="primary-action">
-                  保存
-                </button>
-              </div>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {assignmentDraft && (
-        <div className="students-modal-backdrop" onMouseDown={() => setAssignmentDraft(null)}>
-          <form className="students-composer" onSubmit={saveAssignment} onMouseDown={(event) => event.stopPropagation()}>
-            <div>
-              <p className="section-label">发布作业</p>
-              <h2>写入本课并同步到日程截止</h2>
-            </div>
-            <label>
-              标题
-              <input required autoFocus value={assignmentDraft.title} onChange={(event) => setAssignmentDraft({ ...assignmentDraft, title: event.target.value })} />
-            </label>
-            <label>
-              截止日期
-              <input type="date" value={assignmentDraft.due} onChange={(event) => setAssignmentDraft({ ...assignmentDraft, due: event.target.value })} />
-            </label>
-            <label>
-              说明
-              <textarea rows={3} value={assignmentDraft.description} onChange={(event) => setAssignmentDraft({ ...assignmentDraft, description: event.target.value })} />
-            </label>
-            <div className="composer-actions">
-              <button type="button" className="outline-action" onClick={() => setAssignmentDraft(null)}>
-                取消
-              </button>
-              <button type="submit" className="primary-action">
-                发布
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {importText !== null && (
-        <div className="students-modal-backdrop" onMouseDown={() => setImportText(null)}>
-          <form
-            className="students-composer"
-            onSubmit={(event) => {
-              event.preventDefault()
-              importRoster()
-            }}
-            onMouseDown={(event) => event.stopPropagation()}
-          >
-            <div>
-              <p className="section-label">导入花名册</p>
-              <h2>粘贴 CSV 或每行一人</h2>
-            </div>
-            <label>
-              名单
-              <textarea
-                required
-                autoFocus
-                rows={8}
-                value={importText}
-                onChange={(event) => setImportText(event.target.value)}
-                placeholder={'姓名,学号,小组\n陈思雨,202401020113,第一组'}
-              />
-            </label>
-            <div className="composer-actions">
-              <button type="button" className="outline-action" onClick={() => setImportText(null)}>
-                取消
-              </button>
-              <button type="submit" className="primary-action">
-                导入
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+      <StudentDialogs
+        course={course}
+        studentDraft={studentDraft}
+        assignmentDraft={assignmentDraft}
+        importText={importText}
+        onStudentDraftChange={setStudentDraft}
+        onAssignmentDraftChange={setAssignmentDraft}
+        onImportTextChange={setImportText}
+        onSaveStudent={saveStudent}
+        onRemoveStudent={(id) => void removeStudent(id)}
+        onSaveAssignment={saveAssignment}
+        onImportRoster={importRoster}
+      />
     </section>
   )
 }

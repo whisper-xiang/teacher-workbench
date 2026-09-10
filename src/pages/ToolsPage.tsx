@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import '../tools.css'
 import { TOOL_CATEGORIES } from '../data/default-tools'
 import { uid } from '../data/store'
 import type { ToolCategory, ToolItem } from '../data/types'

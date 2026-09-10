@@ -1,8 +1,14 @@
 import { useEffect, useMemo, useRef, useState, type ClipboardEvent } from 'react'
+import '../journal.css'
+import {
+  JournalFileCard,
+  JournalSidebar,
+  type ShownJournalFile,
+} from '../components/journal/JournalSections'
 import { uid } from '../data/store'
 import { JOURNAL_KINDS, type JournalKind, type WorkJournalFile, type WorkJournalNote } from '../data/types'
 import { confirm } from '../lib/confirm'
-import { dueLabel, todayIso } from '../lib/dates'
+import { todayIso } from '../lib/dates'
 import { notify } from '../lib/notify'
 import {
   JOURNAL_FILE_ACCEPT,
@@ -10,7 +16,7 @@ import {
   isJournalAttachment,
   looksLikeLocalFilePaths,
 } from '../lib/journal-files'
-import { inferResourceFormat, deleteResourceFile, formatFileSize, getResourceFile, openStoredFile, putResourceFile } from '../lib/resource-files'
+import { deleteResourceFile, formatFileSize, openStoredFile, putResourceFile } from '../lib/resource-files'
 import {
   attachLooseFiles,
   bindTranscript,
@@ -40,96 +46,12 @@ type Draft = {
   contentKind?: 'chat'
 }
 
-type ShownFile = WorkJournalFile & { pending?: boolean }
-
 function emptyDraft(): Draft {
   return { id: '', date: todayIso(), title: '', content: '', kind: '教学', files: [] }
 }
 
 function isDraftEmpty(draft: Draft, pending: File[]) {
   return !draft.title.trim() && !draft.content.trim() && !pending.length && !draft.files.length
-}
-
-function snippetOf(note: { title: string; content: string; contentKind?: 'chat' }) {
-  const chat = note.contentKind === 'chat' ? parseWeChatTranscript(note.content, { stored: true }) : null
-  if (chat?.length) {
-    const speech = chat.find((item) => item.text && !fileTagOf(item.text)) || chat[0]
-    const line = speech.text.replace(/\s+/g, ' ')
-    return `${speech.sender}${line ? `：${line}` : ''}`.slice(0, 42)
-  }
-  const text = note.content.trim() || note.title.trim()
-  if (!text) return '无附加文字'
-  return text.replace(/\s+/g, ' ').slice(0, 42)
-}
-
-function fileBadge(fileName: string, mimeType = '') {
-  const kind = inferResourceFormat(fileName, mimeType)
-  if (kind === 'DOC') return 'W'
-  if (kind === 'PDF') return 'PDF'
-  if (kind === 'PPT') return 'P'
-  if (kind === 'MP4') return '视频'
-  return '文'
-}
-
-function JournalThumb({ fileId, fileName }: { fileId: string; fileName: string }) {
-  const [url, setUrl] = useState('')
-  useEffect(() => {
-    let current = ''
-    let cancelled = false
-    void getResourceFile(fileId).then((stored) => {
-      if (cancelled || !stored?.type.startsWith('image/')) return
-      current = URL.createObjectURL(stored.blob)
-      setUrl(current)
-    })
-    return () => {
-      cancelled = true
-      if (current) URL.revokeObjectURL(current)
-    }
-  }, [fileId])
-  if (!url) return <span className="journal-file-name">{fileName}</span>
-  return <img className="journal-thumb" src={url} alt={fileName} />
-}
-
-function JournalFileCard({
-  file,
-  onOpen,
-  onRemove,
-}: {
-  file: ShownFile
-  onOpen: () => void
-  onRemove: () => void
-}) {
-  const image = (file.mimeType || '').startsWith('image/')
-  return (
-    <button
-      type="button"
-      className={image ? 'journal-thumb-btn' : 'journal-file-card'}
-      title={file.pending ? '正在加入' : '打开附件，右键可移除'}
-      onClick={() => {
-        if (!file.pending) onOpen()
-      }}
-      onContextMenu={(event) => {
-        event.preventDefault()
-        if (!file.pending) onRemove()
-      }}
-    >
-      {image ? (
-        file.fileId ? (
-          <JournalThumb fileId={file.fileId} fileName={file.fileName} />
-        ) : (
-          <span className="journal-file-name">{file.fileName}</span>
-        )
-      ) : (
-        <>
-          <span>
-            <strong>{file.fileName}</strong>
-            <em>{file.pending ? '正在加入' : file.size}</em>
-          </span>
-          <i className="journal-file-badge">{fileBadge(file.fileName, file.mimeType)}</i>
-        </>
-      )}
-    </button>
-  )
 }
 
 export function WorkJournalPanel({ notes, onChange }: Props) {
@@ -150,9 +72,17 @@ export function WorkJournalPanel({ notes, onChange }: Props) {
   const notesRef = useRef(notes)
   const persistTimer = useRef(0)
 
-  draftRef.current = draft
-  pendingRef.current = pending
-  notesRef.current = notes
+  useEffect(() => {
+    draftRef.current = draft
+  }, [draft])
+
+  useEffect(() => {
+    pendingRef.current = pending
+  }, [pending])
+
+  useEffect(() => {
+    notesRef.current = notes
+  }, [notes])
 
   const years = useMemo(() => {
     const set = new Set(notes.map((item) => journalYear(item)))
@@ -433,7 +363,7 @@ export function WorkJournalPanel({ notes, onChange }: Props) {
   const selectedId = draft?.id ?? (draft ? 'new' : '')
   const chatMessages =
     draft?.contentKind === 'chat' ? parseWeChatTranscript(draft.content, { stored: true }) : null
-  const shownFiles: ShownFile[] = draft
+  const shownFiles: ShownJournalFile[] = draft
     ? [
         ...draft.files,
         ...pending.map((file) => ({
@@ -451,80 +381,22 @@ export function WorkJournalPanel({ notes, onChange }: Props) {
 
   return (
     <section className="journal-page" aria-label="随手记" onPaste={handlePaste}>
-      <aside className="journal-list-pane">
-          <div className="journal-list-tools">
-            <input
-              className="journal-search"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="搜索"
-              aria-label="搜索随手记"
-            />
-            <div className="journal-list-filters">
-              <select value={year} onChange={(event) => setYear(Number(event.target.value))} aria-label="年份">
-                {years.map((item) => (
-                  <option key={item} value={item}>
-                    {item} 年
-                  </option>
-                ))}
-              </select>
-              <select value={month} onChange={(event) => setMonth(Number(event.target.value))} aria-label="月份">
-                <option value={0}>全年 {stats.count}</option>
-                {Array.from({ length: 12 }, (_, index) => {
-                  const value = index + 1
-                  const count = stats.byMonth[index]
-                  return (
-                    <option key={value} value={value}>
-                      {value} 月{count ? ` ${count}` : ''}
-                    </option>
-                  )
-                })}
-              </select>
-              <button type="button" className="journal-new" onClick={() => void openNew()}>
-                新建
-              </button>
-            </div>
-          </div>
-          <ul
-            className="journal-note-list"
-            role="listbox"
-            aria-label="备忘录列表"
-            onKeyDown={(event) => {
-              if (event.key === 'ArrowDown') {
-                event.preventDefault()
-                moveSelection(1)
-              }
-              if (event.key === 'ArrowUp') {
-                event.preventDefault()
-                moveSelection(-1)
-              }
-            }}
-          >
-            {listNotes.map((note) => {
-              const id = note.id || 'new'
-              const selected = selectedId === id
-              return (
-                <li key={id}>
-                  <button
-                    type="button"
-                    role="option"
-                    aria-selected={selected}
-                    className={selected ? 'is-selected' : ''}
-                    onClick={() => void openNote(note)}
-                  >
-                    <strong>{note.title.trim() || '新备忘录'}</strong>
-                    <span>
-                      <time dateTime={note.date}>{dueLabel(note.date)}</time>
-                      <em>{note.kind}</em>
-                      {snippetOf(note)}
-                    </span>
-                  </button>
-                </li>
-              )
-            })}
-            {listNotes.length === 0 && <li className="journal-list-empty">没有备忘录</li>}
-          </ul>
-        </aside>
+      <JournalSidebar
+        query={query}
+        year={year}
+        month={month}
+        years={years}
+        monthCounts={stats.byMonth}
+        totalCount={stats.count}
+        notes={listNotes}
+        selectedId={selectedId}
+        onQueryChange={setQuery}
+        onYearChange={setYear}
+        onMonthChange={setMonth}
+        onNew={() => void openNew()}
+        onOpen={(note) => void openNote(note)}
+        onMoveSelection={moveSelection}
+      />
 
         <div className="journal-editor-pane">
           {draft ? (

@@ -1,0 +1,50 @@
+.students-heading-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.students-course-tabs {
+  display: flex;
+  gap: 8px;
+  overflow: auto;
+  margin-top: 20px;
+  padding-bottom: 4px;
+}
+
+.students-course-tabs button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+}
+
+.students-course-tabs button small {
+  color: var(--subtle);
+  font-size: 11px;
+}
+
+.students-course-tabs button.active {
+  border-color: var(--moss-70);
+  background: var(--moss-90);
+  color: var(--moss-30);
+  font-weight: 650;
+}
+
+@media (max-width: 620px) {
+  .students-heading-actions {
+    width: 100%;
+  }
+
+  .students-heading-actions button {
+    flex: 1;
+  }
+}

@@ -1,4 +1,6 @@
 import { useMemo } from 'react'
+import '../dashboard.css'
+import '../overview-overrides.css'
 import type { BoardTask, CalendarEvent, Course, DeadlineLink, WorkbenchMeta } from '../data/types'
 import { DISABLED_NAV } from '../lib/disabled-nav'
 import { deadlineLinkLabel, inferDeadlineLink } from '../lib/deadlines'

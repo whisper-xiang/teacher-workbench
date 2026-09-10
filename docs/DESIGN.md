@@ -267,7 +267,7 @@ Disabled：opacity 0.45，不改色相。
 
 - 展开 228px，收起 84px。圆角 26px，左右 inset 14px。
 - Brand：圆形 42px「教」字标 + 两行文案；收起只留标。
-- 收起/展开：圆形 32px 玻璃钮，贴在 logo 所在行、侧栏右缘，水平探出边框一半（`translateX(50%)`）。桌面始终提供；窄屏隐藏，改用「菜单」。
+- 收起/展开：brand 行右侧的幽灵线描钮，无填色圆盘、不探出边框。默认低透明（约 0.28）；悬停侧栏或按钮时显形，hover 只加 `--glass` 薄洗。收起态落在品牌标下方。桌面始终可点；窄屏隐藏，改用「菜单」。
 - 分组标题 11px / `--glass-subtle`；收起 `max-height:0; overflow:hidden`。
 - Nav item：高 44px、圆角 14px；收起变为 48×48、圆角 16px、居中。
 - 图标：22px stroke 1.7，`currentColor`，来源 `src/nav-icons.tsx`。

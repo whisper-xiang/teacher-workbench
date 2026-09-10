@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react'
+import '../components/course-tabs.css'
+import '../daily-work.css'
 import { FileIntake } from '../components/FileIntake'
 import { StoredFileEditor } from '../components/StoredFileEditor'
 import { WorkMaterialsPanel } from '../components/WorkMaterialsPanel'

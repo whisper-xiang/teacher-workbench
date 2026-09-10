@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import '../components/course-tabs.css'
+import '../resources.css'
 import { uid } from '../data/store'
 import type { Course, TeachingResource } from '../data/types'
 import { notify } from '../lib/notify'

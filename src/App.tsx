@@ -1,26 +1,12 @@
-import { useCallback, useEffect, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
 import './App.css'
 import './routes.css'
-import './dashboard.css'
 import './icon-overrides.css'
-import './overview-overrides.css'
-import './calendar.css'
-import './courses.css'
-import './students.css'
-import './resources.css'
-import './tools.css'
-import './news.css'
-import './task-board.css'
-import './settings.css'
-import './majors.css'
 import './theme.css'
-import './daily-work.css'
 import './interaction.css'
 /* Must load last so page shell padding/width matches overview */
 import './layout-overrides.css'
 import './glass.css'
-import './journal.css'
-import './papers.css'
 import { useWorkbenchStore } from './hooks/useWorkbenchStore'
 import { uid } from './data/store'
 import { syncDerivedEvents } from './data/sync'
@@ -31,23 +17,32 @@ import { notify } from './lib/notify'
 import { clearAllResourceFiles } from './lib/resource-files'
 import { useAtmosphereSrc } from './lib/atmosphere'
 import { BrandMark } from './components/BrandMark'
-import { CalendarPage } from './pages/CalendarPage'
-import { Dashboard } from './pages/Dashboard'
-import { ResourcesPage } from './pages/ResourcesPage'
-import { SettingsPage } from './pages/SettingsPage'
-import { StudentsPage } from './pages/StudentsPage'
-import { TaskBoardPage } from './pages/TaskBoardPage'
-import { WorkJournalPanel } from './pages/WorkJournalPanel'
-import { PapersPage } from './pages/PapersPage'
 import { DeskPet } from './components/DeskPet'
 import { NotifyHost } from './components/NotifyHost'
 import { ConfirmHost } from './components/ConfirmHost'
-import { GlobalSearchPanel } from './components/GlobalSearchPanel'
-import { AiAssistantPanel } from './components/AiAssistantPanel'
 import './components/topbar-tools.css'
 import { useReminderScheduler } from './hooks/useReminderScheduler'
 import { DISABLED_NAV } from './lib/disabled-nav'
 import { NavIcon, type IconName } from './nav-icons'
+
+const Dashboard = lazy(() => import('./pages/Dashboard').then((module) => ({ default: module.Dashboard })))
+const CalendarPage = lazy(() => import('./pages/CalendarPage').then((module) => ({ default: module.CalendarPage })))
+const TaskBoardPage = lazy(() => import('./pages/TaskBoardPage').then((module) => ({ default: module.TaskBoardPage })))
+const WorkJournalPanel = lazy(() =>
+  import('./pages/WorkJournalPanel').then((module) => ({ default: module.WorkJournalPanel })),
+)
+const PapersPage = lazy(() => import('./pages/PapersPage').then((module) => ({ default: module.PapersPage })))
+const StudentsPage = lazy(() => import('./pages/StudentsPage').then((module) => ({ default: module.StudentsPage })))
+const ResourcesPage = lazy(() =>
+  import('./pages/ResourcesPage').then((module) => ({ default: module.ResourcesPage })),
+)
+const SettingsPage = lazy(() => import('./pages/SettingsPage').then((module) => ({ default: module.SettingsPage })))
+const GlobalSearchPanel = lazy(() =>
+  import('./components/GlobalSearchPanel').then((module) => ({ default: module.GlobalSearchPanel })),
+)
+const AiAssistantPanel = lazy(() =>
+  import('./components/AiAssistantPanel').then((module) => ({ default: module.AiAssistantPanel })),
+)
 
 type NavPage = { id: RouteId; label: string; icon: IconName }
 
@@ -325,20 +320,26 @@ function App() {
         petAvatarId={data.profile.petAvatarId}
         petKind={data.profile.petKind}
       />
-      <GlobalSearchPanel
-        open={searchOpen}
-        data={data}
-        query={searchQuery}
-        onQueryChange={setSearchQuery}
-        onClose={closeSearch}
-        onNavigate={(route, param) => navigate(route, param)}
-      />
-      <AiAssistantPanel
-        open={aiOpen}
-        onClose={() => setAiOpen(false)}
-        courses={data.courses}
-        onCommit={commitAssistant}
-      />
+      <Suspense fallback={null}>
+        {searchOpen && (
+          <GlobalSearchPanel
+            open
+            data={data}
+            query={searchQuery}
+            onQueryChange={setSearchQuery}
+            onClose={closeSearch}
+            onNavigate={(route, param) => navigate(route, param)}
+          />
+        )}
+        {aiOpen && (
+          <AiAssistantPanel
+            open
+            onClose={() => setAiOpen(false)}
+            courses={data.courses}
+            onCommit={commitAssistant}
+          />
+        )}
+      </Suspense>
       <aside className={navOpen ? 'sidebar sidebar-open' : 'sidebar'} aria-label="主导航">
         <div className="brand">
           <BrandMark />
@@ -354,7 +355,7 @@ function App() {
             aria-label={navCollapsed ? '展开菜单' : '收起菜单'}
             title={navCollapsed ? '展开菜单' : '收起菜单'}
           >
-            <NavIcon name={navCollapsed ? 'expand' : 'collapse'} size={16} />
+            <NavIcon name={navCollapsed ? 'expand' : 'collapse'} size={14} />
           </button>
         </div>
         <nav className="navigation">
@@ -468,6 +469,7 @@ function App() {
           </div>
         </header>
 
+        <Suspense fallback={<div className="route-loading" role="status">正在打开…</div>}>
         {activeId === 'overview' && (
           <Dashboard
             meta={data.meta}
@@ -489,7 +491,6 @@ function App() {
         {activeId === 'calendar' && (
           <CalendarPage
             events={data.events}
-            courses={data.courses}
             reminders={data.reminders}
             settings={data.reminderSettings}
             weekStart={data.meta.weekStart}
@@ -578,6 +579,7 @@ function App() {
             }}
           />
         )}
+        </Suspense>
       </main>
     </div>
   )

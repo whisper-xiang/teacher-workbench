@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import '../courses.css'
+import '../daily-work.css'
 import { uid } from '../data/store'
 import { inferMajorFromText, type Course } from '../data/types'
 import { courseClassLabel, ensureCourseClasses } from '../lib/course-classes'

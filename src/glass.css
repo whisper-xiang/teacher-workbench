@@ -218,32 +218,52 @@ body,
 .app-shell .nav-collapse {
   position: absolute;
   top: 50%;
-  right: 0;
+  right: 6px;
   z-index: 6;
   display: grid;
+  flex: 0 0 24px;
   place-items: center;
-  width: 32px;
-  height: 32px;
-  min-height: 32px;
+  width: 24px;
+  height: 24px;
+  min-height: 24px;
   margin: 0;
   padding: 0;
-  border: 1px solid var(--glass-border);
-  border-radius: 50%;
-  background:
-    linear-gradient(165deg, var(--glass-highlight), transparent 48%),
-    var(--glass);
-  box-shadow: inset 0 1px 0 var(--glass-highlight);
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: none;
   color: var(--glass-text);
   cursor: pointer;
-  transform: translate(50%, -50%);
-  backdrop-filter: blur(18px) saturate(1.35);
-  -webkit-backdrop-filter: blur(18px) saturate(1.35);
+  opacity: 0.28;
+  transform: translateY(-50%);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  transition: opacity 0.2s ease, background 0.2s ease;
+}
+
+.app-shell.nav-collapsed .nav-collapse {
+  position: absolute;
+  top: auto;
+  right: auto;
+  bottom: 8px;
+  left: 50%;
+  flex-basis: 28px;
+  width: 28px;
+  height: 20px;
+  min-height: 20px;
+  margin: 0;
+  opacity: 0.38;
+  transform: translateX(-50%);
+}
+
+.app-shell .sidebar:hover .nav-collapse,
+.app-shell .nav-collapse:focus-visible {
+  opacity: 0.7;
 }
 
 .app-shell .nav-collapse:hover {
-  background:
-    linear-gradient(165deg, var(--glass-highlight), transparent 48%),
-    var(--glass-strong);
+  opacity: 1;
+  background: var(--glass);
   color: var(--glass-text);
 }
 
@@ -530,6 +550,12 @@ body,
     margin-left: 0;
   }
 
+  .app-shell.nav-collapsed .brand {
+    min-height: 76px;
+    padding: 18px 16px 14px;
+    justify-content: flex-start;
+  }
+
   .app-shell.nav-collapsed .brand-copy,
   .app-shell.nav-collapsed .profile-copy,
   .app-shell.nav-collapsed .nav-item-label {
@@ -591,7 +617,8 @@ body,
   .app-shell .sidebar,
   .app-shell .main-content,
   .app-shell .nav-item-label,
-  .app-shell .nav-group h2 {
+  .app-shell .nav-group h2,
+  .app-shell .nav-collapse {
     transition: none;
   }
 }
