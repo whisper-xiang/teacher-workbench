@@ -1,11 +1,29 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ClipboardEvent } from 'react'
 import { uid } from '../data/store'
 import { JOURNAL_KINDS, type JournalKind, type TeacherProfile, type WorkJournalFile, type WorkJournalNote } from '../data/types'
 import { confirm } from '../lib/confirm'
 import { dueLabel, todayIso } from '../lib/dates'
 import { notify } from '../lib/notify'
+import {
+  JOURNAL_FILE_ACCEPT,
+  collectClipboardFiles,
+  isJournalAttachment,
+  looksLikeLocalFilePaths,
+} from '../lib/journal-files'
+import { inferResourceFormat, deleteResourceFile, formatFileSize, getResourceFile, openStoredFile, putResourceFile } from '../lib/resource-files'
+import {
+  attachLooseFiles,
+  bindTranscript,
+  clipboardChatText,
+  dateFromTranscript,
+  fileTagOf,
+  formatTranscript,
+  parseWeChatTranscript,
+  readClipboardChatText,
+  titleFromTranscript,
+  type TranscriptMessage,
+} from '../lib/wechat-transcript'
 import { journalMonth, journalStats, journalYear, notesInYear, buildYearJournalHtml } from '../lib/work-journal'
-import { deleteResourceFile, formatFileSize, getResourceFile, openStoredFile, putResourceFile } from '../lib/resource-files'
 
 type Props = {
   notes: WorkJournalNote[]
@@ -20,7 +38,10 @@ type Draft = {
   content: string
   kind: JournalKind
   files: WorkJournalFile[]
+  contentKind?: 'chat'
 }
+
+type ShownFile = WorkJournalFile & { pending?: boolean }
 
 function emptyDraft(): Draft {
   return { id: '', date: todayIso(), title: '', content: '', kind: '教学', files: [] }
@@ -30,10 +51,25 @@ function isDraftEmpty(draft: Draft, pending: File[]) {
   return !draft.title.trim() && !draft.content.trim() && !pending.length && !draft.files.length
 }
 
-function snippetOf(note: { title: string; content: string }) {
+function snippetOf(note: { title: string; content: string; contentKind?: 'chat' }) {
+  const chat = note.contentKind === 'chat' ? parseWeChatTranscript(note.content, { stored: true }) : null
+  if (chat?.length) {
+    const speech = chat.find((item) => item.text && !fileTagOf(item.text)) || chat[0]
+    const line = speech.text.replace(/\s+/g, ' ')
+    return `${speech.sender}${line ? `：${line}` : ''}`.slice(0, 42)
+  }
   const text = note.content.trim() || note.title.trim()
   if (!text) return '无附加文字'
   return text.replace(/\s+/g, ' ').slice(0, 42)
+}
+
+function fileBadge(fileName: string, mimeType = '') {
+  const kind = inferResourceFormat(fileName, mimeType)
+  if (kind === 'DOC') return 'W'
+  if (kind === 'PDF') return 'PDF'
+  if (kind === 'PPT') return 'P'
+  if (kind === 'MP4') return '视频'
+  return '文'
 }
 
 function JournalThumb({ fileId, fileName }: { fileId: string; fileName: string }) {
@@ -55,6 +91,48 @@ function JournalThumb({ fileId, fileName }: { fileId: string; fileName: string }
   return <img className="journal-thumb" src={url} alt={fileName} />
 }
 
+function JournalFileCard({
+  file,
+  onOpen,
+  onRemove,
+}: {
+  file: ShownFile
+  onOpen: () => void
+  onRemove: () => void
+}) {
+  const image = (file.mimeType || '').startsWith('image/')
+  return (
+    <button
+      type="button"
+      className={image ? 'journal-thumb-btn' : 'journal-file-card'}
+      title={file.pending ? '正在加入' : '打开附件，右键可移除'}
+      onClick={() => {
+        if (!file.pending) onOpen()
+      }}
+      onContextMenu={(event) => {
+        event.preventDefault()
+        if (!file.pending) onRemove()
+      }}
+    >
+      {image ? (
+        file.fileId ? (
+          <JournalThumb fileId={file.fileId} fileName={file.fileName} />
+        ) : (
+          <span className="journal-file-name">{file.fileName}</span>
+        )
+      ) : (
+        <>
+          <span>
+            <strong>{file.fileName}</strong>
+            <em>{file.pending ? '正在加入' : file.size}</em>
+          </span>
+          <i className="journal-file-badge">{fileBadge(file.fileName, file.mimeType)}</i>
+        </>
+      )}
+    </button>
+  )
+}
+
 export function WorkJournalPanel({ notes, profile, onChange }: Props) {
   const currentYear = new Date().getFullYear()
   const [draft, setDraft] = useState<Draft | null>(() => {
@@ -67,6 +145,7 @@ export function WorkJournalPanel({ notes, profile, onChange }: Props) {
   const [pending, setPending] = useState<File[]>([])
   const [previewHtml, setPreviewHtml] = useState('')
   const [busy, setBusy] = useState(false)
+  const [editSource, setEditSource] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const titleRef = useRef<HTMLInputElement>(null)
   const previewRef = useRef<HTMLIFrameElement>(null)
@@ -124,6 +203,7 @@ export function WorkJournalPanel({ notes, profile, onChange }: Props) {
       existing.content === current.content &&
       existing.date === current.date &&
       existing.kind === current.kind &&
+      existing.contentKind === current.contentKind &&
       existing.files === current.files
     ) {
       return
@@ -151,6 +231,7 @@ export function WorkJournalPanel({ notes, profile, onChange }: Props) {
         kind: current.kind,
         files,
         createdAt: existing?.createdAt || new Date().toISOString(),
+        contentKind: current.contentKind,
       }
       onChange(
         current.id
@@ -196,6 +277,7 @@ export function WorkJournalPanel({ notes, profile, onChange }: Props) {
       return
     }
     setPending([])
+    setEditSource(false)
     if (fileRef.current) fileRef.current.value = ''
     const next = emptyDraft()
     setDraft(next)
@@ -212,6 +294,7 @@ export function WorkJournalPanel({ notes, profile, onChange }: Props) {
       await flushPersist()
     }
     setPending([])
+    setEditSource(false)
     if (fileRef.current) fileRef.current.value = ''
     const next = { ...note }
     setDraft(next)
@@ -247,14 +330,102 @@ export function WorkJournalPanel({ notes, profile, onChange }: Props) {
   }
 
   const addFiles = (list: FileList | File[]) => {
-    const next = Array.from(list).filter((file) => file.type.startsWith('image/') || file.type === 'application/pdf')
-    if (!next.length) return
+    const incoming = Array.from(list)
+    const next = incoming.filter(isJournalAttachment)
+    if (!next.length) {
+      if (incoming.length) notify.warning('随手记可加入图片和常见文档')
+      return
+    }
+    if (!draftRef.current) {
+      const created = emptyDraft()
+      setDraft(created)
+      draftRef.current = created
+    }
     setPending((current) => {
       const merged = [...current, ...next]
       pendingRef.current = merged
       return merged
     })
     schedulePersist()
+  }
+
+  const applyTranscript = (messages: TranscriptMessage[]) => {
+    if (!draftRef.current) {
+      const created = emptyDraft()
+      setDraft(created)
+      draftRef.current = created
+    }
+    const current = draftRef.current
+    const existing = current.contentKind === 'chat' ? parseWeChatTranscript(current.content, { stored: true }) : null
+    const merged = existing?.length ? [...existing, ...messages] : messages
+    const formatted = existing?.length || !current.content.trim()
+      ? formatTranscript(merged)
+      : `${current.content.trim()}\n\n${formatTranscript(messages)}`
+    const keepTitle = current.title.trim() && current.title.trim() !== '新备忘录'
+    updateDraft({
+      ...current,
+      title: keepTitle ? current.title : titleFromTranscript(merged),
+      content: formatted,
+      date: dateFromTranscript(merged) || current.date,
+      contentKind: 'chat',
+    })
+    setEditSource(false)
+  }
+
+  const appendBody = (text: string) => {
+    if (!draftRef.current) {
+      const created = emptyDraft()
+      setDraft(created)
+      draftRef.current = created
+    }
+    const current = draftRef.current
+    const next = current.content.trim() ? `${current.content.trim()}\n\n${text}` : text
+    updateDraft({ ...current, content: next })
+  }
+
+  const ingestPastedChat = (text: string, files: File[]) => {
+    const messages = parseWeChatTranscript(text, { hasFiles: files.length > 0 })
+    if (messages) {
+      applyTranscript(attachLooseFiles(messages, files))
+      if (files.length) addFiles(files)
+      else if (messages.some((item) => fileTagOf(item.text)?.kind === '文件')) {
+        notify.warning('已按聊天记录排好。若文件没带上，请再拖进编辑区或点「添加附件」。')
+      }
+      return true
+    }
+    if (text.trim()) {
+      appendBody(text.trim())
+      if (files.length) addFiles(files)
+      return true
+    }
+    return false
+  }
+
+  const handlePaste = (event: ClipboardEvent) => {
+    const target = event.target as HTMLElement | null
+    const inSearch = Boolean(target?.closest('.journal-search'))
+    const files = collectClipboardFiles(event.clipboardData)
+    const text = clipboardChatText(event.clipboardData, files)
+    if (inSearch && !files.length) return
+
+    if (text || files.length) {
+      event.preventDefault()
+      if (ingestPastedChat(text, files)) return
+      if (files.length) {
+        void readClipboardChatText(files).then((rich) => {
+          if (rich) ingestPastedChat(rich, files)
+          else {
+            addFiles(files)
+            notify.warning('只粘到了文件，聊天文字微信没放进剪贴板。可先只复制文字，再把文件拖进来。')
+          }
+        })
+        return
+      }
+    }
+    if (looksLikeLocalFilePaths(event.clipboardData.getData('text/plain'))) {
+      event.preventDefault()
+      notify.warning('微信复制的是本地路径，浏览器读不到文件。请再拖进编辑区，或点「添加附件」选择。')
+    }
   }
 
   const openReport = async (download: boolean) => {
@@ -295,9 +466,26 @@ export function WorkJournalPanel({ notes, profile, onChange }: Props) {
   }
 
   const selectedId = draft?.id ?? (draft ? 'new' : '')
+  const chatMessages =
+    draft?.contentKind === 'chat' ? parseWeChatTranscript(draft.content, { stored: true }) : null
+  const shownFiles: ShownFile[] = draft
+    ? [
+        ...draft.files,
+        ...pending.map((file) => ({
+          id: `pending-${file.name}-${file.size}-${file.lastModified}`,
+          fileId: '',
+          fileName: file.name,
+          mimeType: file.type,
+          size: formatFileSize(file.size),
+          pending: true,
+        })),
+      ]
+    : []
+  const bound = chatMessages?.length ? bindTranscript(chatMessages, shownFiles) : null
+  const showTranscript = Boolean(bound && !editSource)
 
   return (
-    <section className="journal-page" aria-label="随手记">
+    <section className="journal-page" aria-label="随手记" onPaste={handlePaste}>
       <div className="journal-head">
         <h1>随手记</h1>
         <div className="journal-head-actions">
@@ -418,11 +606,11 @@ export function WorkJournalPanel({ notes, profile, onChange }: Props) {
                   </select>
                 </label>
                 <label className="journal-attach">
-                  添加照片
+                  添加附件
                   <input
                     ref={fileRef}
                     type="file"
-                    accept="image/*,.pdf"
+                    accept={JOURNAL_FILE_ACCEPT}
                     multiple
                     onChange={(event) => {
                       addFiles(event.target.files ?? [])
@@ -431,6 +619,11 @@ export function WorkJournalPanel({ notes, profile, onChange }: Props) {
                   />
                 </label>
                 <span className="journal-editor-spacer" />
+                {draft.contentKind === 'chat' && (
+                  <button type="button" className="text-action" onClick={() => setEditSource((value) => !value)}>
+                    {editSource ? '预览记录' : '编辑原文'}
+                  </button>
+                )}
                 <button type="button" className="text-action" onClick={() => void removeCurrent()}>
                   删除
                 </button>
@@ -445,34 +638,49 @@ export function WorkJournalPanel({ notes, profile, onChange }: Props) {
                   if (event.key === 'Enter') event.preventDefault()
                 }}
               />
-              <textarea
-                className="journal-body-input"
-                value={draft.content}
-                onChange={(event) => updateDraft({ ...draft, content: event.target.value })}
-                placeholder="开始记录"
-              />
-              {(draft.files.length > 0 || pending.length > 0) && (
+              {showTranscript && bound ? (
+                <div className="journal-transcript" aria-label="聊天记录">
+                  {bound.rows.map(({ message, file }, index) => (
+                    <article className="journal-msg" key={`${message.sender}-${message.time}-${index}`}>
+                      {message.sender && <p className="journal-msg-name">{message.sender}</p>}
+                      {message.time && <p className="journal-msg-time">{message.time}</p>}
+                      {message.text && <p className="journal-msg-text">{message.text}</p>}
+                      {file && (
+                        <JournalFileCard
+                          file={file}
+                          onOpen={() => void openStoredFile(file.fileId)}
+                          onRemove={() => {
+                            if (!file.pending) void removeFile(file)
+                          }}
+                        />
+                      )}
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <textarea
+                  className="journal-body-input"
+                  value={draft.content}
+                  onChange={(event) => updateDraft({ ...draft, content: event.target.value })}
+                  placeholder="开始记录，可粘贴微信聊天、图片或文档"
+                />
+              )}
+              {((showTranscript && bound?.leftover.length) || (!showTranscript && shownFiles.length > 0)) && (
                 <div className="journal-thumbs">
-                  {draft.files.map((file) => (
-                    <button
-                      type="button"
-                      key={file.id}
-                      className="journal-thumb-btn"
-                      title="打开附件，右键可移除"
-                      onClick={() => void openStoredFile(file.fileId)}
-                      onContextMenu={(event) => {
-                        event.preventDefault()
-                        void removeFile(file)
-                      }}
-                    >
-                      <JournalThumb fileId={file.fileId} fileName={file.fileName} />
-                    </button>
-                  ))}
-                  {pending.map((file) => (
-                    <span className="journal-chip" key={`${file.name}-${file.size}`}>
-                      正在加入 {file.name}
-                    </span>
-                  ))}
+                  {(showTranscript ? bound?.leftover ?? [] : shownFiles).map((file) =>
+                    file.pending ? (
+                      <span className="journal-chip" key={file.id}>
+                        正在加入 {file.fileName}
+                      </span>
+                    ) : (
+                      <JournalFileCard
+                        key={file.id}
+                        file={file}
+                        onOpen={() => void openStoredFile(file.fileId)}
+                        onRemove={() => void removeFile(file)}
+                      />
+                    ),
+                  )}
                 </div>
               )}
             </form>

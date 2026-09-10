@@ -291,6 +291,101 @@
   font-size: 14px;
 }
 
+.journal-transcript {
+  flex: 1;
+  min-height: 160px;
+  overflow: auto;
+  padding: 8px 0 12px;
+}
+
+.journal-msg {
+  margin: 0 0 22px;
+}
+
+.journal-msg:last-child {
+  margin-bottom: 0;
+}
+
+.journal-msg-name,
+.journal-msg-time,
+.journal-msg-text {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.journal-msg-name {
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.journal-msg-time {
+  margin-top: 2px;
+  color: #8a8378;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.5;
+}
+
+.journal-msg-text {
+  margin-top: 2px;
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+.journal-file-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: min(100%, 360px);
+  margin-top: 8px;
+  padding: 12px 14px;
+  border: 0;
+  border-radius: 12px;
+  background: #f3efe6;
+  text-align: left;
+  cursor: pointer;
+}
+
+.journal-file-card:hover {
+  background: #ece6da;
+}
+
+.journal-file-card strong {
+  display: block;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.journal-file-card em {
+  display: block;
+  margin-top: 4px;
+  color: #8a8378;
+  font-size: 12px;
+  font-style: normal;
+}
+
+.journal-file-badge {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  color: var(--moss-30);
+  background: #e6eee8;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 800;
+}
+
 .journal-thumbs {
   display: flex;
   flex-wrap: wrap;

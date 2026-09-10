@@ -379,6 +379,8 @@ export type WorkJournalNote = {
   kind: JournalKind
   files: WorkJournalFile[]
   createdAt: string
+  /** 粘贴的微信聊天记录，按发言人 / 时间 / 正文展示 */
+  contentKind?: 'chat'
 }
 
 export type WorkbenchData = {

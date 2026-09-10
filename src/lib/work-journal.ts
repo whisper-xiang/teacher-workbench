@@ -1,5 +1,6 @@
 import type { TeacherProfile, WorkJournalNote } from '../data/types'
 import { getResourceFile } from './resource-files'
+import { bindTranscript, parseWeChatTranscript } from './wechat-transcript'
 
 export function journalYear(note: WorkJournalNote) {
   return Number(note.date.slice(0, 4)) || new Date().getFullYear()
@@ -57,19 +58,34 @@ export async function buildYearJournalHtml(notes: WorkJournalNote[], year: numbe
       if (!rows.length) return ''
       const items = await Promise.all(
         rows.map(async (note) => {
-          const images = (
-            await Promise.all(
-              note.files.map(async (file) => {
-                const dataUrl = await fileDataUrl(file.fileId)
-                if (!dataUrl) return `<p class="file">${escapeHtml(file.fileName)}</p>`
-                return `<img src="${dataUrl}" alt="${escapeHtml(file.fileName)}" />`
-              }),
-            )
-          ).join('')
+          const chat =
+            note.contentKind === 'chat' ? parseWeChatTranscript(note.content, { stored: true }) : null
+          const bound = chat?.length ? bindTranscript(chat, note.files) : null
+          const fileHtml = async (file: (typeof note.files)[number]) => {
+            const dataUrl = await fileDataUrl(file.fileId)
+            if (dataUrl) return `<img src="${dataUrl}" alt="${escapeHtml(file.fileName)}" />`
+            return `<p class="file-card"><strong>${escapeHtml(file.fileName)}</strong><span>${escapeHtml(file.size)}</span></p>`
+          }
+          const body = bound
+            ? (
+                await Promise.all(
+                  bound.rows.map(async ({ message, file }) => {
+                    const attached = file ? await fileHtml(file) : ''
+                    return `<div class="msg">
+                      ${message.sender ? `<p class="msg-name">${escapeHtml(message.sender)}</p>` : ''}
+                      ${message.time ? `<p class="msg-time">${escapeHtml(message.time)}</p>` : ''}
+                      ${message.text ? `<p>${escapeHtml(message.text).replaceAll('\n', '<br />')}</p>` : ''}
+                      ${attached}
+                    </div>`
+                  }),
+                )
+              ).join('') + (await Promise.all(bound.leftover.map(fileHtml))).join('')
+            : `<p>${escapeHtml(note.content).replaceAll('\n', '<br />') || '（无正文）'}</p>${(
+                await Promise.all(note.files.map(fileHtml))
+              ).join('')}`
           return `<article>
             <h3>${escapeHtml(note.date)} · ${escapeHtml(note.kind)} · ${escapeHtml(note.title)}</h3>
-            <p>${escapeHtml(note.content).replaceAll('\n', '<br />') || '（无正文）'}</p>
-            ${images}
+            ${body}
           </article>`
         }),
       )
@@ -92,7 +108,11 @@ export async function buildYearJournalHtml(notes: WorkJournalNote[], year: numbe
     h3 { font-size: 15px; margin: 0 0 6px; }
     p { margin: 0 0 8px; white-space: pre-wrap; }
     img { max-width: 100%; max-height: 360px; display: block; margin: 8px 0; border-radius: 8px; border: 1px solid #e4ebe7; }
-    .file { font-size: 12px; color: #6a7a73; }
+    .msg { margin: 0 0 20px; }
+    .msg-name { margin: 0; font-size: 15px; color: #1f2a24; }
+    .msg-time { margin: 2px 0 6px; font-size: 13px; color: #8a8378; }
+    .file-card { display: inline-block; padding: 10px 12px; border-radius: 10px; background: #f3efe6; color: #1f2a24; }
+    .file-card span { display: block; margin-top: 4px; color: #8a8378; font-size: 12px; }
     @media print { body { margin: 0; } }
   </style>
 </head>
