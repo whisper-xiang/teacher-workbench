@@ -418,13 +418,19 @@ body,
   -webkit-backdrop-filter: blur(18px);
 }
 
-.app-shell:not(.is-overview) .main-content > .calendar-page,
-.app-shell:not(.is-overview) .main-content > .journal-page {
+.app-shell:not(.is-overview) .main-content > .calendar-page {
   display: flex;
   flex-direction: column;
   min-height: 0;
   overflow: hidden;
   padding: 18px 22px 16px;
+}
+
+.app-shell:not(.is-overview) .main-content > .journal-page {
+  min-height: 0;
+  overflow: hidden;
+  padding: 0;
+  background: rgba(255, 252, 247, 0.28);
 }
 
 .app-shell .global-search-overlay {

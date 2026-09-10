@@ -495,7 +495,6 @@ function App() {
         {activeId === 'journal' && (
           <WorkJournalPanel
             notes={data.workNotes}
-            profile={data.profile}
             onChange={(workNotes) =>
               update((current) => {
                 const next = { ...current, workNotes }

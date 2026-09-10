@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ClipboardEvent } from 'react'
 import { uid } from '../data/store'
-import { JOURNAL_KINDS, type JournalKind, type TeacherProfile, type WorkJournalFile, type WorkJournalNote } from '../data/types'
+import { JOURNAL_KINDS, type JournalKind, type WorkJournalFile, type WorkJournalNote } from '../data/types'
 import { confirm } from '../lib/confirm'
 import { dueLabel, todayIso } from '../lib/dates'
 import { notify } from '../lib/notify'
@@ -23,11 +23,10 @@ import {
   titleFromTranscript,
   type TranscriptMessage,
 } from '../lib/wechat-transcript'
-import { journalMonth, journalStats, journalYear, notesInYear, buildYearJournalHtml } from '../lib/work-journal'
+import { journalMonth, journalStats, journalYear, notesInYear } from '../lib/work-journal'
 
 type Props = {
   notes: WorkJournalNote[]
-  profile: TeacherProfile
   onChange: (notes: WorkJournalNote[]) => void
 }
 
@@ -133,7 +132,7 @@ function JournalFileCard({
   )
 }
 
-export function WorkJournalPanel({ notes, profile, onChange }: Props) {
+export function WorkJournalPanel({ notes, onChange }: Props) {
   const currentYear = new Date().getFullYear()
   const [draft, setDraft] = useState<Draft | null>(() => {
     const first = notesInYear(notes, currentYear)[0]
@@ -143,12 +142,9 @@ export function WorkJournalPanel({ notes, profile, onChange }: Props) {
   const [month, setMonth] = useState(0)
   const [query, setQuery] = useState('')
   const [pending, setPending] = useState<File[]>([])
-  const [previewHtml, setPreviewHtml] = useState('')
-  const [busy, setBusy] = useState(false)
   const [editSource, setEditSource] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const titleRef = useRef<HTMLInputElement>(null)
-  const previewRef = useRef<HTMLIFrameElement>(null)
   const draftRef = useRef(draft)
   const pendingRef = useRef(pending)
   const notesRef = useRef(notes)
@@ -428,37 +424,6 @@ export function WorkJournalPanel({ notes, profile, onChange }: Props) {
     }
   }
 
-  const openReport = async (download: boolean) => {
-    await flushPersist()
-    setBusy(true)
-    try {
-      const html = await buildYearJournalHtml(notesRef.current, year, profile)
-      if (download) {
-        const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
-        const url = URL.createObjectURL(blob)
-        const anchor = document.createElement('a')
-        anchor.href = url
-        anchor.download = `${year}年工作量随手记-${profile.name}.html`
-        anchor.click()
-        URL.revokeObjectURL(url)
-        notify.success(`已下载 ${year} 年工作量报告`)
-        return
-      }
-      setPreviewHtml(html)
-    } catch {
-      notify.error('报告生成失败')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const printPreview = () => {
-    const frame = previewRef.current
-    if (!frame?.contentWindow) return
-    frame.contentWindow.focus()
-    frame.contentWindow.print()
-  }
-
   const moveSelection = (delta: number) => {
     const index = listNotes.findIndex((item) => (draft?.id ? item.id === draft.id : !item.id))
     const next = listNotes[index + delta]
@@ -486,20 +451,7 @@ export function WorkJournalPanel({ notes, profile, onChange }: Props) {
 
   return (
     <section className="journal-page" aria-label="随手记" onPaste={handlePaste}>
-      <div className="journal-head">
-        <h1>随手记</h1>
-        <div className="journal-head-actions">
-          <button type="button" className="outline-action" disabled={busy} onClick={() => void openReport(false)}>
-            预览全年
-          </button>
-          <button type="button" className="primary-action" disabled={busy} onClick={() => void openReport(true)}>
-            年度报告
-          </button>
-        </div>
-      </div>
-
-      <div className="journal-split">
-        <aside className="journal-list-pane">
+      <aside className="journal-list-pane">
           <div className="journal-list-tools">
             <input
               className="journal-search"
@@ -624,7 +576,7 @@ export function WorkJournalPanel({ notes, profile, onChange }: Props) {
                     {editSource ? '预览记录' : '编辑原文'}
                   </button>
                 )}
-                <button type="button" className="text-action" onClick={() => void removeCurrent()}>
+                <button type="button" className="text-action is-danger" onClick={() => void removeCurrent()}>
                   删除
                 </button>
               </div>
@@ -693,32 +645,6 @@ export function WorkJournalPanel({ notes, profile, onChange }: Props) {
             </div>
           )}
         </div>
-      </div>
-
-      {previewHtml && (
-        <div className="courses-modal-backdrop" onMouseDown={() => setPreviewHtml('')}>
-          <div className="journal-preview-modal" onMouseDown={(event) => event.stopPropagation()}>
-            <div className="journal-preview-bar">
-              <div>
-                <p className="section-label">年度预览</p>
-                <h2>{year} 年工作量随手记</h2>
-              </div>
-              <div className="journal-head-actions">
-                <button type="button" className="outline-action" onClick={printPreview}>
-                  打印 / 存 PDF
-                </button>
-                <button type="button" className="primary-action" onClick={() => void openReport(true)}>
-                  下载 HTML
-                </button>
-                <button type="button" className="text-action" onClick={() => setPreviewHtml('')}>
-                  关闭
-                </button>
-              </div>
-            </div>
-            <iframe ref={previewRef} className="journal-preview-frame" title={`${year}年工作量报告`} srcDoc={previewHtml} />
-          </div>
-        </div>
-      )}
     </section>
   )
 }

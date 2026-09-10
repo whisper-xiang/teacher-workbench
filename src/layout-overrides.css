@@ -29,7 +29,7 @@
 .main-content > .journal-page,
 .journal-page {
   overflow: hidden;
-  padding-bottom: 0;
+  padding: 0;
 }
 
 /* Pages with top action buttons need breathing room under the topbar */
@@ -40,7 +40,6 @@
 .resources-page,
 .research-page,
 .activities-page,
-.journal-page,
 .news-page,
 .tools-page,
 .reminders-page,
@@ -111,7 +110,6 @@ body,
 .resources-page,
 .research-page,
 .activities-page,
-.journal-page,
 .news-page,
   .tools-page,
   .reminders-page,
