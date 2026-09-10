@@ -255,6 +255,8 @@ export type GradeItem = {
 
 export type PetKind = 'ning' | 'hamster' | 'puppy' | 'kitty' | 'bunny' | 'chick' | 'fox' | 'photo'
 
+export type AtmosphereId = 'dusk' | 'grove' | 'rain' | 'photo'
+
 export type TeacherProfile = {
   name: string
   title: string
@@ -264,6 +266,9 @@ export type TeacherProfile = {
   petAvatarId?: string
   /** 桌宠形象：预设萌宠或照片 Q 版 */
   petKind?: PetKind
+  /** 壳层风景：预设或本机照片 */
+  atmosphereId?: AtmosphereId
+  atmosphereFileId?: string
 }
 
 export type WorkbenchMeta = {
@@ -383,6 +388,51 @@ export type WorkJournalNote = {
   contentKind?: 'chat'
 }
 
+export const THESIS_STAGES = ['选题', '开题', '提纲', '初稿', '修改', '查重', '答辩', '归档'] as const
+
+export type ThesisStage = (typeof THESIS_STAGES)[number]
+
+export type ThesisDraft = {
+  id: string
+  fileId?: string
+  fileName: string
+  mimeType?: string
+  size?: string
+  receivedAt: string
+  extractedText?: string
+}
+
+export type ThesisFinding = {
+  issue: string
+  location: string
+  say: string
+}
+
+export type ThesisAnalysis = {
+  summary: string
+  findings: ThesisFinding[]
+  createdAt: string
+}
+
+export type ThesisNote = {
+  id: string
+  date: string
+  stage: ThesisStage
+  text: string
+}
+
+export type ThesisAdvisee = {
+  id: string
+  name: string
+  topic: string
+  stage: ThesisStage
+  stageChangedAt?: string
+  nextDate?: string
+  drafts: ThesisDraft[]
+  analysis?: ThesisAnalysis
+  notes: ThesisNote[]
+}
+
 export type WorkbenchData = {
   version: 1
   updatedAt: string
@@ -409,6 +459,7 @@ export type WorkbenchData = {
   researchProjects: ResearchProject[]
   activityProjects: ActivityProject[]
   workNotes: WorkJournalNote[]
+  thesisAdvisees: ThesisAdvisee[]
   /** 调课删除的课程事件 id，整学期不再自动生成该节 */
   hiddenCourseEventIds: string[]
 }
@@ -419,6 +470,7 @@ export type RouteId =
   | 'tasks'
   | 'journal'
   | 'courses'
+  | 'papers'
   | 'research'
   | 'activities'
   | 'students'

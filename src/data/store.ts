@@ -15,9 +15,11 @@ import type {
   NewsItem,
   StudentRecord,
   TeachingResource,
+  ThesisAdvisee,
+  ThesisStage,
   WorkbenchData,
 } from './types'
-import { inferMajorFromText } from './types'
+import { inferMajorFromText, THESIS_STAGES } from './types'
 import { syncDerivedEvents } from './sync'
 
 export const STORAGE_KEY = 'teacher-workbench-data-v1'
@@ -73,6 +75,12 @@ export function alignDataToWeekStart(data: WorkbenchData, nextWeekStart: string)
     assignments,
     tasks,
     dutyConfirmedDates: data.dutyConfirmedDates.map((date) => shiftIf(date)),
+    thesisAdvisees: (data.thesisAdvisees ?? []).map((person) => ({
+      ...person,
+      nextDate: person.nextDate ? shiftIf(person.nextDate) : person.nextDate,
+      drafts: person.drafts.map((draft) => ({ ...draft, receivedAt: shiftIf(draft.receivedAt) })),
+      notes: person.notes.map((note) => ({ ...note, date: shiftIf(note.date) })),
+    })),
     events: syncDerivedEvents({ ...data, events, assignments, meta: { ...data.meta, weekStart: nextWeekStart } }),
   }
 }
@@ -135,6 +143,21 @@ function normalizeResource(resource: TeachingResource): TeachingResource {
   return {
     ...resource,
     major: resource.major ?? inferMajorFromText(resource.course),
+  }
+}
+
+function isThesisStage(value: string): value is ThesisStage {
+  return (THESIS_STAGES as readonly string[]).includes(value)
+}
+
+function normalizeAdvisee(person: ThesisAdvisee): ThesisAdvisee {
+  return {
+    ...person,
+    name: person.name?.trim() || '未命名',
+    topic: person.topic ?? '',
+    stage: isThesisStage(person.stage) ? person.stage : '选题',
+    drafts: person.drafts ?? [],
+    notes: person.notes ?? [],
   }
 }
 
@@ -203,7 +226,13 @@ function mergeWithSeed(partial: Partial<WorkbenchData> | null): WorkbenchData {
   const storedProfile = partial.profile
   const isLegacyDemoProfile = storedProfile?.name === LEGACY_DEMO_TEACHER_NAME
   const profile = isLegacyDemoProfile
-    ? { ...seed.profile, petAvatarId: storedProfile.petAvatarId, petKind: storedProfile.petKind }
+    ? {
+        ...seed.profile,
+        petAvatarId: storedProfile.petAvatarId,
+        petKind: storedProfile.petKind,
+        atmosphereId: storedProfile.atmosphereId,
+        atmosphereFileId: storedProfile.atmosphereFileId,
+      }
     : { ...seed.profile, ...storedProfile }
 
   const merged: WorkbenchData = {
@@ -235,6 +264,9 @@ function mergeWithSeed(partial: Partial<WorkbenchData> | null): WorkbenchData {
     researchProjects: partial.researchProjects ?? seed.researchProjects,
     activityProjects: partial.activityProjects ?? seed.activityProjects,
     workNotes: partial.workNotes ?? seed.workNotes,
+    thesisAdvisees: (Array.isArray(partial.thesisAdvisees) ? partial.thesisAdvisees : seed.thesisAdvisees).map(
+      normalizeAdvisee,
+    ),
     hiddenCourseEventIds: partial.hiddenCourseEventIds ?? seed.hiddenCourseEventIds,
     updatedAt: partial.updatedAt ?? new Date().toISOString(),
   }

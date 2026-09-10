@@ -5,6 +5,7 @@ type IconName =
   | 'journal'
   | 'reminders'
   | 'courses'
+  | 'papers'
   | 'research'
   | 'activities'
   | 'students'
@@ -80,6 +81,14 @@ export function NavIcon({ name, size = 22 }: { name: IconName; size?: number }) 
         <svg {...props}>
           <path d="M4 6.5c2.4-1.4 4.6-1.4 8 0s5.6 1.4 8 0v11c-2.4 1.4-4.6 1.4-8 0s-5.6-1.4-8 0Z" />
           <path d="M12 6.5v11" />
+        </svg>
+      )
+    case 'papers':
+      return (
+        <svg {...props}>
+          <path d="M7 4.5h7.2L18.5 9v10.5H7A1.5 1.5 0 0 1 5.5 18V6A1.5 1.5 0 0 1 7 4.5Z" />
+          <path d="M14.2 4.5V9h4.3" />
+          <path d="M9 13h6.2M9 16.2h4.2" />
         </svg>
       )
     case 'research':

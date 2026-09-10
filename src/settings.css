@@ -324,13 +324,77 @@
   color: var(--moss-50);
 }
 
+.atmosphere-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.atmosphere-card {
+  display: grid;
+  justify-items: stretch;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--moss-30);
+  cursor: pointer;
+  text-align: left;
+}
+
+.atmosphere-card img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  border: 1px solid var(--moss-90);
+  border-radius: 12px;
+  pointer-events: none;
+}
+
+.atmosphere-card b {
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.atmosphere-card:hover img {
+  border-color: var(--moss-80);
+}
+
+.atmosphere-card.is-on img {
+  border-color: var(--moss-40);
+  box-shadow: 0 0 0 1px var(--moss-40);
+}
+
+.atmosphere-card-photo.is-empty {
+  min-height: 0;
+}
+
+.atmosphere-card-photo.is-empty::before {
+  content: "";
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  border: 1px dashed var(--moss-80);
+  border-radius: 12px;
+  background: var(--moss-95);
+}
+
+.atmosphere-card-photo.is-empty.is-on::before {
+  border-color: var(--moss-40);
+  border-style: solid;
+  box-shadow: 0 0 0 1px var(--moss-40);
+}
+
 @media (max-width: 620px) {
   .settings-grid {
     grid-template-columns: 1fr;
   }
 
   .composer-grid,
-  .pet-preset-grid {
+  .pet-preset-grid,
+  .atmosphere-grid {
     grid-template-columns: 1fr 1fr;
   }
 }

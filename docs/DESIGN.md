@@ -307,7 +307,7 @@ Disabled：opacity 0.45，不改色相。
 
 ### 7.12 Page sheet
 
-- 用于 calendar / tasks / courses / students / resources / news / tools / settings。提醒写在日程页，不再单开路由。
+- 用于 calendar / tasks / courses / students / resources / papers / news / tools / settings。提醒写在日程页，不再单开路由。
 - `margin: 0 18px 18px 4px`；圆角 24px；浅瓷白 86% + blur 18px。
 - **内部仍用原组件色**（墨字、浅表），不要把课表格子改成白字。
 - 任务看板 `overflow:hidden` 时，sheet 必须跟着吃到高度，避免双滚动条打架。
@@ -422,7 +422,7 @@ Disabled：opacity 0.45，不改色相。
 | `src/nav-icons.tsx` | 线描图标 |
 | `src/App.tsx` | 收起状态、`is-overview`、圆钮 |
 | `src/pages/Dashboard.tsx` | 概览今日闭环清单 |
-| `public/glass-sky.jpg` | L0 风景 |
+| `public/glass-sky.jpg` `glass-grove.jpg` `glass-rain.jpg` | L0 风景预设 |
 | `src/theme.css` | 旧 campus-paper token；新玻璃面不要再加旧强调色 |
 | `docs/design-prompts/` | LLM 提示词包 |
 

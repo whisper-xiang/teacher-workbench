@@ -1,6 +1,6 @@
 import { dueLabel, iso, mondayOf, shift, todayIso } from '../lib/dates'
 import { DEFAULT_FAVORITE_TOOL_IDS, DEFAULT_TOOLS, PRESET_TOOLS_VERSION } from './default-tools'
-import type { Course, ReminderItem, WorkbenchData } from './types'
+import type { Course, ReminderItem, ThesisAdvisee, WorkbenchData } from './types'
 import { syncDerivedEvents } from './sync'
 
 function pad(n: number) {
@@ -91,6 +91,7 @@ function buildRawSeed(weekStart: string, today: string): WorkbenchData {
       { id: 'deadline-grade', date: d(5), start: 0, length: 1, title: '期中成绩录入截止', detail: '教务系统提交', kind: 'deadline', linkTo: { route: 'students', param: 'psy' } },
       { id: 'deadline-paper', date: d(4), start: 0, length: 1, title: '课程方案设计截止', detail: '教育学课程组', kind: 'deadline', major: 'edu', linkTo: { route: 'courses' } },
       { id: 'deadline-visit', date: d(3), start: 0, length: 1, title: '实习巡视材料提交', detail: '附属小学中期检查', kind: 'deadline', major: 'pri', linkTo: { route: 'resources' } },
+      { id: 'paper-th-limin', date: d(4), start: 0, length: 1, title: '看李敏论文', detail: '小学课堂提问促进深度学习的实践研究', kind: 'deadline', linkTo: { route: 'papers', param: 'th-limin' } },
     ],
     dutyRoster: [
       { id: 'd1', day: 1, period: '上午', time: '08:00-12:00', type: '办公室值班', location: '教育学院 312', note: '学生答疑、教务接待' },
@@ -544,6 +545,26 @@ function buildRawSeed(weekStart: string, today: string): WorkbenchData {
         createdAt: new Date().toISOString(),
       },
     ],
+    thesisAdvisees: [
+      {
+        id: 'th-limin',
+        name: '李敏',
+        topic: '小学课堂提问促进深度学习的实践研究',
+        stage: '提纲',
+        nextDate: d(4),
+        drafts: [],
+        notes: [],
+      },
+      {
+        id: 'th-chen',
+        name: '陈思雨',
+        topic: '教育戏剧融入小学语文阅读课的行动研究',
+        stage: '初稿',
+        nextDate: d(-2),
+        drafts: [],
+        notes: [],
+      },
+    ] satisfies ThesisAdvisee[],
   }
 }
 

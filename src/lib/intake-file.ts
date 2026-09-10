@@ -78,7 +78,7 @@ function pickHint<T extends { match: RegExp }>(list: T[], text: string) {
   return list.find((item) => item.match.test(text))
 }
 
-function extractPdfStrings(raw: string) {
+function extractPdfStrings(raw: string, max = 4000) {
   const chunks: string[] = []
   const literal = /\(((?:\\.|[^\\)]){2,})\)\s*(?:Tj|TJ|'|")/g
   let match: RegExpExecArray | null
@@ -91,19 +91,23 @@ function extractPdfStrings(raw: string) {
       .replace(/\\\\/g, '\\')
     if (/[\u4e00-\u9fffA-Za-z0-9]/.test(inner)) chunks.push(inner)
   }
-  return chunks.join('').replace(/\s+/g, ' ').slice(0, 4000)
+  return chunks.join('').replace(/\s+/g, ' ').slice(0, max)
 }
 
-async function readExtractedText(file: File) {
+export async function extractFileText(file: File, max = 4000): Promise<string> {
   const lower = file.name.toLowerCase()
   if (file.type.startsWith('text/') || /\.(txt|md|csv|json|html?)$/.test(lower)) {
-    return (await file.text()).slice(0, 4000)
+    return (await file.text()).slice(0, max)
   }
   if (file.type === 'application/pdf' || lower.endsWith('.pdf')) {
     const raw = new TextDecoder('latin1').decode(await file.arrayBuffer())
-    return extractPdfStrings(raw)
+    return extractPdfStrings(raw, max)
   }
   return ''
+}
+
+async function readExtractedText(file: File) {
+  return extractFileText(file, 4000)
 }
 
 function firstLine(text: string) {

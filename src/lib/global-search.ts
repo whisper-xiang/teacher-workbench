@@ -15,6 +15,7 @@ const PAGE_ENTRIES: { id: RouteId; label: string }[] = [
   { id: 'calendar', label: '日程与值班' },
   { id: 'tasks', label: '教学看板' },
   { id: 'journal', label: '随手记' },
+  { id: 'papers', label: '论文指导' },
   { id: 'courses', label: '教学' },
   { id: 'research', label: '科研' },
   { id: 'activities', label: '学生活动' },
@@ -110,6 +111,21 @@ export function buildSearchIndex(data: WorkbenchData): SearchResult[] {
         route: 'journal',
       },
       item.id,
+    )
+  })
+
+  data.thesisAdvisees?.forEach((person) => {
+    push(
+      results,
+      {
+        id: `thesis-${person.id}`,
+        title: person.name,
+        meta: `${person.topic || '未定题'} · ${person.stage}`,
+        group: '论文指导',
+        route: 'papers',
+        param: person.id,
+      },
+      person.id,
     )
   })
 

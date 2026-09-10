@@ -127,7 +127,6 @@ type Props = {
 
 export function CalendarPage({
   events,
-  courses,
   reminders,
   settings,
   weekStart,
@@ -1077,6 +1076,7 @@ export function CalendarPage({
                     <option value="students:">学生与评价</option>
                     <option value="resources:">教学资源库</option>
                     <option value="journal:">随手记</option>
+                    <option value="papers:">论文指导</option>
                     <option value="courses:">教学</option>
                     <option value="tasks:">教学看板</option>
                   </select>

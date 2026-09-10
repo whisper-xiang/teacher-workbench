@@ -7,6 +7,7 @@ export function deadlineLinkLabel(link: DeadlineLink): string {
     courses: '打开课程档案',
     tasks: '打开教学看板',
     journal: '打开随手记',
+    papers: '打开论文指导',
     calendar: '查看日程',
   }
   return labels[link.route] ?? '前往处理'
@@ -22,6 +23,7 @@ export function inferDeadlineLink(
   if (/成绩|总评|录入|花名册|批改/.test(text)) return { route: 'students' }
   if (/实习|巡视材料/.test(text)) return { route: 'resources' }
   if (/课程方案|教案|教学设计|大纲/.test(text)) return { route: 'courses' }
+  if (/论文|开题|答辩|查重/.test(text)) return { route: 'papers' }
   if (/作业/.test(text)) return { route: 'students' }
   return undefined
 }

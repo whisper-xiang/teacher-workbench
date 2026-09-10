@@ -3,10 +3,16 @@ import type { TeacherProfile, WorkbenchMeta } from '../data/types'
 import { thisMondayIso, termWeekOf } from '../lib/dates'
 import { notify } from '../lib/notify'
 import { confirm } from '../lib/confirm'
-import { deleteResourceFile, getResourceFile } from '../lib/resource-files'
+import { deleteResourceFile, getResourceFile, putResourceFile } from '../lib/resource-files'
 import { generateQPetSprite, PET_AVATAR_FILE_ID, saveGeneratedPet } from '../lib/q-pet'
 import { PET_PRESETS, resolvePetKind } from '../lib/pet-kind'
 import { PetMascot } from '../components/PetMascots'
+import {
+  ATMOSPHERE_FILE_ID,
+  ATMOSPHERE_PRESETS,
+  resolveAtmosphereId,
+} from '../lib/atmosphere'
+import { hasLlmSettings, loadLlmSettings, saveLlmSettings, type LlmSettings } from '../lib/llm-settings'
 
 type Props = {
   profile: TeacherProfile
@@ -43,7 +49,9 @@ function sameProfile(a: TeacherProfile, b: TeacherProfile) {
     a.college === b.college &&
     a.greetingName === b.greetingName &&
     a.petKind === b.petKind &&
-    a.petAvatarId === b.petAvatarId
+    a.petAvatarId === b.petAvatarId &&
+    a.atmosphereId === b.atmosphereId &&
+    a.atmosphereFileId === b.atmosphereFileId
   )
 }
 
@@ -56,8 +64,11 @@ export function SettingsPage({ profile, meta, updatedAt, onSaveProfile, onExport
   const [metaForm, setMetaForm] = useState(() => liveMeta(meta))
   const fileRef = useRef<HTMLInputElement>(null)
   const petInputRef = useRef<HTMLInputElement>(null)
+  const atmosphereInputRef = useRef<HTMLInputElement>(null)
   const [qPreview, setQPreview] = useState<string | null>(null)
+  const [atmospherePreview, setAtmospherePreview] = useState<string | null>(null)
   const [petBusy, setPetBusy] = useState(false)
+  const [llm, setLlm] = useState(loadLlmSettings)
 
   useEffect(() => {
     setForm(withGreeting(profile))
@@ -79,6 +90,22 @@ export function SettingsPage({ profile, meta, updatedAt, onSaveProfile, onExport
       if (url) URL.revokeObjectURL(url)
     }
   }, [profile.petAvatarId])
+
+  useEffect(() => {
+    let url: string | null = null
+    if (!profile.atmosphereFileId) {
+      setAtmospherePreview(null)
+      return undefined
+    }
+    void getResourceFile(profile.atmosphereFileId).then((stored) => {
+      if (!stored) return
+      url = URL.createObjectURL(stored.blob)
+      setAtmospherePreview(url)
+    })
+    return () => {
+      if (url) URL.revokeObjectURL(url)
+    }
+  }, [profile.atmosphereFileId])
 
   const persist = (nextProfile: TeacherProfile, nextMeta: WorkbenchMeta, toast?: string) => {
     const profileToSave = withGreeting(nextProfile)
@@ -111,6 +138,27 @@ export function SettingsPage({ profile, meta, updatedAt, onSaveProfile, onExport
     persist(next, metaForm, toast)
   }
 
+  const applyAtmosphere = (next: TeacherProfile, toast: string) => {
+    persist(next, metaForm, toast)
+  }
+
+  const saveAtmospherePhoto = async (file: File) => {
+    try {
+      await putResourceFile(ATMOSPHERE_FILE_ID, file, file.name)
+      const url = URL.createObjectURL(file)
+      setAtmospherePreview((current) => {
+        if (current?.startsWith('blob:')) URL.revokeObjectURL(current)
+        return url
+      })
+      applyAtmosphere(
+        { ...form, atmosphereId: 'photo', atmosphereFileId: ATMOSPHERE_FILE_ID },
+        '背景已换成你的照片',
+      )
+    } catch (error) {
+      notify.error(error instanceof Error ? error.message : '照片保存失败')
+    }
+  }
+
   const generateFromPhoto = async (file: File) => {
     setPetBusy(true)
     try {
@@ -129,7 +177,20 @@ export function SettingsPage({ profile, meta, updatedAt, onSaveProfile, onExport
     }
   }
 
+  const persistLlm = (next: LlmSettings, toast?: string) => {
+    const saved = {
+      baseUrl: next.baseUrl.trim(),
+      apiKey: next.apiKey.trim(),
+      model: next.model.trim(),
+    }
+    setLlm(saved)
+    saveLlmSettings(saved)
+    window.dispatchEvent(new Event('teacher-llm-changed'))
+    if (toast) notify.success(toast)
+  }
+
   const selectedKind = resolvePetKind(form)
+  const selectedAtmosphere = resolveAtmosphereId(form)
 
   return (
     <section className="settings-page" aria-label="设置">
@@ -195,6 +256,48 @@ export function SettingsPage({ profile, meta, updatedAt, onSaveProfile, onExport
             </label>
           </div>
           <p className="settings-help">今天是第 {metaForm.weekNumber} 周。之后按真实日期自动往后计，不用每周来改。</p>
+        </section>
+
+        <section className="settings-block" aria-labelledby="settings-llm">
+          <h2 id="settings-llm">论文分析</h2>
+          <div className="settings-grid">
+            <label className="settings-span">
+              接口地址
+              <input
+                value={llm.baseUrl}
+                onChange={(event) => setLlm({ ...llm, baseUrl: event.target.value })}
+                onBlur={(event) => persistLlm({ ...llm, baseUrl: event.target.value })}
+                placeholder="https://api.deepseek.com/v1"
+                autoComplete="off"
+              />
+            </label>
+            <label>
+              模型
+              <input
+                value={llm.model}
+                onChange={(event) => setLlm({ ...llm, model: event.target.value })}
+                onBlur={(event) => persistLlm({ ...llm, model: event.target.value })}
+                placeholder="deepseek-chat"
+                autoComplete="off"
+              />
+            </label>
+            <label>
+              API Key
+              <input
+                type="password"
+                value={llm.apiKey}
+                onChange={(event) => setLlm({ ...llm, apiKey: event.target.value })}
+                onBlur={(event) => persistLlm({ ...llm, apiKey: event.target.value })}
+                placeholder="只留在这台电脑"
+                autoComplete="off"
+              />
+            </label>
+          </div>
+          <p className="settings-help">
+            {hasLlmSettings(llm)
+              ? '点「分析这一版」时，当前稿正文会发往这个接口。密钥不进 JSON 备份。'
+              : '填齐三项后，论文指导才能调用模型。密钥不进 JSON 备份。'}
+          </p>
         </section>
 
         <section className="settings-block" aria-labelledby="settings-pet">
@@ -269,6 +372,83 @@ export function SettingsPage({ profile, meta, updatedAt, onSaveProfile, onExport
                 return
               }
               void generateFromPhoto(file)
+            }}
+          />
+        </section>
+
+        <section className="settings-block" aria-labelledby="settings-atmosphere">
+          <h2 id="settings-atmosphere">背景</h2>
+          <p className="settings-help">点一下就换整页风景。自己的照片只留在这台电脑。</p>
+          <div className="atmosphere-grid">
+            {ATMOSPHERE_PRESETS.map((preset) => {
+              const selected = selectedAtmosphere === preset.id
+              return (
+                <button
+                  key={preset.id}
+                  type="button"
+                  className={`atmosphere-card${selected ? ' is-on' : ''}`}
+                  aria-pressed={selected}
+                  onClick={() => applyAtmosphere({ ...form, atmosphereId: preset.id }, `背景已换成${preset.label}`)}
+                >
+                  <img src={preset.src} alt="" />
+                  <b>{preset.label}</b>
+                </button>
+              )
+            })}
+            <button
+              type="button"
+              className={`atmosphere-card atmosphere-card-photo${selectedAtmosphere === 'photo' ? ' is-on' : ''}${atmospherePreview ? '' : ' is-empty'}`}
+              aria-pressed={selectedAtmosphere === 'photo'}
+              onClick={() => {
+                if (atmospherePreview) {
+                  applyAtmosphere(
+                    { ...form, atmosphereId: 'photo', atmosphereFileId: ATMOSPHERE_FILE_ID },
+                    '背景已换成你的照片',
+                  )
+                  return
+                }
+                atmosphereInputRef.current?.click()
+              }}
+            >
+              {atmospherePreview ? <img src={atmospherePreview} alt="" /> : null}
+              <b>我的照片</b>
+            </button>
+          </div>
+          <div className="settings-text-row">
+            <button type="button" className="text-action" onClick={() => atmosphereInputRef.current?.click()}>
+              {atmospherePreview ? '换一张照片' : '用自己的照片'}
+            </button>
+            {atmospherePreview ? (
+              <button
+                type="button"
+                className="text-action"
+                onClick={async () => {
+                  await deleteResourceFile(ATMOSPHERE_FILE_ID).catch(() => undefined)
+                  setAtmospherePreview((current) => {
+                    if (current?.startsWith('blob:')) URL.revokeObjectURL(current)
+                    return null
+                  })
+                  applyAtmosphere({ ...form, atmosphereId: 'dusk', atmosphereFileId: undefined }, '已恢复黄昏背景')
+                }}
+              >
+                清除照片
+              </button>
+            ) : null}
+          </div>
+          <input
+            ref={atmosphereInputRef}
+            type="file"
+            accept="image/*"
+            hidden
+            onChange={(event) => {
+              const file = event.target.files?.[0]
+              event.target.value = ''
+              if (!file) return
+              if (!file.type.startsWith('image/')) {
+                notify.warning('请选择图片文件')
+                return
+              }
+              void saveAtmospherePhoto(file)
             }}
           />
         </section>

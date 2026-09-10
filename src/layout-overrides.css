@@ -9,6 +9,7 @@
 .research-page,
 .activities-page,
 .journal-page,
+.papers-page,
 .news-page,
 .tools-page,
 .settings-page {
@@ -26,7 +27,9 @@
 .main-content > .calendar-page,
 .calendar-page.functional-calendar,
 .main-content > .journal-page,
-.journal-page {
+.journal-page,
+.main-content > .papers-page,
+.papers-page {
   overflow: hidden;
   padding: 0;
 }

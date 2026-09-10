@@ -20,6 +20,7 @@ import './interaction.css'
 import './layout-overrides.css'
 import './glass.css'
 import './journal.css'
+import './papers.css'
 import { useWorkbenchStore } from './hooks/useWorkbenchStore'
 import { uid } from './data/store'
 import { syncDerivedEvents } from './data/sync'
@@ -28,6 +29,7 @@ import type { AssistantDraft } from './lib/assistant'
 import { dueLabel } from './lib/dates'
 import { notify } from './lib/notify'
 import { clearAllResourceFiles } from './lib/resource-files'
+import { useAtmosphereSrc } from './lib/atmosphere'
 import { BrandMark } from './components/BrandMark'
 import { CalendarPage } from './pages/CalendarPage'
 import { Dashboard } from './pages/Dashboard'
@@ -36,6 +38,7 @@ import { SettingsPage } from './pages/SettingsPage'
 import { StudentsPage } from './pages/StudentsPage'
 import { TaskBoardPage } from './pages/TaskBoardPage'
 import { WorkJournalPanel } from './pages/WorkJournalPanel'
+import { PapersPage } from './pages/PapersPage'
 import { DeskPet } from './components/DeskPet'
 import { NotifyHost } from './components/NotifyHost'
 import { ConfirmHost } from './components/ConfirmHost'
@@ -54,6 +57,7 @@ const pages: NavPage[] = [
   { id: 'tasks', label: '教学看板', icon: 'tasks' },
   { id: 'journal', label: '随手记', icon: 'journal' },
   { id: 'courses', label: '教学', icon: 'courses' },
+  { id: 'papers', label: '论文指导', icon: 'papers' },
   { id: 'research', label: '科研', icon: 'research' },
   { id: 'activities', label: '学生活动', icon: 'activities' },
   { id: 'students', label: '学生与评价', icon: 'students' },
@@ -75,7 +79,7 @@ function readNavCollapsed() {
 
 const groups = [
   { label: '工作台', ids: ['overview', 'calendar', 'journal'] as RouteId[] },
-  { label: '日常工作', ids: ['courses', 'students', 'resources', 'research', 'activities'] as RouteId[] },
+  { label: '日常工作', ids: ['courses', 'students', 'resources', 'papers', 'research', 'activities'] as RouteId[] },
   { label: '资讯与工具', ids: ['news', 'tools', 'settings'] as RouteId[] },
 ]
 
@@ -132,6 +136,7 @@ function useWorkbenchRoute() {
 function App() {
   const { activeId, routeParam, navigate } = useWorkbenchRoute()
   const { data, patch, update, reset, exportJson, importJson } = useWorkbenchStore()
+  const atmosphere = useAtmosphereSrc(data.profile)
   const [navOpen, setNavOpen] = useState(false)
   const [navCollapsed, setNavCollapsed] = useState(readNavCollapsed)
   const [searchOpen, setSearchOpen] = useState(false)
@@ -305,7 +310,13 @@ function App() {
     .join(' ')
 
   return (
-    <div className={shellClass}>
+    <div
+      className={shellClass}
+      style={{
+        ['--atmosphere-image' as string]: `url("${atmosphere.src.replace(/"/g, '')}")`,
+        ['--atmosphere-position' as string]: atmosphere.position,
+      }}
+    >
       <NotifyHost />
       <ConfirmHost />
       <DeskPet
@@ -357,6 +368,7 @@ function App() {
                 const badge =
                   id === 'tasks' ? data.tasks.filter((t) => t.status !== 'done').length :
                   id === 'students' ? data.students.filter((s) => s.status !== '正常').length :
+                  id === 'papers' ? (data.thesisAdvisees ?? []).filter((person) => person.nextDate && person.nextDate < new Date().toISOString().slice(0, 10)).length :
                   id === 'news' ? data.news.filter((n) => n.fresh && !data.newsRead.includes(n.id)).length :
                   id === 'calendar'
                     ? data.events.filter((e) => e.kind === 'deadline' && !e.done).length +
@@ -508,6 +520,16 @@ function App() {
                 return { ...next, events: syncDerivedEvents(next) }
               })
             }
+          />
+        )}
+        {activeId === 'papers' && (
+          <PapersPage
+            advisees={data.thesisAdvisees ?? []}
+            events={data.events}
+            initialId={routeParam || undefined}
+            onChangeAdvisees={(thesisAdvisees) => patch('thesisAdvisees', thesisAdvisees)}
+            onChangeEvents={(events) => patch('events', events)}
+            onOpenSettings={() => selectPage('settings')}
           />
         )}
         {activeId === 'students' && (
