@@ -10,7 +10,6 @@ import './students.css'
 import './resources.css'
 import './tools.css'
 import './news.css'
-import './reminders.css'
 import './task-board.css'
 import './settings.css'
 import './majors.css'
@@ -22,26 +21,20 @@ import './layout-overrides.css'
 import './glass.css'
 import './journal.css'
 import { useWorkbenchStore } from './hooks/useWorkbenchStore'
-import { alignDataToWeekStart, uid } from './data/store'
+import { uid } from './data/store'
 import { syncDerivedEvents } from './data/sync'
 import { inferMajorFromText, type Course, type RouteId } from './data/types'
 import type { AssistantDraft } from './lib/assistant'
-import { dueLabel, thisMondayIso } from './lib/dates'
+import { dueLabel } from './lib/dates'
 import { notify } from './lib/notify'
 import { clearAllResourceFiles } from './lib/resource-files'
 import { BrandMark } from './components/BrandMark'
 import { CalendarPage } from './pages/CalendarPage'
-import { CoursesPage } from './pages/CoursesPage'
 import { Dashboard } from './pages/Dashboard'
-import { NewsPage } from './pages/NewsPage'
-import { ResearchPage } from './pages/ResearchPage'
-import { ActivitiesPage } from './pages/ActivitiesPage'
 import { ResourcesPage } from './pages/ResourcesPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { StudentsPage } from './pages/StudentsPage'
 import { TaskBoardPage } from './pages/TaskBoardPage'
-import { ToolsPage } from './pages/ToolsPage'
-import { RemindersPage } from './pages/RemindersPage'
 import { WorkJournalPanel } from './pages/WorkJournalPanel'
 import { DeskPet } from './components/DeskPet'
 import { NotifyHost } from './components/NotifyHost'
@@ -50,7 +43,7 @@ import { GlobalSearchPanel } from './components/GlobalSearchPanel'
 import { AiAssistantPanel } from './components/AiAssistantPanel'
 import './components/topbar-tools.css'
 import { useReminderScheduler } from './hooks/useReminderScheduler'
-import { fetchRssNews } from './lib/rss'
+import { DISABLED_NAV } from './lib/disabled-nav'
 import { NavIcon, type IconName } from './nav-icons'
 
 type NavPage = { id: RouteId; label: string; icon: IconName }
@@ -60,7 +53,6 @@ const pages: NavPage[] = [
   { id: 'calendar', label: '日程与值班', icon: 'calendar' },
   { id: 'tasks', label: '教学看板', icon: 'tasks' },
   { id: 'journal', label: '随手记', icon: 'journal' },
-  { id: 'reminders', label: '通知提醒', icon: 'reminders' },
   { id: 'courses', label: '教学', icon: 'courses' },
   { id: 'research', label: '科研', icon: 'research' },
   { id: 'activities', label: '学生活动', icon: 'activities' },
@@ -82,7 +74,7 @@ function readNavCollapsed() {
 }
 
 const groups = [
-  { label: '工作台', ids: ['overview', 'calendar', 'journal', 'reminders'] as RouteId[] },
+  { label: '工作台', ids: ['overview', 'calendar', 'journal'] as RouteId[] },
   { label: '日常工作', ids: ['courses', 'students', 'resources', 'research', 'activities'] as RouteId[] },
   { label: '资讯与工具', ids: ['news', 'tools', 'settings'] as RouteId[] },
 ]
@@ -95,6 +87,12 @@ const readLocation = () => {
   if (route === 'courses' && parts[1] === 'journal') {
     return { activeId: 'journal' as RouteId, routeParam: '' }
   }
+  if (route === 'reminders') {
+    return { activeId: 'calendar' as RouteId, routeParam: '' }
+  }
+  if (DISABLED_NAV.has(route as RouteId)) {
+    return { activeId: 'overview' as RouteId, routeParam: '' }
+  }
   return {
     activeId: isRouteId(route) ? route : ('overview' as RouteId),
     routeParam: parts[1] ?? '',
@@ -105,15 +103,21 @@ function useWorkbenchRoute() {
   const [{ activeId, routeParam }, setLocation] = useState(readLocation)
 
   useEffect(() => {
-    const syncRoute = () => setLocation(readLocation())
-    window.addEventListener('hashchange', syncRoute)
-    if (window.location.hash === '#/courses/journal') {
-      window.history.replaceState(null, '', '#/journal')
-      syncRoute()
-    } else if (!window.location.hash || !isRouteId(window.location.hash.replace(/^#\/?/, '').split('/')[0] ?? '')) {
-      window.history.replaceState(null, '', '#/overview')
-      syncRoute()
+    const syncRoute = () => {
+      const first = window.location.hash.replace(/^#\/?/, '').split('/')[0] ?? ''
+      if (window.location.hash === '#/courses/journal') {
+        window.history.replaceState(null, '', '#/journal')
+      } else if (first === 'reminders') {
+        window.history.replaceState(null, '', '#/calendar')
+      } else if (DISABLED_NAV.has(first as RouteId)) {
+        window.history.replaceState(null, '', '#/overview')
+      } else if (!window.location.hash || !isRouteId(first)) {
+        window.history.replaceState(null, '', '#/overview')
+      }
+      setLocation(readLocation())
     }
+    window.addEventListener('hashchange', syncRoute)
+    syncRoute()
     return () => window.removeEventListener('hashchange', syncRoute)
   }, [])
 
@@ -147,6 +151,7 @@ function App() {
   }
   const active = pages.find((page) => page.id === activeId) ?? pages[0]
   const selectPage = (id: string, param?: string) => {
+    if (DISABLED_NAV.has(id as RouteId)) return
     navigate(id as RouteId, param)
     setNavOpen(false)
   }
@@ -165,18 +170,6 @@ function App() {
     settings: data.reminderSettings,
     onFire: fireReminder,
   })
-
-  const refreshNews = useCallback(async () => {
-    const items = await fetchRssNews()
-    if (!items.length) throw new Error('未获取到资讯，请检查网络或稍后重试')
-    update((current) => ({
-      ...current,
-      news: items,
-      newsRead: current.newsRead.filter((id) => items.some((item) => item.id === id)),
-      newsBookmarks: current.newsBookmarks.filter((id) => items.some((item) => item.id === id)),
-      meta: { ...current.meta, newsFetchedAt: new Date().toISOString() },
-    }))
-  }, [update])
 
   const commitAssistant = useCallback(
     (draft: AssistantDraft) => {
@@ -360,19 +353,23 @@ function App() {
               {group.ids.map((id) => {
                 const page = pages.find((item) => item.id === id)!
                 const selected = id === activeId
+                const disabled = DISABLED_NAV.has(id)
                 const badge =
                   id === 'tasks' ? data.tasks.filter((t) => t.status !== 'done').length :
                   id === 'students' ? data.students.filter((s) => s.status !== '正常').length :
-                  id === 'reminders' ? data.reminders.filter((r) => r.status === 'pending').length :
                   id === 'news' ? data.news.filter((n) => n.fresh && !data.newsRead.includes(n.id)).length :
-                  id === 'calendar' ? data.events.filter((e) => e.kind === 'deadline' && !e.done).length :
+                  id === 'calendar'
+                    ? data.events.filter((e) => e.kind === 'deadline' && !e.done).length +
+                      data.reminders.filter((r) => r.status === 'pending').length :
                   0
                 return (
                   <button
-                    className={selected ? 'nav-item nav-item-active' : 'nav-item'}
+                    className={`nav-item${selected ? ' nav-item-active' : ''}${disabled ? ' nav-item-disabled' : ''}`}
                     key={id}
+                    type="button"
+                    disabled={disabled}
                     title={page.label}
-                    aria-label={page.label}
+                    aria-label={disabled ? `${page.label}，暂未开放` : page.label}
                     aria-current={selected ? 'page' : undefined}
                     onClick={() => selectPage(id)}
                   >
@@ -380,7 +377,7 @@ function App() {
                       <NavIcon name={page.icon} />
                     </span>
                     <span className="nav-item-label">{page.label}</span>
-                    {badge > 0 && <span className="nav-item-badge">{badge}</span>}
+                    {badge > 0 && !disabled && <span className="nav-item-badge">{badge}</span>}
                   </button>
                 )
               })}
@@ -437,7 +434,12 @@ function App() {
               className="glass-icon-btn"
               aria-label="通知提醒"
               title="通知提醒"
-              onClick={() => selectPage('reminders')}
+              onClick={() => {
+                const next = [...data.reminders]
+                  .filter((item) => item.status === 'pending')
+                  .sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt))[0]
+                selectPage('calendar', next?.id ?? 'remind')
+              }}
             >
               <NavIcon name="bell" />
               {pendingReminders > 0 && <span className="glass-badge">{pendingReminders}</span>}
@@ -476,8 +478,11 @@ function App() {
           <CalendarPage
             events={data.events}
             courses={data.courses}
+            reminders={data.reminders}
+            settings={data.reminderSettings}
             weekStart={data.meta.weekStart}
             weekNumber={data.meta.weekNumber}
+            focusId={routeParam || undefined}
             onChangeEvents={(events) =>
               update((current) => {
                 const previous = new Set(current.events.filter((item) => item.id.startsWith('course-')).map((item) => item.id))
@@ -488,6 +493,8 @@ function App() {
                 return { ...next, events: syncDerivedEvents(next) }
               })
             }
+            onChangeReminders={(reminders) => patch('reminders', reminders)}
+            onChangeSettings={(reminderSettings) => patch('reminderSettings', reminderSettings)}
             onNavigate={(route, param) => selectPage(route, param)}
           />
         )}
@@ -501,45 +508,6 @@ function App() {
                 return { ...next, events: syncDerivedEvents(next) }
               })
             }
-          />
-        )}
-        {activeId === 'courses' && (
-          <CoursesPage
-            courses={data.courses}
-            resources={data.resources}
-            students={data.students}
-            assignments={data.assignments}
-            initialCourseId={routeParam}
-            onSelectCourse={(courseId) => selectPage('courses', courseId || undefined)}
-            onOpenStudents={(courseId) => selectPage('students', courseId)}
-            onOpenResources={(courseId) => selectPage('resources', courseId)}
-            onChangeResources={(resources) => patch('resources', resources)}
-            onChangeAssignments={(assignments) => {
-              update((current) => {
-                const next = { ...current, assignments }
-                return { ...next, events: syncDerivedEvents(next) }
-              })
-            }}
-            onChange={(courses) => {
-              update((current) => {
-                const next = { ...current, courses }
-                return { ...next, events: syncDerivedEvents(next) }
-              })
-            }}
-          />
-        )}
-        {activeId === 'research' && (
-          <ResearchPage
-            notices={data.researchNotices}
-            projects={data.researchProjects}
-            onChangeNotices={(researchNotices) => patch('researchNotices', researchNotices)}
-            onChangeProjects={(researchProjects) => patch('researchProjects', researchProjects)}
-          />
-        )}
-        {activeId === 'activities' && (
-          <ActivitiesPage
-            projects={data.activityProjects}
-            onChangeProjects={(activityProjects) => patch('activityProjects', activityProjects)}
           />
         )}
         {activeId === 'students' && (
@@ -557,7 +525,6 @@ function App() {
                 return { ...next, events: syncDerivedEvents(next) }
               })
             }}
-            onBack={() => selectPage('courses', routeParam || undefined)}
           />
         )}
         {activeId === 'resources' && (
@@ -565,36 +532,7 @@ function App() {
             resources={data.resources}
             courses={data.courses}
             initialCourseId={routeParam}
-            onOpenCourse={(courseId) => selectPage('courses', courseId)}
-            onBack={() => selectPage('courses', routeParam || undefined)}
             onChangeResources={(resources) => patch('resources', resources)}
-          />
-        )}
-        {activeId === 'news' && (
-          <NewsPage
-            news={data.news}
-            readItems={data.newsRead}
-            bookmarks={data.newsBookmarks}
-            fetchedAt={data.meta.newsFetchedAt}
-            onChangeRead={(newsRead) => patch('newsRead', newsRead)}
-            onChangeBookmarks={(newsBookmarks) => patch('newsBookmarks', newsBookmarks)}
-            onRefresh={refreshNews}
-          />
-        )}
-        {activeId === 'tools' && (
-          <ToolsPage
-            tools={data.tools}
-            favorites={data.favoriteTools}
-            onChangeTools={(tools) => patch('tools', tools)}
-            onChangeFavorites={(favoriteTools) => patch('favoriteTools', favoriteTools)}
-          />
-        )}
-        {activeId === 'reminders' && (
-          <RemindersPage
-            reminders={data.reminders}
-            settings={data.reminderSettings}
-            onChangeReminders={(reminders) => patch('reminders', reminders)}
-            onChangeSettings={(reminderSettings) => patch('reminderSettings', reminderSettings)}
           />
         )}
         {activeId === 'settings' && (
@@ -609,11 +547,6 @@ function App() {
                 meta,
                 events: syncDerivedEvents({ ...current, meta }),
               }))
-            }
-            onAlignWeek={() =>
-              update((current) =>
-                alignDataToWeekStart({ ...current, meta: { ...current.meta, demoBanner: true } }, thisMondayIso()),
-              )
             }
             onExport={exportJson}
             onImport={importJson}

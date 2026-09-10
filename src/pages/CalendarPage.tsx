@@ -1,11 +1,36 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { uid } from '../data/store'
-import type { CalendarEvent, CalendarKind, Course, DeadlineLink, RouteId } from '../data/types'
+import type {
+  CalendarEvent,
+  CalendarKind,
+  Course,
+  DeadlineLink,
+  ReminderItem,
+  ReminderSettings,
+  RouteId,
+} from '../data/types'
 import { confirm } from '../lib/confirm'
-import { matchCourseFromEvent } from '../lib/courses'
+import { DISABLED_NAV } from '../lib/disabled-nav'
 import { inferDeadlineLink } from '../lib/deadlines'
 import { formatDayLabel, iso, mondayOf, monthWeekLabel, shift, termWeekOf, times, weekdayLabel } from '../lib/dates'
 import { notify } from '../lib/notify'
+import {
+  defaultReminderDatetime,
+  formatReminderTime,
+  fromDatetimeLocalInput,
+  parseReminderNaturalLanguage,
+  reminderClock,
+  reminderDayIso,
+  reminderTimeSlot,
+  toDatetimeLocalInput,
+  toLocalDateTimeIso,
+  type ParsedReminder,
+} from '../lib/reminder-nlp'
+import {
+  notificationPermission,
+  notificationSupported,
+  requestNotificationPermission,
+} from '../lib/system-notify'
 
 const labels: Record<CalendarKind, string> = {
   course: '课程',
@@ -18,12 +43,41 @@ const labels: Record<CalendarKind, string> = {
 
 const CREATABLE_KINDS: CalendarKind[] = ['meeting', 'duty', 'patrol', 'deadline']
 
+type ReminderDraft = {
+  id: string
+  title: string
+  scheduledAt: string
+  note: string
+  source: ReminderItem['source']
+  rawInput: string
+}
+
+type DayMark = {
+  id: string
+  title: string
+  kind: CalendarKind | 'reminder'
+  done: boolean
+}
+
 function isAllDayKind(kind: CalendarKind) {
   return kind === 'deadline' || kind === 'journal'
 }
 
-function KindBadge({ kind }: { kind: CalendarKind }) {
-  return <span className={`kind-badge kind-badge-${kind}`}>{labels[kind]}</span>
+function eventSortMinutes(item: CalendarEvent) {
+  if (isAllDayKind(item.kind)) return -1
+  const stamp = times[item.start] ?? '08:00'
+  const [hour, minute] = stamp.split(':').map(Number)
+  return hour * 60 + minute
+}
+
+function reminderSortMinutes(item: ReminderItem) {
+  const date = new Date(item.scheduledAt)
+  if (Number.isNaN(date.getTime())) return 0
+  return date.getHours() * 60 + date.getMinutes()
+}
+
+function KindBadge({ kind }: { kind: CalendarKind | 'reminder' }) {
+  return <span className={`kind-badge kind-badge-${kind}`}>{kind === 'reminder' ? '提醒' : labels[kind]}</span>
 }
 
 function itemSubline(item: CalendarEvent) {
@@ -39,7 +93,7 @@ function itemActionLabel(item: CalendarEvent) {
   return '编辑安排'
 }
 
-function layoutLanes(items: CalendarEvent[]) {
+function layoutLanes(items: { id: string; start: number; length: number }[]) {
   const sorted = [...items].sort((a, b) => a.start - b.start || b.length - a.length)
   const laneEnds: number[] = []
   const laneOf = new Map<string, number>()
@@ -60,13 +114,30 @@ function layoutLanes(items: CalendarEvent[]) {
 type Props = {
   events: CalendarEvent[]
   courses: Course[]
+  reminders: ReminderItem[]
+  settings: ReminderSettings
   weekStart: string
   weekNumber: number
+  focusId?: string
   onChangeEvents: (events: CalendarEvent[]) => void
+  onChangeReminders: (items: ReminderItem[]) => void
+  onChangeSettings: (settings: ReminderSettings) => void
   onNavigate?: (route: RouteId, param?: string) => void
 }
 
-export function CalendarPage({ events, courses, weekStart, weekNumber, onChangeEvents, onNavigate }: Props) {
+export function CalendarPage({
+  events,
+  courses,
+  reminders,
+  settings,
+  weekStart,
+  weekNumber,
+  focusId,
+  onChangeEvents,
+  onChangeReminders,
+  onChangeSettings,
+  onNavigate,
+}: Props) {
   const today = new Date()
   const todayStr = iso(today)
   const [view, setView] = useState<'week' | 'month'>('month')
@@ -74,10 +145,15 @@ export function CalendarPage({ events, courses, weekStart, weekNumber, onChangeE
   const [selectedDay, setSelectedDay] = useState(todayStr)
   const [editor, setEditor] = useState<CalendarEvent | null>(null)
   const [peek, setPeek] = useState<CalendarEvent | null>(null)
+  const [reminderEditor, setReminderEditor] = useState<ReminderDraft | null>(null)
+  const [aiInput, setAiInput] = useState('')
+  const [aiPreview, setAiPreview] = useState<ParsedReminder | null>(null)
   const [weekLabelMode, setWeekLabelMode] = useState<'term' | 'month'>('term')
   const [activeEventId, setActiveEventId] = useState<string | null>(null)
   const editorRef = useRef<HTMLFormElement | null>(null)
   const peekRef = useRef<HTMLDivElement | null>(null)
+  const reminderRef = useRef<HTMLFormElement | null>(null)
+  const focusedReminderRef = useRef<string | null>(null)
 
   const days = useMemo(() => Array.from({ length: 5 }, (_, index) => shift(mondayOf(cursor), index)), [cursor])
   const monthDays = useMemo(() => {
@@ -85,18 +161,70 @@ export function CalendarPage({ events, courses, weekStart, weekNumber, onChangeE
     return Array.from({ length: 42 }, (_, index) => shift(mondayOf(first), index))
   }, [cursor])
 
+  const visibleReminders = useMemo(
+    () => reminders.filter((item) => item.status !== 'cancelled'),
+    [reminders],
+  )
+
+  const remindersOn = (dateStr: string) =>
+    visibleReminders.filter((item) => reminderDayIso(item.scheduledAt) === dateStr)
+
+  const marksOn = (dateStr: string): DayMark[] => [
+    ...events
+      .filter((item) => item.date === dateStr)
+      .map((item) => ({ id: item.id, title: item.title, kind: item.kind, done: Boolean(item.done) })),
+    ...remindersOn(dateStr).map((item) => ({
+      id: item.id,
+      title: item.title,
+      kind: 'reminder' as const,
+      done: item.status !== 'pending',
+    })),
+  ]
+
   const selectedDayEvents = useMemo(
     () =>
       events
         .filter((item) => item.date === selectedDay)
         .sort((a, b) => {
           if (Boolean(a.done) !== Boolean(b.done)) return a.done ? 1 : -1
-          if (isAllDayKind(a.kind) && !isAllDayKind(b.kind)) return -1
-          if (isAllDayKind(b.kind) && !isAllDayKind(a.kind)) return 1
+          const byTime = eventSortMinutes(a) - eventSortMinutes(b)
+          if (byTime) return byTime
           return a.start - b.start
         }),
     [events, selectedDay],
   )
+
+  const selectedDayReminders = useMemo(
+    () =>
+      visibleReminders
+        .filter((item) => reminderDayIso(item.scheduledAt) === selectedDay)
+        .sort((a, b) => {
+          if ((a.status === 'pending') !== (b.status === 'pending')) return a.status === 'pending' ? -1 : 1
+          return a.scheduledAt.localeCompare(b.scheduledAt)
+        }),
+    [visibleReminders, selectedDay],
+  )
+
+  const selectedDayEntries = useMemo(() => {
+    const eventEntries = selectedDayEvents.map((item) => ({
+      key: item.id,
+      type: 'event' as const,
+      item,
+      done: Boolean(item.done),
+      sort: eventSortMinutes(item),
+    }))
+    const reminderEntries = selectedDayReminders.map((item) => ({
+      key: item.id,
+      type: 'reminder' as const,
+      item,
+      done: item.status !== 'pending',
+      sort: reminderSortMinutes(item),
+    }))
+    return [...eventEntries, ...reminderEntries].sort((a, b) => {
+      if (a.done !== b.done) return a.done ? 1 : -1
+      return a.sort - b.sort
+    })
+  }, [selectedDayEvents, selectedDayReminders])
 
   const showingToday =
     selectedDay === todayStr &&
@@ -114,14 +242,17 @@ export function CalendarPage({ events, courses, weekStart, weekNumber, onChangeE
           ? monthWeekLabel(cursor)
           : `第 ${cursorWeek} 周`
       : `${cursor.getFullYear()} 年 ${cursor.getMonth() + 1} 月`
-  const activeDialog = editor ? 'editor' : peek ? 'course' : null
+  const activeDialog = editor ? 'editor' : peek ? 'course' : reminderEditor ? 'reminder' : null
+  const permission = notificationPermission()
+  const canNotify = notificationSupported()
 
   useEffect(() => {
     if (!activeDialog) return
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
-    const surface = activeDialog === 'editor' ? editorRef.current : peekRef.current
+    const surface =
+      activeDialog === 'editor' ? editorRef.current : activeDialog === 'reminder' ? reminderRef.current : peekRef.current
     const focusableSelector =
-      'button:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
     const focusables = () =>
       surface
         ? Array.from(surface.querySelectorAll<HTMLElement>(focusableSelector)).filter((element) => !element.hidden)
@@ -134,6 +265,8 @@ export function CalendarPage({ events, courses, weekStart, weekNumber, onChangeE
         event.preventDefault()
         setEditor(null)
         setPeek(null)
+        setReminderEditor(null)
+        setAiPreview(null)
         return
       }
       if (event.key !== 'Tab') return
@@ -156,6 +289,34 @@ export function CalendarPage({ events, courses, weekStart, weekNumber, onChangeE
       previousFocus?.focus()
     }
   }, [activeDialog])
+
+  useEffect(() => {
+    if (!focusId || focusedReminderRef.current === focusId) return
+    if (focusId === 'remind') {
+      focusedReminderRef.current = focusId
+      setReminderEditor({
+        id: '',
+        title: '',
+        scheduledAt: defaultReminderDatetime(todayStr),
+        note: '',
+        source: 'manual',
+        rawInput: '',
+      })
+      setAiInput('')
+      setAiPreview(null)
+      return
+    }
+    const reminder = reminders.find((item) => item.id === focusId)
+    if (!reminder) return
+    focusedReminderRef.current = focusId
+    const when = new Date(reminder.scheduledAt)
+    const day = reminderDayIso(reminder.scheduledAt)
+    setSelectedDay(day)
+    setCursor(Number.isNaN(when.getTime()) ? new Date(`${day}T12:00:00`) : when)
+    setActiveEventId(reminder.id)
+    const weekday = Number.isNaN(when.getTime()) ? new Date(`${day}T12:00:00`).getDay() : when.getDay()
+    if (weekday === 0 || weekday === 6) setView('month')
+  }, [focusId, reminders, todayStr])
 
   const changePeriod = (amount: number) => {
     setActiveEventId(null)
@@ -238,6 +399,140 @@ export function CalendarPage({ events, courses, weekStart, weekNumber, onChangeE
       major: null,
     })
 
+  const closeReminderEditor = () => {
+    setReminderEditor(null)
+    setAiInput('')
+    setAiPreview(null)
+  }
+
+  const newReminder = (date = selectedDay || iso(cursor)) => {
+    setEditor(null)
+    setPeek(null)
+    setAiInput('')
+    setAiPreview(null)
+    setReminderEditor({
+      id: '',
+      title: '',
+      scheduledAt: defaultReminderDatetime(date),
+      note: '',
+      source: 'manual',
+      rawInput: '',
+    })
+  }
+
+  const openReminder = (item: ReminderItem) => {
+    setSelectedDay(reminderDayIso(item.scheduledAt))
+    setActiveEventId(item.id)
+    setEditor(null)
+    setPeek(null)
+    setAiInput(item.rawInput ?? '')
+    setAiPreview(null)
+    setReminderEditor({
+      id: item.id,
+      title: item.title,
+      scheduledAt: item.scheduledAt,
+      note: item.note ?? '',
+      source: item.source,
+      rawInput: item.rawInput ?? '',
+    })
+  }
+
+  const saveReminder = (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!reminderEditor?.title.trim() || !reminderEditor.scheduledAt) return
+    const scheduledAt = fromDatetimeLocalInput(toDatetimeLocalInput(reminderEditor.scheduledAt))
+    const existing = reminders.find((item) => item.id === reminderEditor.id)
+    const due = new Date(scheduledAt).getTime()
+    const status: ReminderItem['status'] =
+      Number.isNaN(due) || due > Date.now() ? 'pending' : (existing?.status ?? 'pending')
+    const payload: ReminderItem = {
+      id: reminderEditor.id || uid('rem'),
+      title: reminderEditor.title.trim(),
+      note: reminderEditor.note.trim() || undefined,
+      scheduledAt,
+      status,
+      source: reminderEditor.source,
+      rawInput: reminderEditor.rawInput.trim() || undefined,
+      createdAt: existing?.createdAt ?? new Date().toISOString(),
+      firedAt: status === 'pending' ? undefined : existing?.firedAt,
+    }
+    onChangeReminders(
+      reminderEditor.id ? reminders.map((item) => (item.id === reminderEditor.id ? payload : item)) : [payload, ...reminders],
+    )
+    setSelectedDay(reminderDayIso(scheduledAt))
+    setActiveEventId(payload.id)
+    notify.success(reminderEditor.id ? `已保存提醒「${payload.title}」` : `已添加提醒「${payload.title}」`)
+    closeReminderEditor()
+  }
+
+  const parseAiReminder = () => {
+    const parsed = parseReminderNaturalLanguage(aiInput)
+    if (!parsed) {
+      notify.warning('未能识别时间，请包含如「明天下午3点」「30分钟后」等表达')
+      setAiPreview(null)
+      return
+    }
+    setAiPreview(parsed)
+    setReminderEditor((current) =>
+      current
+        ? {
+            ...current,
+            title: parsed.title,
+            scheduledAt: parsed.scheduledAt,
+            source: 'ai',
+            rawInput: aiInput.trim(),
+          }
+        : current,
+    )
+  }
+
+  const snoozeReminder = (item: ReminderItem, minutes: number) => {
+    const nextTime = toLocalDateTimeIso(new Date(new Date(item.scheduledAt).getTime() + minutes * 60_000))
+    onChangeReminders(
+      reminders.map((entry) =>
+        entry.id === item.id ? { ...entry, scheduledAt: nextTime, status: 'pending', firedAt: undefined } : entry,
+      ),
+    )
+    setReminderEditor((current) => (current?.id === item.id ? { ...current, scheduledAt: nextTime } : current))
+    setSelectedDay(reminderDayIso(nextTime))
+    notify.success(`已推迟 ${minutes} 分钟`)
+  }
+
+  const cancelReminder = (id: string) => {
+    onChangeReminders(reminders.map((item) => (item.id === id ? { ...item, status: 'cancelled' } : item)))
+    notify.info('已取消提醒')
+    closeReminderEditor()
+  }
+
+  const removeReminder = async (id: string) => {
+    const item = reminders.find((entry) => entry.id === id)
+    if (!item) return
+    try {
+      await confirm.delete(`确定删除「${item.title}」？`)
+    } catch {
+      return
+    }
+    onChangeReminders(reminders.filter((entry) => entry.id !== id))
+    notify.warning(`已删除：${item.title}`, '已删除')
+    closeReminderEditor()
+  }
+
+  const enableSystemNotify = async () => {
+    if (settings.systemNotifyEnabled && permission === 'granted') {
+      onChangeSettings({ ...settings, systemNotifyEnabled: false })
+      notify.info('已切换为仅应用内提醒')
+      return
+    }
+    const result = await requestNotificationPermission()
+    if (result === 'granted') {
+      onChangeSettings({ ...settings, systemNotifyEnabled: true })
+      notify.success('系统通知已开启')
+      return
+    }
+    if (result === 'denied') notify.error('系统通知被拒绝，请在浏览器或系统设置中允许')
+    else notify.info('当前环境不支持系统通知，将仅使用应用内提醒')
+  }
+
   const toggleEventDone = (item: CalendarEvent) => {
     onChangeEvents(events.map((event) => (event.id === item.id ? { ...event, done: !event.done } : event)))
     notify.success(item.done ? `已恢复「${item.title}」` : `已完成「${item.title}」`)
@@ -245,15 +540,9 @@ export function CalendarPage({ events, courses, weekStart, weekNumber, onChangeE
 
   const openDeadlineLink = (item: CalendarEvent) => {
     const link = item.linkTo ?? inferDeadlineLink(item)
-    if (!link || !onNavigate) return false
+    if (!link || DISABLED_NAV.has(link.route) || !onNavigate) return false
     onNavigate(link.route, link.param)
     return true
-  }
-
-  const openCourse = (item: CalendarEvent) => {
-    const course = matchCourseFromEvent(item, courses)
-    setPeek(null)
-    onNavigate?.('courses', course?.id)
   }
 
   const dropCourse = async (item: CalendarEvent) => {
@@ -298,33 +587,69 @@ export function CalendarPage({ events, courses, weekStart, weekNumber, onChangeE
       </div>
 
       <div className="day-detail-list">
-        {selectedDayEvents.length === 0 && <div className="empty-column">这一天暂无安排</div>}
-        {selectedDayEvents.map((item) => (
-          <div key={item.id} className={`day-detail-item${item.done ? ' is-done' : ' is-open'}`}>
-            <button
-              type="button"
-              className="day-detail-main"
-              onClick={() => openItem(item)}
-              title={`${itemActionLabel(item)}：${item.title}`}
-              aria-label={`${item.title}，${itemSubline(item)}，${itemActionLabel(item)}`}
-            >
-              <span className={`day-detail-dot event-${item.kind}`} />
-              <span className="day-detail-body">
-                <b>{item.title}</b>
-                <small>{itemSubline(item)}</small>
-              </span>
-              <KindBadge kind={item.kind} />
+        {selectedDayEntries.length === 0 && (
+          <div className="empty-column">
+            这一天暂无安排
+            <button type="button" className="text-action" onClick={() => newEvent()}>
+              新建日程
             </button>
-            <label className="day-detail-check">
-              <input
-                type="checkbox"
-                checked={Boolean(item.done)}
-                onChange={() => toggleEventDone(item)}
-                aria-label={item.done ? `取消完成 ${item.title}` : `完成 ${item.title}`}
-              />
-            </label>
+            <button type="button" className="text-action" onClick={() => newReminder()}>
+              添加提醒
+            </button>
           </div>
-        ))}
+        )}
+        {selectedDayEntries.map((entry) =>
+          entry.type === 'event' ? (
+            <div key={entry.key} className={`day-detail-item${entry.item.done ? ' is-done' : ' is-open'}`}>
+              <button
+                type="button"
+                className="day-detail-main"
+                onClick={() => openItem(entry.item)}
+                title={`${itemActionLabel(entry.item)}：${entry.item.title}`}
+                aria-label={`${entry.item.title}，${itemSubline(entry.item)}，${itemActionLabel(entry.item)}`}
+              >
+                <span className={`day-detail-dot event-${entry.item.kind}`} />
+                <span className="day-detail-body">
+                  <b>{entry.item.title}</b>
+                  <small>{itemSubline(entry.item)}</small>
+                </span>
+                <KindBadge kind={entry.item.kind} />
+              </button>
+              <label className="day-detail-check">
+                <input
+                  type="checkbox"
+                  checked={Boolean(entry.item.done)}
+                  onChange={() => toggleEventDone(entry.item)}
+                  aria-label={entry.item.done ? `取消完成 ${entry.item.title}` : `完成 ${entry.item.title}`}
+                />
+              </label>
+            </div>
+          ) : (
+            <div
+              key={entry.key}
+              className={`day-detail-item${entry.item.status === 'pending' ? ' is-open' : ' is-done'}`}
+            >
+              <button
+                type="button"
+                className="day-detail-main"
+                onClick={() => openReminder(entry.item)}
+                title={`编辑提醒：${entry.item.title}`}
+                aria-label={`${entry.item.title}，${formatReminderTime(entry.item.scheduledAt)}，编辑提醒`}
+              >
+                <span className="day-detail-dot event-reminder" />
+                <span className="day-detail-body">
+                  <b>{entry.item.title}</b>
+                  <small>
+                    {formatReminderTime(entry.item.scheduledAt)}
+                    {entry.item.status === 'fired' ? ' · 已提醒' : ''}
+                    {entry.item.note ? ` · ${entry.item.note}` : ''}
+                  </small>
+                </span>
+                <KindBadge kind="reminder" />
+              </button>
+            </div>
+          ),
+        )}
       </div>
     </section>
   )
@@ -395,6 +720,9 @@ export function CalendarPage({ events, courses, weekStart, weekNumber, onChangeE
           <button type="button" className="primary-action" onClick={() => newEvent()}>
             添加
           </button>
+          <button type="button" className="outline-action" onClick={() => newReminder()}>
+            提醒
+          </button>
         </div>
       </header>
 
@@ -405,13 +733,19 @@ export function CalendarPage({ events, courses, weekStart, weekNumber, onChangeE
               <span className="allday-label">全天</span>
               {days.map((day) => {
                 const dateStr = iso(day)
-                const allDay = events.filter((item) => item.date === dateStr && isAllDayKind(item.kind))
+                const allDayEvents = events.filter((item) => item.date === dateStr && isAllDayKind(item.kind))
+                const allDayReminders = remindersOn(dateStr).filter(
+                  (item) => reminderTimeSlot(item.scheduledAt, times) == null,
+                )
+                const hot =
+                  allDayEvents.some((item) => item.id === activeEventId) ||
+                  allDayReminders.some((item) => item.id === activeEventId)
                 return (
                   <div
-                    className={`allday-cell${dateStr === todayStr ? ' today-column' : ''}${dateStr === selectedDay ? ' is-selected' : ''}${allDay.some((item) => item.id === activeEventId) ? ' is-hot' : ''}`}
+                    className={`allday-cell${dateStr === todayStr ? ' today-column' : ''}${dateStr === selectedDay ? ' is-selected' : ''}${hot ? ' is-hot' : ''}`}
                     key={dateStr}
                   >
-                    {allDay.map((item) => (
+                    {allDayEvents.map((item) => (
                       <button
                         key={item.id}
                         type="button"
@@ -420,6 +754,17 @@ export function CalendarPage({ events, courses, weekStart, weekNumber, onChangeE
                         title={`${itemActionLabel(item)}：${item.title}`}
                       >
                         {item.title}
+                      </button>
+                    ))}
+                    {allDayReminders.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        className={`allday-chip event-reminder${item.status !== 'pending' ? ' is-done' : ''}${item.id === activeEventId ? ' is-active' : ''}`}
+                        onClick={() => openReminder(item)}
+                        title={`提醒 ${reminderClock(item.scheduledAt)}：${item.title}`}
+                      >
+                        {reminderClock(item.scheduledAt)} {item.title}
                       </button>
                     ))}
                   </div>
@@ -455,8 +800,17 @@ export function CalendarPage({ events, courses, weekStart, weekNumber, onChangeE
               <div className="week-grid">
                 {days.map((day) => {
                   const dateStr = iso(day)
-                  const timed = events.filter((item) => item.date === dateStr && !isAllDayKind(item.kind))
-                  const { laneOf, cols } = layoutLanes(timed)
+                  const timedEvents = events.filter((item) => item.date === dateStr && !isAllDayKind(item.kind))
+                  const timedReminders = remindersOn(dateStr)
+                    .map((item) => {
+                      const start = reminderTimeSlot(item.scheduledAt, times)
+                      return start == null ? null : { item, start, length: 1 }
+                    })
+                    .filter((entry): entry is { item: ReminderItem; start: number; length: number } => entry !== null)
+                  const { laneOf, cols } = layoutLanes([
+                    ...timedEvents.map((item) => ({ id: item.id, start: item.start, length: item.length })),
+                    ...timedReminders.map((entry) => ({ id: entry.item.id, start: entry.start, length: entry.length })),
+                  ])
                   return (
                     <div
                       className={`day-column${dateStr === todayStr ? ' today-column' : ''}${dateStr === selectedDay ? ' is-selected' : ''}`}
@@ -469,15 +823,18 @@ export function CalendarPage({ events, courses, weekStart, weekNumber, onChangeE
                       {times.map((_, row) => {
                         const hot =
                           Boolean(activeEventId) &&
-                          timed.some(
+                          (timedEvents.some(
                             (item) =>
                               item.id === activeEventId &&
                               row >= item.start &&
                               row < item.start + Math.max(1, item.length),
-                          )
+                          ) ||
+                            timedReminders.some(
+                              (entry) => entry.item.id === activeEventId && row >= entry.start && row < entry.start + 1,
+                            ))
                         return <span className={`grid-cell${hot ? ' is-hot' : ''}`} key={row} />
                       })}
-                      {timed.map((item) => (
+                      {timedEvents.map((item) => (
                         <button
                           type="button"
                           className={`calendar-event event-${item.kind}${item.done ? ' is-done' : ''}${item.id === activeEventId ? ' is-active' : ''}`}
@@ -500,6 +857,29 @@ export function CalendarPage({ events, courses, weekStart, weekNumber, onChangeE
                           <span>{item.detail}</span>
                         </button>
                       ))}
+                      {timedReminders.map((entry) => (
+                        <button
+                          type="button"
+                          className={`calendar-event event-reminder${entry.item.status !== 'pending' ? ' is-done' : ''}${entry.item.id === activeEventId ? ' is-active' : ''}`}
+                          style={
+                            {
+                              '--event-start': entry.start,
+                              '--event-length': entry.length,
+                              '--event-lane': laneOf.get(entry.item.id) ?? 0,
+                              '--event-cols': cols,
+                            } as React.CSSProperties
+                          }
+                          key={entry.item.id}
+                          title={`提醒 ${reminderClock(entry.item.scheduledAt)}：${entry.item.title}`}
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            openReminder(entry.item)
+                          }}
+                        >
+                          <b>{entry.item.title}</b>
+                          <span>{reminderClock(entry.item.scheduledAt)}</span>
+                        </button>
+                      ))}
                     </div>
                   )
                 })}
@@ -520,7 +900,7 @@ export function CalendarPage({ events, courses, weekStart, weekNumber, onChangeE
             <div className="month-grid">
               {monthDays.map((day) => {
                 const dateStr = iso(day)
-                const list = events.filter((item) => item.date === dateStr)
+                const list = marksOn(dateStr)
                 const selected = dateStr === selectedDay
                 return (
                   <button
@@ -574,9 +954,6 @@ export function CalendarPage({ events, courses, weekStart, weekNumber, onChangeE
               <span />
               <button type="button" className="outline-action" onClick={() => setPeek(null)}>
                 关闭
-              </button>
-              <button type="button" className="primary-action" onClick={() => openCourse(peek)}>
-                打开课程
               </button>
             </div>
           </div>
@@ -724,6 +1101,140 @@ export function CalendarPage({ events, courses, weekStart, weekNumber, onChangeE
               )}
               <span />
               <button type="button" className="outline-action" onClick={() => setEditor(null)}>
+                取消
+              </button>
+              <button type="submit" className="primary-action">
+                保存
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {reminderEditor && (
+        <div className="calendar-modal-backdrop" onMouseDown={closeReminderEditor}>
+          <form
+            ref={reminderRef}
+            className="calendar-composer reminder-composer"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="calendar-reminder-dialog-title"
+            onSubmit={saveReminder}
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="composer-heading">
+              <div>
+                <p className="section-label">{reminderEditor.id ? '编辑提醒' : '新建提醒'}</p>
+                <h2 id="calendar-reminder-dialog-title">{reminderEditor.id ? '修改提醒' : '到点通知我'}</h2>
+              </div>
+              <button type="button" className="icon-button" onClick={closeReminderEditor} aria-label="关闭">
+                ×
+              </button>
+            </div>
+            <label className="reminders-ai-field">
+              用一句话描述
+              <textarea
+                value={aiInput}
+                onChange={(event) => {
+                  setAiInput(event.target.value)
+                  setAiPreview(null)
+                }}
+                rows={2}
+                placeholder="例如：后天上午8点半提醒准备实习巡视材料"
+              />
+            </label>
+            <div className="composer-actions reminder-ai-actions">
+              <button type="button" className="outline-action" onClick={parseAiReminder} disabled={!aiInput.trim()}>
+                智能解析
+              </button>
+            </div>
+            {aiPreview && (
+              <p className="composer-hint">
+                {aiPreview.explanation} · 置信度
+                {aiPreview.confidence === 'high' ? '高' : aiPreview.confidence === 'medium' ? '中' : '低'}
+              </p>
+            )}
+            <label>
+              提醒标题
+              <input
+                autoFocus
+                required
+                value={reminderEditor.title}
+                onChange={(event) => setReminderEditor({ ...reminderEditor, title: event.target.value })}
+                placeholder="例如：录入期中成绩"
+              />
+            </label>
+            <label>
+              提醒时间
+              <input
+                required
+                type="datetime-local"
+                value={toDatetimeLocalInput(reminderEditor.scheduledAt)}
+                onChange={(event) =>
+                  setReminderEditor({
+                    ...reminderEditor,
+                    scheduledAt: fromDatetimeLocalInput(event.target.value),
+                    source: reminderEditor.rawInput ? reminderEditor.source : 'manual',
+                  })
+                }
+              />
+            </label>
+            <label>
+              备注（可选）
+              <input
+                value={reminderEditor.note}
+                onChange={(event) => setReminderEditor({ ...reminderEditor, note: event.target.value })}
+                placeholder="补充说明"
+              />
+            </label>
+            {canNotify && (
+              <label className="settings-check">
+                <input
+                  type="checkbox"
+                  checked={settings.systemNotifyEnabled && permission === 'granted'}
+                  onChange={() => void enableSystemNotify()}
+                />
+                到点推送到系统通知
+              </label>
+            )}
+            {!canNotify && <p className="composer-hint">当前环境不支持系统通知，将仅使用应用内提醒。应用需保持打开才能准时提醒。</p>}
+            {reminderEditor.id && (
+              <div className="reminder-snooze">
+                <button
+                  type="button"
+                  className="text-action"
+                  onClick={() => {
+                    const item = reminders.find((entry) => entry.id === reminderEditor.id)
+                    if (item) snoozeReminder(item, 10)
+                  }}
+                >
+                  +10 分
+                </button>
+                <button
+                  type="button"
+                  className="text-action"
+                  onClick={() => {
+                    const item = reminders.find((entry) => entry.id === reminderEditor.id)
+                    if (item) snoozeReminder(item, 60)
+                  }}
+                >
+                  +1 时
+                </button>
+                {reminders.find((item) => item.id === reminderEditor.id)?.status === 'pending' && (
+                  <button type="button" className="text-action" onClick={() => cancelReminder(reminderEditor.id)}>
+                    取消提醒
+                  </button>
+                )}
+              </div>
+            )}
+            <div className="composer-actions">
+              {reminderEditor.id && (
+                <button type="button" className="delete-action" onClick={() => void removeReminder(reminderEditor.id)}>
+                  删除
+                </button>
+              )}
+              <span />
+              <button type="button" className="outline-action" onClick={closeReminderEditor}>
                 取消
               </button>
               <button type="submit" className="primary-action">

@@ -1,4 +1,5 @@
 import type { RouteId, WorkbenchData } from '../data/types'
+import { DISABLED_NAV } from './disabled-nav'
 
 export type SearchResult = {
   id: string
@@ -14,7 +15,6 @@ const PAGE_ENTRIES: { id: RouteId; label: string }[] = [
   { id: 'calendar', label: '日程与值班' },
   { id: 'tasks', label: '教学看板' },
   { id: 'journal', label: '随手记' },
-  { id: 'reminders', label: '通知提醒' },
   { id: 'courses', label: '教学' },
   { id: 'research', label: '科研' },
   { id: 'activities', label: '学生活动' },
@@ -37,22 +37,8 @@ export function buildSearchIndex(data: WorkbenchData): SearchResult[] {
   const results: SearchResult[] = []
 
   PAGE_ENTRIES.forEach((page) => {
+    if (DISABLED_NAV.has(page.id)) return
     push(results, { title: page.label, meta: '页面导航', group: '页面', route: page.id }, page.id)
-  })
-
-  data.courses.forEach((course) => {
-    push(
-      results,
-      {
-        id: `course-${course.id}`,
-        title: course.name,
-        meta: `${course.code} · ${course.className} · ${course.weeks}`,
-        group: '课程',
-        route: 'courses',
-        param: course.id,
-      },
-      course.id,
-    )
   })
 
   data.students.forEach((student) => {
@@ -98,34 +84,6 @@ export function buildSearchIndex(data: WorkbenchData): SearchResult[] {
     )
   })
 
-  data.news.forEach((item) => {
-    push(
-      results,
-      {
-        id: `news-${item.id}`,
-        title: item.title,
-        meta: `${item.source} · ${item.category}`,
-        group: '热点资讯',
-        route: 'news',
-      },
-      item.id,
-    )
-  })
-
-  data.tools.forEach((tool) => {
-    push(
-      results,
-      {
-        id: `tool-${tool.id}`,
-        title: tool.name,
-        meta: `${tool.category} · ${tool.description}`,
-        group: '工具箱',
-        route: 'tools',
-      },
-      tool.id,
-    )
-  })
-
   data.reminders.forEach((reminder) => {
     push(
       results,
@@ -134,51 +92,10 @@ export function buildSearchIndex(data: WorkbenchData): SearchResult[] {
         title: reminder.title,
         meta: reminder.note || reminder.scheduledAt,
         group: '通知提醒',
-        route: 'reminders',
+        route: 'calendar',
+        param: reminder.id,
       },
       reminder.id,
-    )
-  })
-
-  data.researchNotices?.forEach((item) => {
-    push(
-      results,
-      {
-        id: `research-notice-${item.id}`,
-        title: item.title,
-        meta: `${item.source} · ${item.category}`,
-        group: '科研通知',
-        route: 'research',
-      },
-      item.id,
-    )
-  })
-
-  data.researchProjects?.forEach((item) => {
-    push(
-      results,
-      {
-        id: `research-${item.id}`,
-        title: item.title,
-        meta: `${item.category} · ${item.status === 'closing' ? '结题整理' : item.status === 'ended' ? '已结束' : '申请中'}`,
-        group: '科研项目',
-        route: 'research',
-      },
-      item.id,
-    )
-  })
-
-  data.activityProjects?.forEach((item) => {
-    push(
-      results,
-      {
-        id: `activity-${item.id}`,
-        title: item.title,
-        meta: `${item.category} · ${item.summary}`,
-        group: '学生活动',
-        route: 'activities',
-      },
-      item.id,
     )
   })
 

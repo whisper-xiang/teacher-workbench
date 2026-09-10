@@ -307,7 +307,7 @@ Disabled：opacity 0.45，不改色相。
 
 ### 7.12 Page sheet
 
-- 用于 calendar / tasks / courses / students / resources / news / tools / reminders / settings。
+- 用于 calendar / tasks / courses / students / resources / news / tools / settings。提醒写在日程页，不再单开路由。
 - `margin: 0 18px 18px 4px`；圆角 24px；浅瓷白 86% + blur 18px。
 - **内部仍用原组件色**（墨字、浅表），不要把课表格子改成白字。
 - 任务看板 `overflow:hidden` 时，sheet 必须跟着吃到高度，避免双滚动条打架。
@@ -355,7 +355,7 @@ Disabled：opacity 0.45，不改色相。
 
 - 语言：细线、圆角端、2px 以内、视口 24。
 - 颜色：`currentColor`，随文字层级走。
-- 导航映射见 `src/nav-icons.tsx`（overview / calendar / tasks / reminders / courses / students / resources / news / tools / settings / plus / search / bell / pin …）。
+- 导航映射见 `src/nav-icons.tsx`（overview / calendar / journal / courses / students / resources / news / tools / settings / plus / search / bell / pin …）。铃铛进入 `#/calendar` 的提醒。
 - 新增图标必须加到该文件，禁止再引入 emoji 或 Fluent 彩色图标。
 
 ---

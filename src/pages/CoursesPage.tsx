@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { uid } from '../data/store'
-import { inferMajorFromText, type Assignment, type Course, type StudentRecord, type TeachingResource } from '../data/types'
-import { courseClassLabel, courseStudentCount, ensureCourseClasses } from '../lib/course-classes'
+import { inferMajorFromText, type Course } from '../data/types'
+import { courseClassLabel, ensureCourseClasses } from '../lib/course-classes'
 import { currentCourseTopic, formatSession, SECTIONS, SECTION_TIMES, topicsFromText, topicsToText, WEEK_DAYS } from '../lib/courses'
 import { notify } from '../lib/notify'
 import { confirm } from '../lib/confirm'
@@ -16,17 +16,10 @@ type Draft = {
   className: string
   students: string
   credits: string
-  description: string
   currentWeek: string
   totalWeeks: string
   weeklyTopics: string
   sessions: SessionDraft[]
-}
-
-type ContextMenuState = {
-  courseId: string
-  x: number
-  y: number
 }
 
 function emptySession(slot?: { day: number; section: number }): SessionDraft {
@@ -49,7 +42,6 @@ function toDraft(course?: Course, slot?: { day: number; section: number }): Draf
     className: course?.className ?? '',
     students: String(course?.students ?? 40),
     credits: String(course?.credits ?? 2),
-    description: course?.description ?? '',
     currentWeek: String(course?.currentWeek ?? 1),
     totalWeeks: String(course?.totalWeeks ?? 16),
     weeklyTopics: topicsToText(course?.weeklyTopics),
@@ -64,81 +56,36 @@ function progressPct(course: Course) {
 
 type Props = {
   courses: Course[]
-  resources?: TeachingResource[]
-  students?: StudentRecord[]
-  assignments?: Assignment[]
   initialCourseId?: string
   onChange: (courses: Course[]) => void
-  onChangeResources?: (resources: TeachingResource[]) => void
-  onChangeAssignments?: (assignments: Assignment[]) => void
+  onSelectCourse?: (courseId: string) => void
   onOpenStudents?: (courseId: string) => void
   onOpenResources?: (courseId: string) => void
-  onSelectCourse?: (courseId: string) => void
 }
 
 export function CoursesPage({
   courses,
-  resources = [],
-  students = [],
-  assignments = [],
   initialCourseId,
   onChange,
-  onChangeResources,
-  onChangeAssignments,
+  onSelectCourse,
   onOpenStudents,
   onOpenResources,
-  onSelectCourse,
 }: Props) {
   const [draft, setDraft] = useState<Draft | null>(null)
-  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
-  const menuRef = useRef<HTMLDivElement | null>(null)
-
   const editing = Boolean(draft?.id)
-  const contextCourse = contextMenu ? courses.find((course) => course.id === contextMenu.courseId) : null
 
   useEffect(() => {
-    if (!contextMenu) return
-    const closeMenu = () => setContextMenu(null)
+    if (!draft) return
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') closeMenu()
+      if (event.key === 'Escape') setDraft(null)
     }
-    window.addEventListener('pointerdown', closeMenu)
     window.addEventListener('keydown', onKey)
-    window.addEventListener('scroll', closeMenu, true)
-    return () => {
-      window.removeEventListener('pointerdown', closeMenu)
-      window.removeEventListener('keydown', onKey)
-      window.removeEventListener('scroll', closeMenu, true)
-    }
-  }, [contextMenu])
+    return () => window.removeEventListener('keydown', onKey)
+  }, [draft])
 
-  useEffect(() => {
-    if (!contextMenu || !menuRef.current) return
-    const rect = menuRef.current.getBoundingClientRect()
-    const pad = 8
-    let x = contextMenu.x
-    let y = contextMenu.y
-    if (x + rect.width > window.innerWidth - pad) x = window.innerWidth - rect.width - pad
-    if (y + rect.height > window.innerHeight - pad) y = window.innerHeight - rect.height - pad
-    if (x !== contextMenu.x || y !== contextMenu.y) setContextMenu({ ...contextMenu, x, y })
-  }, [contextMenu])
-
-  const openCreate = (slot?: { day: number; section: number }) => {
-    setContextMenu(null)
-    setDraft(toDraft(undefined, slot))
-  }
-
-  const openEdit = (course: Course) => {
-    setContextMenu(null)
-    setDraft(toDraft(course))
-  }
-
+  const openCreate = (slot?: { day: number; section: number }) => setDraft(toDraft(undefined, slot))
+  const openEdit = (course: Course) => setDraft(toDraft(course))
   const close = () => setDraft(null)
-
-  const openCourseMenu = (event: React.MouseEvent, courseId: string) => {
-    event.preventDefault()
-    setContextMenu({ courseId, x: event.clientX, y: event.clientY })
-  }
 
   const save = (event: React.FormEvent) => {
     event.preventDefault()
@@ -179,6 +126,7 @@ export function CoursesPage({
               studentCount,
               currentWeek,
               nodes: existingClasses[0]?.nodes ?? [],
+              performances: existingClasses[0]?.performances,
             },
           ]
 
@@ -190,7 +138,7 @@ export function CoursesPage({
       students: classes.reduce((sum, item) => sum + item.studentCount, 0),
       credits: Math.max(0.5, Number(draft.credits) || existing?.credits || 2),
       major: existing?.major ?? inferMajorFromText(`${className} ${name}`),
-      description: draft.description.trim() || existing?.description,
+      description: existing?.description,
       topic,
       weeklyTopics,
       currentWeek,
@@ -218,8 +166,8 @@ export function CoursesPage({
     }
     onChange(courses.filter((course) => course.id !== id))
     notify.warning(`已删除：${item.name}`, '已删除')
-    setContextMenu(null)
     if (draft?.id === id) close()
+    if (initialCourseId === id) onSelectCourse?.('')
   }
 
   const updateSession = (index: number, patch: Partial<SessionDraft>) => {
@@ -230,122 +178,234 @@ export function CoursesPage({
     })
   }
 
+  const composer = draft ? (
+    <div className="courses-modal-backdrop" onMouseDown={close}>
+      <form
+        className="courses-composer courses-composer-wide"
+        onSubmit={save}
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <div>
+          <h2>{editing ? '编辑课程' : '新建课程'}</h2>
+          <p>保存后同步到周课表与日程。</p>
+        </div>
+
+        <label>
+          课程名称
+          <input
+            required
+            autoFocus
+            value={draft.name}
+            onChange={(event) => setDraft({ ...draft, name: event.target.value })}
+          />
+        </label>
+
+        <div className="composer-grid">
+          <label>
+            课程编号
+            <input
+              value={draft.code}
+              onChange={(event) => setDraft({ ...draft, code: event.target.value })}
+              placeholder="例如：EDU203"
+            />
+          </label>
+          <label>
+            学分
+            <input
+              value={draft.credits}
+              onChange={(event) => setDraft({ ...draft, credits: event.target.value })}
+            />
+          </label>
+        </div>
+
+        <div className="composer-grid">
+          <label>
+            班级
+            <input
+              value={draft.className}
+              onChange={(event) => setDraft({ ...draft, className: event.target.value })}
+              placeholder="例如：教育学 2024-1 班"
+            />
+          </label>
+          <label>
+            人数
+            <input
+              value={draft.students}
+              onChange={(event) => setDraft({ ...draft, students: event.target.value })}
+            />
+          </label>
+        </div>
+
+        <div className="composer-grid">
+          <label>
+            当前周
+            <input
+              value={draft.currentWeek}
+              onChange={(event) => setDraft({ ...draft, currentWeek: event.target.value })}
+            />
+          </label>
+          <label>
+            总周数
+            <input
+              value={draft.totalWeeks}
+              onChange={(event) => setDraft({ ...draft, totalWeeks: event.target.value })}
+            />
+          </label>
+        </div>
+
+        <label>
+          周教学主题（每行一周）
+          <textarea
+            rows={6}
+            value={draft.weeklyTopics}
+            onChange={(event) => setDraft({ ...draft, weeklyTopics: event.target.value })}
+            placeholder={'学习动机理论\n期中复习与学习动机\n课堂管理中的动机策略'}
+          />
+        </label>
+
+        <fieldset className="course-session-fields">
+          <legend>上课时段</legend>
+          {draft.sessions.map((session, index) => (
+            <div className="course-session-row" key={index}>
+              <label>
+                星期
+                <select value={session.day} onChange={(event) => updateSession(index, { day: event.target.value })}>
+                  {WEEK_DAYS.map((day, dayIndex) => (
+                    <option value={dayIndex} key={day}>
+                      {day}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                节次
+                <select
+                  value={session.section}
+                  onChange={(event) => updateSession(index, { section: event.target.value })}
+                >
+                  {SECTIONS.map((section, sectionIndex) => (
+                    <option value={sectionIndex} key={section}>
+                      {section}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                教室
+                <input
+                  value={session.room}
+                  onChange={(event) => updateSession(index, { room: event.target.value })}
+                  placeholder="文科楼 205"
+                />
+              </label>
+              {draft.sessions.length > 1 && (
+                <button
+                  type="button"
+                  className="text-action"
+                  onClick={() => setDraft({ ...draft, sessions: draft.sessions.filter((_, i) => i !== index) })}
+                >
+                  移除
+                </button>
+              )}
+            </div>
+          ))}
+          <button
+            type="button"
+            className="text-action"
+            onClick={() => setDraft({ ...draft, sessions: [...draft.sessions, emptySession()] })}
+          >
+            加一时段
+          </button>
+        </fieldset>
+
+        <div className={`composer-actions${editing ? ' composer-actions-split' : ''}`}>
+          {editing && (
+            <button type="button" className="danger-action" onClick={() => draft.id && removeById(draft.id)}>
+              删除
+            </button>
+          )}
+          <div className="composer-actions-right">
+            <button type="button" className="outline-action" onClick={close}>
+              取消
+            </button>
+            <button type="submit" className="primary-action">
+              保存
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  ) : null
+
   const selected = initialCourseId ? courses.find((course) => course.id === initialCourseId) : undefined
   if (selected) {
     return (
-      <CourseDetailPanel
-        key={selected.id}
-        course={selected}
-        resources={resources}
-        students={students}
-        assignments={assignments}
-        onBack={() => onSelectCourse?.('')}
-        onOpenStudents={onOpenStudents ? () => onOpenStudents(selected.id) : undefined}
-        onOpenLibrary={onOpenResources ? () => onOpenResources(selected.id) : undefined}
-        onChangeCourse={(course) => onChange(courses.map((item) => (item.id === course.id ? course : item)))}
-        onChangeResources={onChangeResources ?? (() => undefined)}
-        onChangeAssignments={onChangeAssignments}
-      />
+      <>
+        <CourseDetailPanel
+          key={selected.id}
+          course={selected}
+          onBack={() => onSelectCourse?.('')}
+          onEdit={() => openEdit(selected)}
+          onOpenStudents={onOpenStudents ? () => onOpenStudents(selected.id) : undefined}
+          onOpenResources={onOpenResources ? () => onOpenResources(selected.id) : undefined}
+          onChangeCourse={(course) => onChange(courses.map((item) => (item.id === course.id ? course : item)))}
+        />
+        {composer}
+      </>
     )
   }
 
   return (
-    <section className="courses-page courses-page-simple" aria-label="教学 · 课程门类">
+    <section className="courses-page" aria-label="课程">
       <div className="courses-heading">
         <div>
-          <p className="section-label kicker">教学管理</p>
-          <h1>课程门类</h1>
-          <p>一门课可带多个班级；记进度、作业与学生表现，资源可从资源库导入</p>
+          <h1>课程</h1>
+          <p>排进课表，记下本周教什么。</p>
         </div>
         <button type="button" className="primary-action" onClick={() => openCreate()}>
-          ＋ 新建课程
+          新建
         </button>
       </div>
 
-      <div className="course-card-grid">
-        {courses.map((course) => {
-          const pct = progressPct(course)
-          const topic = currentCourseTopic(course)
-          const courseResources = resources.filter((item) => item.course === course.name)
-          return (
-            <article
-              className={`course-overview-card${contextMenu?.courseId === course.id ? ' is-menu-open' : ''}`}
-              key={course.id}
-              onContextMenu={(event) => openCourseMenu(event, course.id)}
-            >
-              <div className="course-overview-main">
-                <div className="course-overview-head">
-                  <h3>{course.name}</h3>
-                  <span className="course-code">{course.code}</span>
-                </div>
-                <div className="course-overview-meta">
-                  <span>{courseClassLabel(course)}</span>
-                  <span>{courseStudentCount(course)} 人</span>
-                  <span>{course.credits} 学分</span>
-                </div>
-                <div className="course-overview-meta course-overview-sessions">
-                  {course.sessions.length
-                    ? course.sessions.map((session, index) => <span key={`${session.day}-${session.section}-${index}`}>{formatSession(session)}</span>)
-                    : <span>暂未排课</span>}
-                </div>
-                {topic && <p className="course-overview-topic">本周：{topic}</p>}
-                {courseResources.length > 0 && (
-                  <ul className="course-resource-list">
-                    {courseResources.slice(0, 3).map((item) => (
-                      <li key={item.id}>
-                        {item.type} · {item.title}
-                        {item.fileId ? '' : '（未上传）'}
-                      </li>
-                    ))}
-                    {courseResources.length > 3 && <li>还有 {courseResources.length - 3} 份</li>}
-                  </ul>
-                )}
-                <div className="course-overview-progress">
-                  <div>
-                    <span>教学进度</span>
-                    <strong>
-                      {course.currentWeek}/{course.totalWeeks} 周（{pct}%）
-                    </strong>
+      {courses.length === 0 ? (
+        <div className="course-empty">
+          还没有课程。
+          <button type="button" className="text-action" onClick={() => openCreate()}>
+            新建一门
+          </button>
+        </div>
+      ) : (
+        <ul className="course-ledger">
+          {courses.map((course) => {
+            const topic = currentCourseTopic(course)
+            const pct = progressPct(course)
+            return (
+              <li key={course.id}>
+                <button type="button" className="course-ledger-row" onClick={() => onSelectCourse?.(course.id)}>
+                  <div className="course-ledger-copy">
+                    <h2>{course.name}</h2>
+                    <p>{topic || '本周主题未写'}</p>
+                    <span>
+                      {course.sessions.length
+                        ? course.sessions.map((session) => formatSession(session)).join('  ')
+                        : '暂未排课'}
+                    </span>
                   </div>
-                  <div className="progress-track">
-                    <i style={{ width: `${pct}%` }} />
+                  <div className="course-ledger-week" aria-label={`第 ${course.currentWeek} 周，进度 ${pct}%`}>
+                    <strong>{course.currentWeek}</strong>
+                    <small>/{course.totalWeeks}</small>
                   </div>
-                </div>
-                <div className="course-overview-actions">
-                  <button type="button" className="text-action" onClick={() => onSelectCourse?.(course.id)}>
-                    进入课程
-                  </button>
-                  <button type="button" className="text-action" onClick={() => openEdit(course)}>
-                    编辑档案
-                  </button>
-                  {onOpenStudents && (
-                    <button type="button" className="text-action" onClick={() => onOpenStudents(course.id)}>
-                      学生与评价
-                    </button>
-                  )}
-                  {onOpenResources && (
-                    <button type="button" className="text-action" onClick={() => onOpenResources(course.id)}>
-                      本课资源{courseResources.length ? ` ${courseResources.length}` : ''}
-                    </button>
-                  )}
-                </div>
-              </div>
-            </article>
-          )
-        })}
-        {courses.length === 0 && (
-          <div className="course-empty">
-            还没有课程，先建一门课再排时段。
-            <button type="button" className="text-action" onClick={() => openCreate()}>
-              新建课程
-            </button>
-          </div>
-        )}
-      </div>
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      )}
 
-      <section className="week-overview" aria-label="总周课表">
+      <section className="week-overview" aria-label="周课表">
         <div className="week-overview-head">
           <h2>周课表</h2>
+          <p>点格子进课，空格双击排课。</p>
         </div>
         <table className="week-overview-table">
           <thead>
@@ -365,34 +425,34 @@ export function CoursesPage({
                   <small>{SECTION_TIMES[sectionIndex]}</small>
                 </td>
                 {WEEK_DAYS.map((_, day) => {
-                  const hit = courses.find((course) =>
-                    course.sessions.some((item) => item.day === day && item.section === sectionIndex),
+                  const hits = courses.flatMap((course) =>
+                    course.sessions
+                      .filter((item) => item.day === day && item.section === sectionIndex)
+                      .map((session) => ({ course, session })),
                   )
-                  const session = hit?.sessions.find((item) => item.day === day && item.section === sectionIndex)
                   return (
                     <td
                       key={`${section}-${day}`}
-                      className={hit ? 'week-cell has-course' : 'week-cell is-empty'}
+                      className={hits.length ? 'week-cell has-course' : 'week-cell is-empty'}
                       onDoubleClick={() => {
-                        if (!hit) openCreate({ day, section: sectionIndex })
-                      }}
-                      onContextMenu={(event) => {
-                        if (!hit) return
-                        openCourseMenu(event, hit.id)
+                        if (!hits.length) openCreate({ day, section: sectionIndex })
                       }}
                     >
-                      {hit && session ? (
-                        <div
-                          className={`week-slot week-slot-btn ${hit.major}${contextMenu?.courseId === hit.id ? ' is-menu-open' : ''}`}
+                      {hits.map(({ course, session }) => (
+                        <button
+                          type="button"
+                          key={`${course.id}-${session.day}-${session.section}`}
+                          className="week-slot week-slot-btn"
+                          onClick={() => onSelectCourse?.(course.id)}
                         >
-                          <b>{hit.name}</b>
+                          <b>{course.name}</b>
                           <span>
-                            {courseClassLabel(hit)}
+                            {courseClassLabel(course)}
                             <br />
                             {session.room}
                           </span>
-                        </div>
-                      ) : null}
+                        </button>
+                      ))}
                     </td>
                   )
                 })}
@@ -402,208 +462,7 @@ export function CoursesPage({
         </table>
       </section>
 
-      {contextMenu && contextCourse && (
-        <div
-          ref={menuRef}
-          className="task-context-menu"
-          style={{ left: contextMenu.x, top: contextMenu.y }}
-          role="menu"
-          aria-label={`课程操作：${contextCourse.name}`}
-          onPointerDown={(event) => event.stopPropagation()}
-        >
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => {
-              onSelectCourse?.(contextCourse.id)
-              setContextMenu(null)
-            }}
-          >
-            进入课程
-          </button>
-          <button type="button" role="menuitem" onClick={() => openEdit(contextCourse)}>
-            编辑档案
-          </button>
-          {onOpenStudents && (
-            <button type="button" role="menuitem" onClick={() => onOpenStudents(contextCourse.id)}>
-              学生与评价
-            </button>
-          )}
-          <button type="button" role="menuitem" className="is-danger" onClick={() => removeById(contextCourse.id)}>
-            删除
-          </button>
-        </div>
-      )}
-
-      {draft && (
-        <div className="courses-modal-backdrop" onMouseDown={close}>
-          <form
-            className="courses-composer courses-composer-wide"
-            onSubmit={save}
-            onMouseDown={(event) => event.stopPropagation()}
-          >
-            <div>
-              <p className="section-label">{editing ? '编辑课程' : '新建课程'}</p>
-              <h2>{editing ? '保存后同步到日程与周课表' : '课程档案 · 可排多个时段'}</h2>
-            </div>
-
-            <label>
-              课程名称
-              <input
-                required
-                autoFocus
-                value={draft.name}
-                onChange={(event) => setDraft({ ...draft, name: event.target.value })}
-              />
-            </label>
-
-            <div className="composer-grid">
-              <label>
-                课程编号
-                <input
-                  value={draft.code}
-                  onChange={(event) => setDraft({ ...draft, code: event.target.value })}
-                  placeholder="例如：EDU203"
-                />
-              </label>
-              <label>
-                学分
-                <input
-                  value={draft.credits}
-                  onChange={(event) => setDraft({ ...draft, credits: event.target.value })}
-                />
-              </label>
-            </div>
-
-            <div className="composer-grid">
-              <label>
-                主班级
-                <input
-                  value={draft.className}
-                  onChange={(event) => setDraft({ ...draft, className: event.target.value })}
-                  placeholder="例如：教育学 2024-1 班"
-                />
-              </label>
-              <label>
-                人数
-                <input
-                  value={draft.students}
-                  onChange={(event) => setDraft({ ...draft, students: event.target.value })}
-                />
-              </label>
-            </div>
-
-            <label>
-              课程简介
-              <input
-                value={draft.description}
-                onChange={(event) => setDraft({ ...draft, description: event.target.value })}
-                placeholder="一句话说明这门课"
-              />
-            </label>
-
-            <div className="composer-grid">
-              <label>
-                当前周
-                <input
-                  value={draft.currentWeek}
-                  onChange={(event) => setDraft({ ...draft, currentWeek: event.target.value })}
-                />
-              </label>
-              <label>
-                总周数
-                <input
-                  value={draft.totalWeeks}
-                  onChange={(event) => setDraft({ ...draft, totalWeeks: event.target.value })}
-                />
-              </label>
-            </div>
-
-            <label>
-              周教学主题（每行一周，第 1 行即第 1 周）
-              <textarea
-                rows={6}
-                value={draft.weeklyTopics}
-                onChange={(event) => setDraft({ ...draft, weeklyTopics: event.target.value })}
-                placeholder={'学习动机理论\n期中复习与学习动机\n课堂管理中的动机策略'}
-              />
-            </label>
-
-            <fieldset className="course-session-fields">
-              <legend>上课时段（可多个）</legend>
-              {draft.sessions.map((session, index) => (
-                <div className="course-session-row" key={index}>
-                  <label>
-                    星期
-                    <select value={session.day} onChange={(event) => updateSession(index, { day: event.target.value })}>
-                      {WEEK_DAYS.map((day, dayIndex) => (
-                        <option value={dayIndex} key={day}>
-                          {day}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    节次
-                    <select
-                      value={session.section}
-                      onChange={(event) => updateSession(index, { section: event.target.value })}
-                    >
-                      {SECTIONS.map((section, sectionIndex) => (
-                        <option value={sectionIndex} key={section}>
-                          {section}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    教室
-                    <input
-                      value={session.room}
-                      onChange={(event) => updateSession(index, { room: event.target.value })}
-                      placeholder="文科楼 205"
-                    />
-                  </label>
-                  {draft.sessions.length > 1 && (
-                    <button
-                      type="button"
-                      className="text-action"
-                      onClick={() =>
-                        setDraft({ ...draft, sessions: draft.sessions.filter((_, i) => i !== index) })
-                      }
-                    >
-                      移除
-                    </button>
-                  )}
-                </div>
-              ))}
-              <button
-                type="button"
-                className="text-action"
-                onClick={() => setDraft({ ...draft, sessions: [...draft.sessions, emptySession()] })}
-              >
-                ＋ 加一时段
-              </button>
-            </fieldset>
-
-            <div className={`composer-actions${editing ? ' composer-actions-split' : ''}`}>
-              {editing && (
-                <button type="button" className="danger-action" onClick={() => draft.id && removeById(draft.id)}>
-                  删除
-                </button>
-              )}
-              <div className="composer-actions-right">
-                <button type="button" className="outline-action" onClick={close}>
-                  取消
-                </button>
-                <button type="submit" className="primary-action">
-                  保存
-                </button>
-              </div>
-            </div>
-          </form>
-        </div>
-      )}
+      {composer}
     </section>
   )
 }

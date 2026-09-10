@@ -425,7 +425,6 @@ export type RouteId =
   | 'resources'
   | 'news'
   | 'tools'
-  | 'reminders'
   | 'settings'
 
 export function majorName(id?: MajorId | null): string {

@@ -1,8 +1,9 @@
 import { useMemo } from 'react'
 import type { BoardTask, CalendarEvent, Course, DeadlineLink, WorkbenchMeta } from '../data/types'
+import { DISABLED_NAV } from '../lib/disabled-nav'
 import { deadlineLinkLabel, inferDeadlineLink } from '../lib/deadlines'
 import { currentCourseTopic, matchCourseFromEvent } from '../lib/courses'
-import { formatDayLabel, times, todayIso, weekdayLabel } from '../lib/dates'
+import { formatDayLabel, termWeekOf, times, todayIso, weekdayLabel } from '../lib/dates'
 
 type Props = {
   meta: WorkbenchMeta
@@ -46,8 +47,7 @@ function buildTodayWork(events: CalendarEvent[], tasks: BoardTask[], courses: Co
     .map((item) => {
       const course = matchCourseFromEvent(item, courses)
       const deadlineLink = item.kind === 'deadline' ? item.linkTo ?? inferDeadlineLink(item) : undefined
-      const courseLink = course ? { route: 'courses' as const, param: course.id } : undefined
-      const link = courseLink ?? deadlineLink
+      const link = deadlineLink && !DISABLED_NAV.has(deadlineLink.route) ? deadlineLink : undefined
       const topic = course ? currentCourseTopic(course) : ''
       return {
         id: item.id,
@@ -59,7 +59,7 @@ function buildTodayWork(events: CalendarEvent[], tasks: BoardTask[], courses: Co
         done: Boolean(item.done),
         detail: topic || item.detail || undefined,
         link,
-        actionLabel: courseLink ? '打开课程' : deadlineLink ? deadlineLinkLabel(deadlineLink) : undefined,
+        actionLabel: link ? deadlineLinkLabel(link) : undefined,
       }
     })
   const titles = new Set(fromEvents.map((item) => item.title.trim()))
@@ -90,7 +90,8 @@ export function Dashboard({
 }: Props) {
   const now = new Date()
   const today = todayIso()
-  const kicker = `${formatDayLabel(now)} ${weekdayLabel(now)} · 开学第 ${meta.weekNumber} 周`
+  const week = termWeekOf(now, meta.weekStart, meta.weekNumber)
+  const kicker = `${formatDayLabel(now)} ${weekdayLabel(now)} · 开学第 ${week} 周`
 
   const todayWork = useMemo(() => buildTodayWork(events, tasks, courses, today), [events, tasks, courses, today])
   const pendingWork = todayWork.filter((item) => !item.done)

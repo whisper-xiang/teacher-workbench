@@ -29,7 +29,7 @@ export function useReminderScheduler({ reminders, settings, onFire }: Options) {
             title: item.title,
             body: item.note || '你设置的提醒时间到了',
             tag: item.id,
-            onClickPath: '#/reminders',
+            onClickPath: '#/calendar',
           })
         }
 

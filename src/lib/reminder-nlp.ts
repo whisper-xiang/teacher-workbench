@@ -244,3 +244,56 @@ export function formatReminderTime(iso: string) {
   if (dayDiff === 2) return `后天 ${clock}`
   return `${date.getMonth() + 1} 月 ${date.getDate()} 日 ${clock}`
 }
+
+export function reminderDayIso(scheduledAt: string) {
+  const date = new Date(scheduledAt)
+  if (Number.isNaN(date.getTime())) return scheduledAt.slice(0, 10)
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+}
+
+export function reminderClock(scheduledAt: string) {
+  const date = new Date(scheduledAt)
+  if (Number.isNaN(date.getTime())) return ''
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+/** 映射到周视图时间轴；对不上节次时返回 null（放入全天行） */
+export function reminderTimeSlot(scheduledAt: string, slots: readonly string[]): number | null {
+  const date = new Date(scheduledAt)
+  if (Number.isNaN(date.getTime()) || !slots.length) return null
+  const minutes = date.getHours() * 60 + date.getMinutes()
+  for (let index = 0; index < slots.length; index += 1) {
+    const [hour, minute] = slots[index].split(':').map(Number)
+    const start = hour * 60 + minute
+    const next = slots[index + 1]
+    const end = next
+      ? (() => {
+          const [nextHour, nextMinute] = next.split(':').map(Number)
+          return nextHour * 60 + nextMinute
+        })()
+      : start + 60
+    if (minutes >= start && minutes < end) return index
+  }
+  return null
+}
+
+export function toDatetimeLocalInput(scheduledAt: string) {
+  const date = new Date(scheduledAt)
+  if (Number.isNaN(date.getTime())) return scheduledAt.slice(0, 16)
+  return `${reminderDayIso(scheduledAt)}T${reminderClock(scheduledAt)}`
+}
+
+export function fromDatetimeLocalInput(value: string) {
+  if (!value) return toLocalIso(new Date())
+  return value.length === 16 ? `${value}:00` : value
+}
+
+export function defaultReminderDatetime(dateStr?: string) {
+  if (dateStr) {
+    const today = toLocalIso(new Date()).slice(0, 10)
+    if (dateStr !== today) return `${dateStr}T09:00:00`
+  }
+  const next = new Date(Date.now() + 60 * 60_000)
+  next.setSeconds(0, 0)
+  return toLocalIso(next)
+}

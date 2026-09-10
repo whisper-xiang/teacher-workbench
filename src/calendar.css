@@ -770,3 +770,98 @@
     transform: none;
   }
 }
+
+.calendar-page .kind-badge-reminder {
+  background: transparent;
+  color: var(--moss-50);
+}
+
+.calendar-page .kind-badge-reminder::after {
+  content: " · 编辑";
+}
+
+.calendar-page .day-detail-dot.event-reminder {
+  background: var(--moss-40);
+}
+
+.calendar-page .calendar-event.event-reminder,
+.calendar-page .month-event.event-reminder,
+.calendar-page .allday-chip.event-reminder {
+  border-left-color: var(--moss-40);
+  background: transparent;
+  color: var(--moss-30);
+}
+
+.calendar-page .calendar-event.event-reminder {
+  background: var(--moss-95);
+}
+
+.calendar-page .day-detail-item:not(:has(.day-detail-check)) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.calendar-page .empty-column {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+}
+
+.calendar-page .empty-column .text-action {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--moss-30);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 650;
+}
+
+.calendar-page .calendar-composer textarea {
+  width: 100%;
+  min-height: 72px;
+  resize: vertical;
+  border: 1px solid var(--moss-80);
+  border-radius: 10px;
+  padding: 10px;
+  color: var(--ink);
+  background: #fff;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 400;
+}
+
+.calendar-page .calendar-composer textarea:focus {
+  border-color: var(--moss-40);
+  outline: 3px solid var(--moss-90);
+  outline-offset: 0;
+}
+
+.calendar-page .reminder-composer .reminders-ai-field {
+  display: grid;
+  gap: 7px;
+}
+
+.calendar-page .reminder-ai-actions {
+  justify-content: flex-start;
+  margin-top: 10px;
+}
+
+.calendar-page .reminder-snooze {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-top: 14px;
+}
+
+.calendar-page .reminder-snooze .text-action {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--moss-30);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+}

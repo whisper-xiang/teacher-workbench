@@ -11,9 +11,8 @@
 .journal-page,
 .news-page,
 .tools-page,
-.reminders-page,
 .settings-page {
-  width: 100%;
+  width: auto;
   max-width: none;
   padding: 0 32px 40px;
   box-sizing: border-box;
@@ -42,7 +41,6 @@
 .activities-page,
 .news-page,
 .tools-page,
-.reminders-page,
 .settings-page,
 .page {
   padding-top: 12px;
@@ -112,7 +110,6 @@ body,
 .activities-page,
 .news-page,
   .tools-page,
-  .reminders-page,
   .settings-page {
     padding: 12px 32px 40px;
     max-width: none;

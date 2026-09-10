@@ -158,6 +158,19 @@ body,
   font-weight: 650;
 }
 
+.app-shell .nav-item:disabled,
+.app-shell .nav-item-disabled {
+  opacity: 0.45;
+  cursor: default;
+  color: var(--glass-muted);
+}
+
+.app-shell .nav-item:disabled:hover,
+.app-shell .nav-item-disabled:hover {
+  background: transparent;
+  color: var(--glass-muted);
+}
+
 .app-shell .nav-icon {
   display: grid;
   flex: 0 0 22px;
@@ -430,7 +443,9 @@ body,
   min-height: 0;
   overflow: hidden;
   padding: 0;
-  background: rgba(255, 252, 247, 0.28);
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 .app-shell .global-search-overlay {
