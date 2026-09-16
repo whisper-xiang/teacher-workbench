@@ -17,6 +17,7 @@ type IconName =
   | 'expand'
   | 'search'
   | 'plus'
+  | 'compose'
   | 'bell'
   | 'pin'
   | 'wind'
@@ -166,6 +167,13 @@ export function NavIcon({ name, size = 22 }: { name: IconName; size?: number }) 
       return (
         <svg {...props}>
           <path d="M12 6v12M6 12h12" />
+        </svg>
+      )
+    case 'compose':
+      return (
+        <svg {...props}>
+          <path d="M5 6.4h14A1.6 1.6 0 0 1 20.6 8v7.2A1.6 1.6 0 0 1 19 16.8H9L5 20V8A1.6 1.6 0 0 1 6.6 6.4Z" />
+          <path d="M12 9.2v4.4M9.8 11.4h4.4" />
         </svg>
       )
     case 'pin':

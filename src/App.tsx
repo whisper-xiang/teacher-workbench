@@ -20,6 +20,7 @@ import { BrandMark } from './components/BrandMark'
 import { DeskPet } from './components/DeskPet'
 import { NotifyHost } from './components/NotifyHost'
 import { ConfirmHost } from './components/ConfirmHost'
+import { RouteErrorBoundary } from './components/RouteErrorBoundary'
 import './components/topbar-tools.css'
 import { useReminderScheduler } from './hooks/useReminderScheduler'
 import { DISABLED_NAV } from './lib/disabled-nav'
@@ -32,6 +33,9 @@ const WorkJournalPanel = lazy(() =>
   import('./pages/WorkJournalPanel').then((module) => ({ default: module.WorkJournalPanel })),
 )
 const PapersPage = lazy(() => import('./pages/PapersPage').then((module) => ({ default: module.PapersPage })))
+const ResearchPage = lazy(() =>
+  import('./pages/ResearchPage').then((module) => ({ default: module.ResearchPage })),
+)
 const StudentsPage = lazy(() => import('./pages/StudentsPage').then((module) => ({ default: module.StudentsPage })))
 const ResourcesPage = lazy(() =>
   import('./pages/ResourcesPage').then((module) => ({ default: module.ResourcesPage })),
@@ -469,6 +473,7 @@ function App() {
           </div>
         </header>
 
+        <RouteErrorBoundary key={activeId}>
         <Suspense fallback={<div className="route-loading" role="status">正在打开…</div>}>
         {activeId === 'overview' && (
           <Dashboard
@@ -491,24 +496,30 @@ function App() {
         {activeId === 'calendar' && (
           <CalendarPage
             events={data.events}
+            dutyRoster={data.dutyRoster}
             reminders={data.reminders}
             settings={data.reminderSettings}
             weekStart={data.meta.weekStart}
             weekNumber={data.meta.weekNumber}
             focusId={routeParam || undefined}
-            onChangeEvents={(events) =>
+            onChangeSchedule={({ events, dutyRoster }) =>
               update((current) => {
-                const previous = new Set(current.events.filter((item) => item.id.startsWith('course-')).map((item) => item.id))
-                const nextIds = new Set(events.filter((item) => item.id.startsWith('course-')).map((item) => item.id))
+                const hideable = (id: string) => id.startsWith('course-') || id.startsWith('duty-')
+                const previous = new Set(current.events.filter((item) => hideable(item.id)).map((item) => item.id))
+                const nextIds = new Set(events.filter((item) => hideable(item.id)).map((item) => item.id))
                 const removed = [...previous].filter((id) => !nextIds.has(id))
                 const hiddenCourseEventIds = [...new Set([...(current.hiddenCourseEventIds ?? []), ...removed])]
-                const next = { ...current, events, hiddenCourseEventIds }
+                const next = {
+                  ...current,
+                  events,
+                  dutyRoster: dutyRoster ?? current.dutyRoster,
+                  hiddenCourseEventIds,
+                }
                 return { ...next, events: syncDerivedEvents(next) }
               })
             }
             onChangeReminders={(reminders) => patch('reminders', reminders)}
             onChangeSettings={(reminderSettings) => patch('reminderSettings', reminderSettings)}
-            onNavigate={(route, param) => selectPage(route, param)}
           />
         )}
         {activeId === 'tasks' && <TaskBoardPage tasks={data.tasks} onChange={(tasks) => patch('tasks', tasks)} />}
@@ -530,6 +541,15 @@ function App() {
             initialId={routeParam || undefined}
             onChangeAdvisees={(thesisAdvisees) => patch('thesisAdvisees', thesisAdvisees)}
             onChangeEvents={(events) => patch('events', events)}
+            onOpenSettings={() => selectPage('settings')}
+          />
+        )}
+        {activeId === 'research' && (
+          <ResearchPage
+            notices={data.researchNotices}
+            projects={data.researchProjects}
+            onChangeNotices={(researchNotices) => patch('researchNotices', researchNotices)}
+            onChangeProjects={(researchProjects) => patch('researchProjects', researchProjects)}
             onOpenSettings={() => selectPage('settings')}
           />
         )}
@@ -580,6 +600,7 @@ function App() {
           />
         )}
         </Suspense>
+        </RouteErrorBoundary>
       </main>
     </div>
   )

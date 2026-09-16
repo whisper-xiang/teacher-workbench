@@ -39,6 +39,119 @@ export type AssistantParse = {
   draft?: AssistantDraft
 }
 
+const RESOURCE_TYPES = ['课件', '教案', '试题', '视频', '文献'] as const
+const TASK_KINDS = ['教学', '学生', '教务', '教研'] as const
+
+function pad(n: number) {
+  return String(n).padStart(2, '0')
+}
+
+function clampInt(value: unknown, min: number, max: number, fallback: number) {
+  const n = typeof value === 'number' ? value : Number(value)
+  if (!Number.isFinite(n)) return fallback
+  return Math.min(max, Math.max(min, Math.round(n)))
+}
+
+export function scheduledAtFromModel(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined
+  const matched = value.trim().match(/^(\d{4}-\d{2}-\d{2})[T ](\d{1,2}):(\d{2})(?::\d{2})?/)
+  if (!matched) return undefined
+  const hour = Number(matched[2])
+  const minute = Number(matched[3])
+  if (hour > 23 || minute > 59) return undefined
+  return `${matched[1]}T${pad(hour)}:${pad(minute)}:00`
+}
+
+export function dueDateFromModel(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined
+  const matched = value.trim().match(/^(\d{4}-\d{2}-\d{2})/)
+  return matched?.[1]
+}
+
+function matchCourse(name: string, existingId: string, courses: Course[]) {
+  if (existingId) {
+    const byId = courses.find((course) => course.id === existingId)
+    if (byId) return byId
+  }
+  const trimmed = name.trim()
+  if (!trimmed) return undefined
+  return courses.find(
+    (course) => trimmed === course.name || trimmed.includes(course.name) || course.name.includes(trimmed),
+  )
+}
+
+export function draftFromModel(value: unknown, input: string, courses: Course[]): AssistantDraft | undefined {
+  if (!value || typeof value !== 'object') return undefined
+  const row = value as Record<string, unknown>
+  const kind = String(row.kind ?? '').trim()
+
+  if (kind === 'reminder') {
+    const title = String(row.title ?? '').trim()
+    const scheduledAt = scheduledAtFromModel(row.scheduledAt)
+    if (!title || !scheduledAt) return undefined
+    return {
+      kind: 'reminder',
+      title,
+      scheduledAt,
+      explanation: String(row.explanation ?? '').trim() || `将在 ${scheduledAt.replace('T', ' ')} 提醒你`,
+      rawInput: input,
+    }
+  }
+
+  if (kind === 'course') {
+    const name = String(row.name ?? '').trim()
+    if (!name) return undefined
+    const existing = matchCourse(name, String(row.existingId ?? '').trim(), courses)
+    return {
+      kind: 'course',
+      name: existing?.name ?? name,
+      day: clampInt(row.day, 0, 4, 0),
+      section: clampInt(row.section, 0, 4, 2),
+      room: String(row.room ?? '').trim() || '待定教室',
+      existingId: existing?.id,
+      mode: existing ? 'add-session' : 'create',
+    }
+  }
+
+  if (kind === 'resource') {
+    const title = String(row.title ?? '').trim()
+    if (!title) return undefined
+    const typeRaw = String(row.type ?? '').trim()
+    const type = RESOURCE_TYPES.includes(typeRaw as (typeof RESOURCE_TYPES)[number])
+      ? (typeRaw as TeachingResource['type'])
+      : '教案'
+    const courseName = String(row.course ?? '').trim()
+    const course = matchCourse(courseName, '', courses)
+    return { kind: 'resource', title, type, course: course?.name ?? courseName }
+  }
+
+  if (kind === 'task') {
+    const title = String(row.title ?? '').trim()
+    if (!title) return undefined
+    const taskKindRaw = String(row.taskKind ?? '').trim()
+    const taskKind = TASK_KINDS.includes(taskKindRaw as (typeof TASK_KINDS)[number])
+      ? (taskKindRaw as BoardTask['kind'])
+      : /学生|作业|论文/.test(title)
+        ? '学生'
+        : /教务|成绩/.test(title)
+          ? '教务'
+          : /教研/.test(title)
+            ? '教研'
+            : '教学'
+    const courseName = String(row.course ?? '').trim()
+    const course = matchCourse(courseName, '', courses)
+    return {
+      kind: 'task',
+      title,
+      course: course ? `${course.name} · ${course.className}` : courseName || '教学工作台',
+      dueDate: dueDateFromModel(row.dueDate) ?? iso(shift(new Date(`${todayIso()}T12:00:00`), 1)),
+      taskKind,
+    }
+  }
+
+  return undefined
+}
+
 const DAY_INDEX: Record<string, number> = { 一: 0, 二: 1, 三: 2, 四: 3, 五: 4 }
 
 function cleanup(text: string, extras: string[] = []) {

@@ -1,19 +1,28 @@
-import type { Assignment, CalendarEvent, Course, WorkbenchData, WorkJournalNote } from './types'
+import type { Assignment, CalendarEvent, Course, DutySlot, WorkbenchData, WorkJournalNote } from './types'
 import { inferDeadlineLink } from '../lib/deadlines'
 import { iso, shift } from '../lib/dates'
+import {
+  DUTY_EVENT_PREFIX,
+  dutyEventId,
+  isWeeklyDutySlot,
+  slotToStartLength,
+  termDutyWeeks,
+} from '../lib/duty'
 
 /**
  * 闭环同步层：让日历事件成为「派生数据」。
  *
  * 约定：id 以 `course-` 开头的日历事件由课程数据托管，
+ *       id 以 `duty-` 开头的日历事件由值班表托管，
  *       id 以 `deadline-` 开头的日历事件由作业数据托管，
  *       id 以 `journal-` 开头的日历事件由随手记托管。
- * 调课：删除某一节课后，id 记入 hiddenCourseEventIds，本学期不再自动生成该节。
+ * 调课 / 某周不去值班：删除后 id 记入 hiddenCourseEventIds，本学期不再自动生成该节。
  */
 
 export const COURSE_EVENT_PREFIX = 'course-'
 export const DEADLINE_EVENT_PREFIX = 'deadline-'
 export const JOURNAL_EVENT_PREFIX = 'journal-'
+export { DUTY_EVENT_PREFIX }
 
 /** 节次 → times 索引：1-2节08:00 / 3-4节10:00 / 5-6节14:00 / 7-8节16:00 / 晚上19:00 */
 const SECTION_TO_START = [0, 2, 6, 8, 9] as const
@@ -69,6 +78,45 @@ export function syncCourseEvents(
   })
 
   return [...managed, ...unique]
+}
+
+/** 由每周值班表生成整学期重复的值班事件 */
+export function syncDutyEvents(
+  events: CalendarEvent[],
+  dutyRoster: DutySlot[],
+  courses: Course[],
+  weekStart: string,
+  weekNumber = 1,
+  hiddenIds: string[] = [],
+): CalendarEvent[] {
+  const managed = events.filter((item) => !item.id.startsWith(DUTY_EVENT_PREFIX))
+  const hidden = new Set(hiddenIds)
+  const previous = new Map(events.filter((item) => item.id.startsWith(DUTY_EVENT_PREFIX)).map((item) => [item.id, item]))
+  const termMonday = termStartMonday(weekStart, weekNumber)
+  const totalWeeks = termDutyWeeks(courses)
+
+  const generated: CalendarEvent[] = []
+  for (const slot of dutyRoster) {
+    if (!isWeeklyDutySlot(slot) || slot.day < 1 || slot.day > 5) continue
+    const { start, length } = slotToStartLength(slot)
+    for (let week = 1; week <= totalWeeks; week++) {
+      const id = dutyEventId(slot.id, week)
+      if (hidden.has(id)) continue
+      const weekMonday = shift(termMonday, (week - 1) * 7)
+      generated.push({
+        id,
+        date: iso(shift(weekMonday, slot.day - 1)),
+        start,
+        length,
+        title: slot.note.trim() || slot.type,
+        detail: slot.location,
+        kind: 'duty',
+        done: previous.get(id)?.done,
+      })
+    }
+  }
+
+  return [...managed, ...generated]
 }
 
 /** 由作业截止时间生成/更新日历中的截止事件（kind: deadline） */
@@ -129,11 +177,22 @@ export function syncJournalEvents(events: CalendarEvent[], notes: WorkJournalNot
 }
 
 export function syncDerivedEvents(
-  data: Pick<WorkbenchData, 'events' | 'courses' | 'assignments' | 'workNotes' | 'hiddenCourseEventIds' | 'meta'>,
+  data: Pick<
+    WorkbenchData,
+    'events' | 'courses' | 'assignments' | 'workNotes' | 'hiddenCourseEventIds' | 'meta' | 'dutyRoster'
+  >,
   now = new Date(),
 ): CalendarEvent[] {
   const hidden = data.hiddenCourseEventIds ?? []
   const withCourses = syncCourseEvents(data.events, data.courses, data.meta.weekStart, data.meta.weekNumber, hidden)
-  const withDeadlines = syncAssignmentDeadlines(withCourses, data.assignments)
+  const withDuty = syncDutyEvents(
+    withCourses,
+    data.dutyRoster ?? [],
+    data.courses,
+    data.meta.weekStart,
+    data.meta.weekNumber,
+    hidden,
+  )
+  const withDeadlines = syncAssignmentDeadlines(withDuty, data.assignments)
   return syncJournalEvents(withDeadlines, data.workNotes ?? [], now)
 }

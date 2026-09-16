@@ -1,7 +1,6 @@
 export type ParsedReminder = {
   title: string
   scheduledAt: string
-  confidence: 'high' | 'medium' | 'low'
   explanation: string
 }
 
@@ -92,51 +91,51 @@ function parseClock(text: string): { hour: number; minute: number; matched: stri
   return null
 }
 
-function parseDatePart(text: string, base: Date): { date: Date; matched: string; confidence: ParsedReminder['confidence'] } | null {
+function parseDatePart(text: string, base: Date): { date: Date; matched: string } | null {
   const relativeMinutes = text.match(/(\d+)\s*分钟(?:之)?后/)
   if (relativeMinutes) {
     const date = new Date(base.getTime() + Number(relativeMinutes[1]) * 60_000)
-    return { date, matched: relativeMinutes[0], confidence: 'high' }
+    return { date, matched: relativeMinutes[0] }
   }
 
   if (/半(?:个)?小时(?:之)?后/.test(text)) {
     const date = new Date(base.getTime() + 30 * 60_000)
-    return { date, matched: '半小时后', confidence: 'high' }
+    return { date, matched: '半小时后' }
   }
 
   const relativeHours = text.match(/(\d+(?:\.\d+)?)\s*小时(?:之)?后/)
   if (relativeHours) {
     const date = new Date(base.getTime() + Number(relativeHours[1]) * 3_600_000)
-    return { date, matched: relativeHours[0], confidence: 'high' }
+    return { date, matched: relativeHours[0] }
   }
 
   if (/大后天/.test(text)) {
-    return { date: addDays(startOfDay(base), 3), matched: '大后天', confidence: 'high' }
+    return { date: addDays(startOfDay(base), 3), matched: '大后天' }
   }
 
   if (/后天/.test(text)) {
-    return { date: addDays(startOfDay(base), 2), matched: '后天', confidence: 'high' }
+    return { date: addDays(startOfDay(base), 2), matched: '后天' }
   }
 
   if (/明[天日]/.test(text)) {
-    return { date: addDays(startOfDay(base), 1), matched: '明天', confidence: 'high' }
+    return { date: addDays(startOfDay(base), 1), matched: '明天' }
   }
 
   if (/今[天日]|今晚/.test(text)) {
-    return { date: startOfDay(base), matched: '今天', confidence: 'high' }
+    return { date: startOfDay(base), matched: '今天' }
   }
 
   const weekday = text.match(/(?:下)?周([一二三四五六日天])/)
   if (weekday) {
     const day = WEEKDAY_CHAR[weekday[1]]
     const date = nextWeekday(base, day, /本周/.test(text))
-    return { date, matched: weekday[0], confidence: 'medium' }
+    return { date, matched: weekday[0] }
   }
 
   const isoDate = text.match(/(\d{4})-(\d{1,2})-(\d{1,2})/)
   if (isoDate) {
     const date = new Date(Number(isoDate[1]), Number(isoDate[2]) - 1, Number(isoDate[3]))
-    return { date, matched: isoDate[0], confidence: 'high' }
+    return { date, matched: isoDate[0] }
   }
 
   const monthDay = text.match(/(\d{1,2})\s*月\s*(\d{1,2})\s*日/)
@@ -145,7 +144,7 @@ function parseDatePart(text: string, base: Date): { date: Date; matched: string;
     if (date.getTime() < startOfDay(base).getTime()) {
       date = new Date(base.getFullYear() + 1, Number(monthDay[1]) - 1, Number(monthDay[2]))
     }
-    return { date, matched: monthDay[0], confidence: 'medium' }
+    return { date, matched: monthDay[0] }
   }
 
   return null
@@ -183,14 +182,12 @@ export function parseReminderNaturalLanguage(input: string, base = new Date()): 
   if (!text) return null
 
   const matched: string[] = []
-  let confidence: ParsedReminder['confidence'] = 'low'
   let target = new Date(base)
 
   const datePart = parseDatePart(text, base)
   if (datePart) {
     target = datePart.date
     matched.push(datePart.matched)
-    confidence = datePart.confidence
   }
 
   const clock = parseClock(text)
@@ -204,20 +201,16 @@ export function parseReminderNaturalLanguage(input: string, base = new Date()): 
           target = addDays(target, 1)
         }
       }
-      confidence = 'medium'
     }
     target.setHours(clock.hour, clock.minute, 0, 0)
     matched.push(clock.matched)
-    if (confidence === 'low') confidence = 'medium'
   } else if (datePart && !/分钟|小时/.test(datePart.matched)) {
     target.setHours(9, 0, 0, 0)
-    confidence = confidence === 'high' ? 'medium' : confidence
   }
 
   if (!datePart && !clock) return null
   if (target.getTime() <= base.getTime() && !/分钟|小时/.test(text)) {
     target = addDays(target, 1)
-    confidence = 'medium'
   }
 
   const title = cleanupTitle(text, matched)
@@ -226,7 +219,6 @@ export function parseReminderNaturalLanguage(input: string, base = new Date()): 
   return {
     title,
     scheduledAt: toLocalIso(target),
-    confidence,
     explanation,
   }
 }

@@ -1,5 +1,6 @@
 import { currentCourseTopic } from '../lib/courses'
 import { addDaysIso, diffDays, dueLabel, thisMondayIso, todayIso } from '../lib/dates'
+import { PET_PRESET_VERSION } from '../lib/pet-kind'
 import { mergePresetTools, PRESET_TOOLS_VERSION } from './default-tools'
 import { createSeedData } from './seed'
 import { ensureCourseClasses } from '../lib/course-classes'
@@ -20,6 +21,7 @@ import type {
   WorkbenchData,
 } from './types'
 import { inferMajorFromText, THESIS_STAGES } from './types'
+import { isWeeklyDutySlot } from '../lib/duty'
 import { syncDerivedEvents } from './sync'
 
 export const STORAGE_KEY = 'teacher-workbench-data-v1'
@@ -66,7 +68,13 @@ export function alignDataToWeekStart(data: WorkbenchData, nextWeekStart: string)
     }
   })
   const events = data.events
-    .filter((item) => !item.id.startsWith('course-') && !item.id.startsWith('deadline-') && !item.id.startsWith('journal-'))
+    .filter(
+      (item) =>
+        !item.id.startsWith('course-') &&
+        !item.id.startsWith('duty-') &&
+        !item.id.startsWith('deadline-') &&
+        !item.id.startsWith('journal-'),
+    )
     .map((item) => ({ ...item, date: shiftIf(item.date) }))
 
   return {
@@ -81,7 +89,7 @@ export function alignDataToWeekStart(data: WorkbenchData, nextWeekStart: string)
       drafts: person.drafts.map((draft) => ({ ...draft, receivedAt: shiftIf(draft.receivedAt) })),
       notes: person.notes.map((note) => ({ ...note, date: shiftIf(note.date) })),
     })),
-    events: syncDerivedEvents({ ...data, events, assignments, meta: { ...data.meta, weekStart: nextWeekStart } }),
+    events: syncDerivedEvents({ ...data, events, assignments, dutyRoster: data.dutyRoster, meta: { ...data.meta, weekStart: nextWeekStart } }),
   }
 }
 
@@ -199,14 +207,22 @@ function mergeWithSeed(partial: Partial<WorkbenchData> | null): WorkbenchData {
     ...seed.meta,
     ...partial.meta,
     presetToolsVersion: Math.max(storedToolsVersion, PRESET_TOOLS_VERSION),
+    petPresetVersion: Math.max(partial.meta?.petPresetVersion ?? 0, PET_PRESET_VERSION),
   }
 
-  // 日历中的课程/截止事件是派生数据：先清掉历史手写课程事件，再按课程与作业重建
+  // 日历中的课程/值班/截止是派生数据：先清掉托管事件，再按课程、值班表与作业重建
+  const dutyRoster = (() => {
+    const roster = partial.dutyRoster?.length ? partial.dutyRoster : seed.dutyRoster
+    const weekly = roster.filter(isWeeklyDutySlot)
+    return weekly.length ? weekly : seed.dutyRoster
+  })()
   const baseEvents = (partial.events ?? seed.events)
     .map(normalizeEvent)
     .filter(
       (item) =>
+        item.id !== 'duty' &&
         !item.id.startsWith('course-') &&
+        !item.id.startsWith('duty-') &&
         !item.id.startsWith('deadline-') &&
         !item.id.startsWith('journal-') &&
         item.kind !== 'course' &&
@@ -217,6 +233,7 @@ function mergeWithSeed(partial: Partial<WorkbenchData> | null): WorkbenchData {
     events: baseEvents,
     courses,
     assignments,
+    dutyRoster,
     workNotes: partial.workNotes ?? seed.workNotes,
     hiddenCourseEventIds: partial.hiddenCourseEventIds ?? seed.hiddenCourseEventIds,
     meta,
@@ -224,16 +241,24 @@ function mergeWithSeed(partial: Partial<WorkbenchData> | null): WorkbenchData {
   const { news, newsBookmarks, newsRead } = normalizeNews(partial)
 
   const storedProfile = partial.profile
+  const storedPetVersion = partial.meta?.petPresetVersion ?? 0
+  const applyPhotoDefault = storedPetVersion < PET_PRESET_VERSION
+  const migratedPetKind =
+    applyPhotoDefault && (!storedProfile?.petKind || storedProfile.petKind === 'ning' || storedProfile.petKind === 'live2d-cat')
+      ? 'photo'
+      : storedProfile?.petKind === 'ning'
+        ? 'live2d-cat'
+        : (storedProfile?.petKind ?? 'photo')
   const isLegacyDemoProfile = storedProfile?.name === LEGACY_DEMO_TEACHER_NAME
   const profile = isLegacyDemoProfile
     ? {
         ...seed.profile,
         petAvatarId: storedProfile.petAvatarId,
-        petKind: storedProfile.petKind,
+        petKind: migratedPetKind,
         atmosphereId: storedProfile.atmosphereId,
         atmosphereFileId: storedProfile.atmosphereFileId,
       }
-    : { ...seed.profile, ...storedProfile }
+    : { ...seed.profile, ...storedProfile, petKind: migratedPetKind }
 
   const merged: WorkbenchData = {
     ...seed,
@@ -242,7 +267,7 @@ function mergeWithSeed(partial: Partial<WorkbenchData> | null): WorkbenchData {
     profile,
     meta,
     events,
-    dutyRoster: partial.dutyRoster?.length ? partial.dutyRoster : seed.dutyRoster,
+    dutyRoster,
     courses,
     students,
     assignments,
@@ -285,6 +310,7 @@ export function loadWorkbenchData(): WorkbenchData {
       const data = mergeWithSeed(parsed)
       if (
         (parsed.meta?.presetToolsVersion ?? 0) < PRESET_TOOLS_VERSION ||
+        (parsed.meta?.petPresetVersion ?? 0) < PET_PRESET_VERSION ||
         parsed.profile?.name === LEGACY_DEMO_TEACHER_NAME
       ) {
         saveWorkbenchData(data)

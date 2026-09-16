@@ -188,9 +188,46 @@
   user-select: none;
 }
 
+.desk-pet-stage.kind-photo {
+  width: 118px;
+  align-items: flex-end;
+}
+
+.desk-pet-stage.kind-photo .desk-pet-avatar {
+  width: 118px;
+  animation: pet-idle-bob 2.6s ease-in-out infinite;
+}
+
+.desk-pet-stage.kind-photo .desk-pet-avatar.is-shaking {
+  animation: pet-click-shake 0.48s ease;
+}
+
+.desk-pet-stage.kind-photo .desk-pet-photo {
+  width: 118px;
+  max-height: 176px;
+}
+
+.desk-pet-stage.kind-photo .desk-pet-bubble {
+  border-radius: 14px 14px 6px 14px;
+}
+
 .desk-pet-dock .desk-pet-photo {
   width: 40px;
   max-height: 50px;
+}
+
+.desk-pet-dock.kind-photo {
+  width: 52px;
+}
+
+.desk-pet-dock.kind-photo .desk-pet-photo {
+  width: 52px;
+  max-height: 78px;
+}
+
+@keyframes pet-idle-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
 }
 
 @keyframes pet-click-shake {
@@ -242,6 +279,19 @@
   .desk-pet-avatar {
     width: 48px;
   }
+
+  .desk-pet-stage.kind-photo {
+    width: 84px;
+  }
+
+  .desk-pet-stage.kind-photo .desk-pet-avatar {
+    width: 84px;
+  }
+
+  .desk-pet-stage.kind-photo .desk-pet-photo {
+    width: 84px;
+    max-height: 128px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -249,6 +299,7 @@
   .desk-pet-dock,
   .mood-walk .desk-pet-avatar,
   .mood-celebrate .desk-pet-avatar,
+  .desk-pet-stage.kind-photo .desk-pet-avatar,
   .desk-chibi-body.is-walking .desk-chibi-leg-l,
   .desk-chibi-body.is-walking .desk-chibi-leg-r,
   .desk-pet-sparkles i {

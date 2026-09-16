@@ -5,7 +5,7 @@ import { thisMondayIso, termWeekOf } from '../lib/dates'
 import { notify } from '../lib/notify'
 import { confirm } from '../lib/confirm'
 import { deleteResourceFile, getResourceFile, putResourceFile } from '../lib/resource-files'
-import { generateQPetSprite, PET_AVATAR_FILE_ID, saveGeneratedPet } from '../lib/q-pet'
+import { DEFAULT_Q_PET_SRC, generateQPetSprite, PET_AVATAR_FILE_ID, saveGeneratedPet } from '../lib/q-pet'
 import { PET_PRESETS, resolvePetKind } from '../lib/pet-kind'
 import { PetMascot } from '../components/PetMascots'
 import {
@@ -66,7 +66,7 @@ export function SettingsPage({ profile, meta, updatedAt, onSaveProfile, onExport
   const fileRef = useRef<HTMLInputElement>(null)
   const petInputRef = useRef<HTMLInputElement>(null)
   const atmosphereInputRef = useRef<HTMLInputElement>(null)
-  const [qPreview, setQPreview] = useState<string | null>(null)
+  const [qPreview, setQPreview] = useState<string | null>(DEFAULT_Q_PET_SRC)
   const [atmospherePreview, setAtmospherePreview] = useState<string | null>(null)
   const [petBusy, setPetBusy] = useState(false)
   const [llm, setLlm] = useState(loadLlmSettings)
@@ -79,7 +79,7 @@ export function SettingsPage({ profile, meta, updatedAt, onSaveProfile, onExport
   useEffect(() => {
     let url: string | null = null
     if (!profile.petAvatarId) {
-      setQPreview(null)
+      setQPreview(DEFAULT_Q_PET_SRC)
       return undefined
     }
     void getResourceFile(profile.petAvatarId).then((stored) => {
@@ -259,8 +259,15 @@ export function SettingsPage({ profile, meta, updatedAt, onSaveProfile, onExport
           <p className="settings-help">今天是第 {metaForm.weekNumber} 周。之后按真实日期自动往后计，不用每周来改。</p>
         </section>
 
+        <section className="settings-block" aria-labelledby="settings-assistant">
+          <h2 id="settings-assistant">AI 助手</h2>
+          <p className="settings-help">
+            侧栏助手使用豆包 Mini，与下方论文分析接口分开。确认后才写入本机提醒、课程、资源和任务。
+          </p>
+        </section>
+
         <section className="settings-block" aria-labelledby="settings-llm">
-          <h2 id="settings-llm">论文分析</h2>
+          <h2 id="settings-llm">智能文本处理</h2>
           <div className="settings-grid">
             <label className="settings-span">
               接口地址
@@ -296,14 +303,14 @@ export function SettingsPage({ profile, meta, updatedAt, onSaveProfile, onExport
           </div>
           <p className="settings-help">
             {hasLlmSettings(llm)
-              ? '点「分析这一版」时，当前稿正文会发往这个接口。密钥不进 JSON 备份。'
-              : '填齐三项后，论文指导才能调用模型。密钥不进 JSON 备份。'}
+              ? '论文分析或科研材料优化时，当前正文会发往这个接口。密钥不进 JSON 备份。'
+              : '填齐三项后，论文分析和科研材料优化才能调用模型。密钥不进 JSON 备份。'}
           </p>
         </section>
 
         <section className="settings-block" aria-labelledby="settings-pet">
           <h2 id="settings-pet">桌宠</h2>
-          <p className="settings-help">点一下就换。照片在本机生成 Q 版，不会上传。</p>
+          <p className="settings-help">点一下就换。默认 Q 版守在右下角；也可以再传照片，在本机生成。</p>
           <div className="pet-preset-grid">
             {PET_PRESETS.map((preset) => {
               const selected = selectedKind === preset.id
@@ -315,34 +322,45 @@ export function SettingsPage({ profile, meta, updatedAt, onSaveProfile, onExport
                   aria-pressed={selected}
                   onClick={() => applyPet({ ...form, petKind: preset.id }, `桌宠已换成${preset.label}`)}
                 >
-                  <PetMascot kind={preset.id} className="pet-preset-svg" />
+                  {preset.id === 'live2d-cat' || preset.id === 'live2d-white-cat' ? (
+                    <span
+                      className={`pet-live2d-preview ${preset.id === 'live2d-white-cat' ? 'is-white' : 'is-black'}`}
+                      aria-hidden="true"
+                    >
+                      猫
+                    </span>
+                  ) : (
+                    <PetMascot kind={preset.id} className="pet-preset-svg" />
+                  )}
                   <b>{preset.label}</b>
                 </button>
               )
             })}
             <button
               type="button"
-              className={`pet-preset-card pet-preset-photo${selectedKind === 'photo' ? ' is-on' : ''}${qPreview ? '' : ' is-empty'}`}
+              className={`pet-preset-card pet-preset-photo${selectedKind === 'photo' ? ' is-on' : ''}`}
               aria-pressed={selectedKind === 'photo'}
               disabled={petBusy}
               onClick={() => {
                 if (petBusy) return
-                if (qPreview) {
-                  applyPet({ ...form, petKind: 'photo', petAvatarId: PET_AVATAR_FILE_ID }, '桌宠已换成我的Q版')
-                  return
-                }
-                petInputRef.current?.click()
+                applyPet(
+                  { ...form, petKind: 'photo', petAvatarId: form.petAvatarId },
+                  '桌宠已换成我的Q版',
+                )
               }}
             >
-              {qPreview ? <img src={qPreview} alt="" /> : null}
+              <img src={qPreview ?? DEFAULT_Q_PET_SRC} alt="" />
               <b>{petBusy ? '生成中' : '我的Q版'}</b>
             </button>
           </div>
+          <p className="settings-model-credit">
+            Live2D 黑猫 Hijiki 与白猫 Tororo © Live2D Inc.，按官方样例条款使用。
+          </p>
           <div className="settings-text-row">
             <button type="button" className="text-action" disabled={petBusy} onClick={() => petInputRef.current?.click()}>
-              {qPreview ? '换一张照片' : '用照片生成'}
+              {form.petAvatarId ? '换一张照片' : '用照片生成'}
             </button>
-            {qPreview ? (
+            {form.petAvatarId ? (
               <button
                 type="button"
                 className="text-action"
@@ -350,9 +368,9 @@ export function SettingsPage({ profile, meta, updatedAt, onSaveProfile, onExport
                   await deleteResourceFile(PET_AVATAR_FILE_ID).catch(() => undefined)
                   setQPreview((current) => {
                     if (current?.startsWith('blob:')) URL.revokeObjectURL(current)
-                    return null
+                    return DEFAULT_Q_PET_SRC
                   })
-                  applyPet({ ...form, petAvatarId: undefined, petKind: 'ning' }, '已恢复默认桌宠小宁')
+                  applyPet({ ...form, petAvatarId: undefined, petKind: 'photo' }, '已换回默认Q版')
                 }}
               >
                 清除照片

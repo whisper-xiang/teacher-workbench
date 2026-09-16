@@ -1,6 +1,7 @@
-import { defineConfig, type Plugin } from 'vite'
+import { defineConfig, loadEnv, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import { fileURLToPath, URL } from 'node:url'
+import { arkProxyPlugin } from './vite-ark-proxy.js'
 import { attachRssProxy } from './vite-rss-proxy.js'
 
 function rssProxyPlugin(): Plugin {
@@ -16,11 +17,14 @@ function rssProxyPlugin(): Plugin {
 }
 
 // https://vite.dev/config/
-export default defineConfig({
-  plugins: [react(), rssProxyPlugin()],
-  resolve: {
-    alias: {
-      '@fluentui/react-icons': fileURLToPath(new URL('./src/fluent-icons.tsx', import.meta.url)),
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '')
+  return {
+    plugins: [react(), rssProxyPlugin(), arkProxyPlugin(env)],
+    resolve: {
+      alias: {
+        '@fluentui/react-icons': fileURLToPath(new URL('./src/fluent-icons.tsx', import.meta.url)),
+      },
     },
-  },
+  }
 })

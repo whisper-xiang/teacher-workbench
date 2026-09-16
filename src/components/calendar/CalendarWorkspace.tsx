@@ -43,9 +43,7 @@ function itemSubline(item: CalendarEvent) {
 }
 
 function itemActionLabel(item: CalendarEvent) {
-  if (item.kind === 'course') return '查看课程'
-  if (item.kind === 'deadline') return '前往处理'
-  if (item.kind === 'journal') return '打开随手记'
+  if (item.kind === 'course' || item.kind === 'journal' || item.kind === 'deadline') return '查看安排'
   return '编辑安排'
 }
 

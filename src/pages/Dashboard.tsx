@@ -1,9 +1,7 @@
 import { useMemo } from 'react'
 import '../dashboard.css'
 import '../overview-overrides.css'
-import type { BoardTask, CalendarEvent, Course, DeadlineLink, WorkbenchMeta } from '../data/types'
-import { DISABLED_NAV } from '../lib/disabled-nav'
-import { deadlineLinkLabel, inferDeadlineLink } from '../lib/deadlines'
+import type { BoardTask, CalendarEvent, Course, WorkbenchMeta } from '../data/types'
 import { currentCourseTopic, matchCourseFromEvent } from '../lib/courses'
 import { formatDayLabel, termWeekOf, times, todayIso, weekdayLabel } from '../lib/dates'
 
@@ -35,8 +33,6 @@ type TodayItem = {
   start: number
   done: boolean
   detail?: string
-  link?: DeadlineLink
-  actionLabel?: string
 }
 
 function hourLabel(item: CalendarEvent) {
@@ -48,8 +44,6 @@ function buildTodayWork(events: CalendarEvent[], tasks: BoardTask[], courses: Co
     .filter((item) => item.date === today && item.kind !== 'journal')
     .map((item) => {
       const course = matchCourseFromEvent(item, courses)
-      const deadlineLink = item.kind === 'deadline' ? item.linkTo ?? inferDeadlineLink(item) : undefined
-      const link = deadlineLink && !DISABLED_NAV.has(deadlineLink.route) ? deadlineLink : undefined
       const topic = course ? currentCourseTopic(course) : ''
       return {
         id: item.id,
@@ -60,8 +54,6 @@ function buildTodayWork(events: CalendarEvent[], tasks: BoardTask[], courses: Co
         start: item.kind === 'deadline' ? 0 : item.start,
         done: Boolean(item.done),
         detail: topic || item.detail || undefined,
-        link,
-        actionLabel: link ? deadlineLinkLabel(link) : undefined,
       }
     })
   const titles = new Set(fromEvents.map((item) => item.title.trim()))
@@ -138,7 +130,6 @@ export function Dashboard({
               </div>
               <ul className="dash-today" aria-label="今日全部事项">
                 {todayWork.map((item) => {
-                  const link = item.link
                   const key = `${item.source}-${item.id}`
                   const className = item.done ? 'dash-item is-done' : 'dash-item'
                   return (
@@ -149,15 +140,6 @@ export function Dashboard({
                         <strong>{item.title}</strong>
                         {item.detail && <span>{item.detail}</span>}
                       </div>
-                      {link && (
-                        <button
-                          type="button"
-                          className="dash-text-link"
-                          onClick={() => onNavigate(link.route, link.param)}
-                        >
-                          {item.actionLabel}
-                        </button>
-                      )}
                       <label className="dash-item-check">
                         <input
                           type="checkbox"

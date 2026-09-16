@@ -12,9 +12,12 @@ type Props = {
   materials: WorkMaterial[]
   kinds: string[]
   onChange: (materials: WorkMaterial[]) => void
+  smartOptimize?: boolean
+  readOnly?: boolean
+  onOpenSettings?: () => void
 }
 
-export function WorkMaterialsPanel({ materials, kinds, onChange }: Props) {
+export function WorkMaterialsPanel({ materials, kinds, onChange, smartOptimize, readOnly, onOpenSettings }: Props) {
   const [title, setTitle] = useState('')
   const [kind, setKind] = useState(kinds[0] ?? '其他')
   const [pending, setPending] = useState<File | null>(null)
@@ -99,7 +102,7 @@ export function WorkMaterialsPanel({ materials, kinds, onChange }: Props) {
 
   return (
     <div className="work-materials">
-      <form className="work-materials-form is-intake" onSubmit={(event) => void add(event)}>
+      {!readOnly && <><form className="work-materials-form is-intake" onSubmit={(event) => void add(event)}>
         <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="资料名称，可手填" />
         <select value={kind} onChange={(event) => setKind(event.target.value)}>
           {kinds.map((item) => (
@@ -113,6 +116,7 @@ export function WorkMaterialsPanel({ materials, kinds, onChange }: Props) {
         </button>
       </form>
       <FileIntake file={pending} onFile={(file) => void takeFile(file)} busy={busy} />
+      </>}
       <ul className="work-materials-list">
         {materials.map((item) => (
           <li key={item.id} className={editingId === item.id ? 'is-editing' : ''}>
@@ -137,9 +141,9 @@ export function WorkMaterialsPanel({ materials, kinds, onChange }: Props) {
                 className="text-action"
                 onClick={() => setEditingId((current) => (current === item.id ? '' : item.id))}
               >
-                {editingId === item.id ? '收起' : '处理'}
+                {editingId === item.id ? '收起' : readOnly ? '查看' : '编辑'}
               </button>
-              <button
+              {!readOnly && <button
                 type="button"
                 className="text-action"
                 onClick={() =>
@@ -147,26 +151,25 @@ export function WorkMaterialsPanel({ materials, kinds, onChange }: Props) {
                 }
               >
                 {item.processedAt ? '取消已处理' : '标记已处理'}
-              </button>
-              <button type="button" className="text-action" onClick={() => void remove(item)}>
+              </button>}
+              {!readOnly && <button type="button" className="text-action" onClick={() => void remove(item)}>
                 删除
-              </button>
+              </button>}
             </div>
             {editingId === item.id && (
               <div className="work-materials-process">
-                {item.fileId ? (
-                  <StoredFileEditor
-                    fileId={item.fileId}
-                    fileName={item.fileName}
-                    mimeType={item.mimeType}
-                    title={item.title}
-                    note={item.note}
-                    extractedText={item.extractedText}
-                    onMeta={(next) => patch(item.id, next)}
-                  />
-                ) : (
-                  <p className="work-materials-hint">这条还没有文件。可在上方上传后添加，或只保留文字记录。</p>
-                )}
+                <StoredFileEditor
+                  fileId={item.fileId}
+                  fileName={item.fileName}
+                  mimeType={item.mimeType}
+                  title={item.title}
+                  note={item.note}
+                  extractedText={item.extractedText}
+                  smartOptimize={smartOptimize}
+                  readOnly={readOnly}
+                  onOpenSettings={onOpenSettings}
+                  onMeta={(next) => patch(item.id, next)}
+                />
               </div>
             )}
           </li>

@@ -1,4 +1,5 @@
 import { dueLabel, iso, mondayOf, shift, todayIso } from '../lib/dates'
+import { PET_PRESET_VERSION } from '../lib/pet-kind'
 import { DEFAULT_FAVORITE_TOOL_IDS, DEFAULT_TOOLS, PRESET_TOOLS_VERSION } from './default-tools'
 import type { Course, ReminderItem, ThesisAdvisee, WorkbenchData } from './types'
 import { syncDerivedEvents } from './sync'
@@ -55,8 +56,8 @@ function buildSeedReminders(): ReminderItem[] {
 }
 
 /**
- * 种子数据只保存「非派生」事件（值班/会议/巡视/独立截止），
- * 课程事件与作业截止事件由 sync 层按课程/作业自动生成，保证单一数据源。
+ * 种子数据只保存「非派生」事件（会议/巡视/独立截止），
+ * 课程、每周值班与作业截止由 sync 层按课程 / 值班表 / 作业自动生成，保证单一数据源。
  * 日期相对本周一生成，避免概览停在过期演示周。
  */
 function buildRawSeed(weekStart: string, today: string): WorkbenchData {
@@ -74,6 +75,7 @@ function buildRawSeed(weekStart: string, today: string): WorkbenchData {
       title: '讲师',
       college: '教育学院',
       greetingName: '王晓媛老师',
+      petKind: 'photo',
     },
     meta: {
       termLabel: '2024–2025 学年第二学期',
@@ -81,29 +83,21 @@ function buildRawSeed(weekStart: string, today: string): WorkbenchData {
       weekStart,
       demoBanner: true,
       presetToolsVersion: PRESET_TOOLS_VERSION,
+      petPresetVersion: PET_PRESET_VERSION,
     },
     events: [
-      { id: 'duty', date: d(1), start: 5, length: 2, title: '午间值班', detail: '教育楼一层大厅', kind: 'duty' },
       { id: 'group', date: d(1), start: 7, length: 2, title: '课程组教研会', detail: '教育楼 408', kind: 'meeting' },
       { id: 'patrol', date: d(3), start: 6, length: 2, title: '实习巡视', detail: '附属小学', kind: 'patrol', major: 'pri' },
       { id: 'research', date: d(4), start: 7, length: 2, title: '科研材料整理', detail: '办公室', kind: 'meeting' },
       { id: 'meeting', date: d(5), start: 4, length: 2, title: '学院教学例会', detail: '行政楼 312', kind: 'meeting' },
-      { id: 'deadline-grade', date: d(5), start: 0, length: 1, title: '期中成绩录入截止', detail: '教务系统提交', kind: 'deadline', linkTo: { route: 'students', param: 'psy' } },
-      { id: 'deadline-paper', date: d(4), start: 0, length: 1, title: '课程方案设计截止', detail: '教育学课程组', kind: 'deadline', major: 'edu', linkTo: { route: 'courses' } },
-      { id: 'deadline-visit', date: d(3), start: 0, length: 1, title: '实习巡视材料提交', detail: '附属小学中期检查', kind: 'deadline', major: 'pri', linkTo: { route: 'resources' } },
+      { id: 'due-grade', date: d(5), start: 0, length: 1, title: '期中成绩录入截止', detail: '教务系统提交', kind: 'deadline', linkTo: { route: 'students', param: 'psy' } },
+      { id: 'due-paper', date: d(4), start: 0, length: 1, title: '课程方案设计截止', detail: '教育学课程组', kind: 'deadline', major: 'edu', linkTo: { route: 'courses' } },
+      { id: 'due-visit', date: d(3), start: 0, length: 1, title: '实习巡视材料提交', detail: '附属小学中期检查', kind: 'deadline', major: 'pri', linkTo: { route: 'resources' } },
       { id: 'paper-th-limin', date: d(4), start: 0, length: 1, title: '看李敏论文', detail: '小学课堂提问促进深度学习的实践研究', kind: 'deadline', linkTo: { route: 'papers', param: 'th-limin' } },
     ],
     dutyRoster: [
       { id: 'd1', day: 1, period: '上午', time: '08:00-12:00', type: '办公室值班', location: '教育学院 312', note: '学生答疑、教务接待' },
-      { id: 'd2', day: 1, period: '下午', time: '14:00-15:40', type: '上课', location: '文科楼 205', note: '教育心理学' },
-      { id: 'd3', day: 2, period: '上午', time: '08:00-09:40', type: '上课', location: '艺术楼 201', note: '学前教育学' },
-      { id: 'd4', day: 2, period: '下午', time: '12:20-13:20', type: '办公室值班', location: '教育楼一层大厅', note: '午间值班' },
-      { id: 'd5', day: 2, period: '晚上', time: '19:00-20:40', type: '上课', location: '教育楼 210', note: '教育研究方法（补课）' },
-      { id: 'd6', day: 3, period: '上午', time: '08:00-09:40', type: '上课', location: '文科楼 102', note: '班级管理学' },
-      { id: 'd7', day: 3, period: '下午', time: '14:00-16:00', type: '教学楼巡查', location: '教育楼 1-3 层', note: '课堂巡查 · 第 9 周' },
-      { id: 'd8', day: 4, period: '上午', time: '08:00-12:00', type: '实习巡视', location: '附属小学', note: '小教实习中期检查' },
-      { id: 'd9', day: 4, period: '下午', time: '14:00-15:40', type: '上课', location: '教育楼 307', note: '教育研究方法' },
-      { id: 'd10', day: 5, period: '上午', time: '08:00-09:40', type: '上课', location: '艺术楼 308', note: '幼儿园课程（观摩）' },
+      { id: 'd4', day: 2, period: '下午', time: '12:00-13:00', type: '办公室值班', location: '教育楼一层大厅', note: '午间值班' },
       { id: 'd11', day: 5, period: '下午', time: '14:00-17:00', type: '办公室值班', location: '教育学院 312', note: '学生答疑、教研准备' },
     ],
     courses: [

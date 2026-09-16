@@ -3,7 +3,7 @@ import type { PetKind } from '../data/types'
 type Mood = 'idle' | 'walk' | 'talk' | 'celebrate'
 
 type Props = {
-  kind: Exclude<PetKind, 'photo'>
+  kind: Exclude<PetKind, 'photo' | 'live2d-cat' | 'live2d-white-cat'>
   mood?: Mood
   facing?: 1 | -1
   className?: string

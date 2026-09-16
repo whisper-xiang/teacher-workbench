@@ -253,7 +253,7 @@ export type GradeItem = {
   total: number
 }
 
-export type PetKind = 'ning' | 'hamster' | 'puppy' | 'kitty' | 'bunny' | 'chick' | 'fox' | 'photo'
+export type PetKind = 'live2d-cat' | 'live2d-white-cat' | 'ning' | 'hamster' | 'puppy' | 'kitty' | 'bunny' | 'chick' | 'fox' | 'photo'
 
 export type AtmosphereId = 'dusk' | 'grove' | 'rain' | 'photo'
 
@@ -280,6 +280,8 @@ export type WorkbenchMeta = {
   newsFetchedAt?: string
   /** 预置工具版本；低于当前版本时按 id 补齐新入口，不覆盖用户已有项 */
   presetToolsVersion?: number
+  /** 桌宠默认形象版本；低于当前版本时把旧默认黑猫换成预置 Q 版 */
+  petPresetVersion?: number
 }
 
 export type WorkMaterial = {

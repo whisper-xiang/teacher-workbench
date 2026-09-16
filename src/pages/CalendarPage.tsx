@@ -3,19 +3,24 @@ import '../calendar.css'
 import { CalendarWorkspace } from '../components/calendar/CalendarWorkspace'
 import { CALENDAR_KIND_LABELS, isAllDayCalendarKind } from '../components/calendar/calendar-model'
 import { uid } from '../data/store'
+import { DEADLINE_EVENT_PREFIX } from '../data/sync'
 import type {
   CalendarEvent,
   CalendarKind,
-  DeadlineLink,
+  DutySlot,
   ReminderItem,
   ReminderSettings,
-  RouteId,
 } from '../data/types'
 import { confirm } from '../lib/confirm'
-import { DISABLED_NAV } from '../lib/disabled-nav'
 import { inferDeadlineLink } from '../lib/deadlines'
 import { iso, mondayOf, monthWeekLabel, shift, termWeekOf, times } from '../lib/dates'
+import {
+  dutySlotFromEvent,
+  isDutyEventId,
+  parseDutyEventId,
+} from '../lib/duty'
 import { notify } from '../lib/notify'
+import { PAPER_EVENT_PREFIX } from '../lib/thesis-events'
 import {
   defaultReminderDatetime,
   fromDatetimeLocalInput,
@@ -56,30 +61,46 @@ function reminderSortMinutes(item: ReminderItem) {
 }
 
 
+function isProjectedEvent(item: CalendarEvent) {
+  return (
+    item.kind === 'course' ||
+    item.kind === 'journal' ||
+    item.id.startsWith(DEADLINE_EVENT_PREFIX) ||
+    item.id.startsWith(PAPER_EVENT_PREFIX)
+  )
+}
+
+function peekHint(item: CalendarEvent) {
+  if (item.kind === 'course') return item.detail || '这节课由教学课表同步到日程，可在本页勾选或本节省课。'
+  if (item.kind === 'journal') return item.detail || '来自随手记，可在本页勾选完成。'
+  if (item.kind === 'deadline') return item.detail || '截止日期提醒，可在本页勾选完成。'
+  return item.detail || '这项安排已同步到日程。'
+}
+
 type Props = {
   events: CalendarEvent[]
+  dutyRoster: DutySlot[]
   reminders: ReminderItem[]
   settings: ReminderSettings
   weekStart: string
   weekNumber: number
   focusId?: string
-  onChangeEvents: (events: CalendarEvent[]) => void
+  onChangeSchedule: (next: { events: CalendarEvent[]; dutyRoster?: DutySlot[] }) => void
   onChangeReminders: (items: ReminderItem[]) => void
   onChangeSettings: (settings: ReminderSettings) => void
-  onNavigate?: (route: RouteId, param?: string) => void
 }
 
 export function CalendarPage({
   events,
+  dutyRoster,
   reminders,
   settings,
   weekStart,
   weekNumber,
   focusId,
-  onChangeEvents,
+  onChangeSchedule,
   onChangeReminders,
   onChangeSettings,
-  onNavigate,
 }: Props) {
   const today = new Date()
   const todayStr = iso(today)
@@ -87,6 +108,7 @@ export function CalendarPage({
   const [cursor, setCursor] = useState(today)
   const [selectedDay, setSelectedDay] = useState(todayStr)
   const [editor, setEditor] = useState<CalendarEvent | null>(null)
+  const [weeklyRepeat, setWeeklyRepeat] = useState(false)
   const [peek, setPeek] = useState<CalendarEvent | null>(null)
   const [reminderEditor, setReminderEditor] = useState<ReminderDraft | null>(null)
   const [aiInput, setAiInput] = useState('')
@@ -292,6 +314,56 @@ export function CalendarPage({
   const save = (event: React.FormEvent) => {
     event.preventDefault()
     if (!editor?.title.trim()) return
+
+    if (editor.kind === 'duty' && weeklyRepeat) {
+      const slotId = parseDutyEventId(editor.id)?.slotId || uid('slot')
+      const slot = dutySlotFromEvent(
+        {
+          ...editor,
+          title: editor.title.trim(),
+          detail: editor.detail.trim(),
+          length: Math.max(1, editor.length || 1),
+        },
+        slotId,
+      )
+      if (!slot) {
+        notify.warning('每周值班请选周一到周五')
+        return
+      }
+      const roster = dutyRoster.some((item) => item.id === slot.id)
+        ? dutyRoster.map((item) => (item.id === slot.id ? slot : item))
+        : [...dutyRoster, slot]
+      const leftoverId = editor.id && !isDutyEventId(editor.id) ? editor.id : ''
+      onChangeSchedule({
+        events: leftoverId ? events.filter((item) => item.id !== leftoverId) : events,
+        dutyRoster: roster,
+      })
+      setSelectedDay(editor.date)
+      notify.success(`已保存每周值班：${slot.note || slot.type}`)
+      setEditor(null)
+      return
+    }
+
+    if (editor.kind === 'duty' && isDutyEventId(editor.id) && !weeklyRepeat) {
+      const parsed = parseDutyEventId(editor.id)
+      const oneOff: CalendarEvent = {
+        ...editor,
+        id: uid('event'),
+        title: editor.title.trim(),
+        detail: editor.detail.trim() || '个人安排',
+        length: Math.max(1, editor.length || 1),
+        done: Boolean(editor.done),
+      }
+      onChangeSchedule({
+        events: [...events.filter((item) => item.id !== editor.id), oneOff],
+        dutyRoster: parsed ? dutyRoster.filter((item) => item.id !== parsed.slotId) : dutyRoster,
+      })
+      setSelectedDay(oneOff.date)
+      notify.success(`已改为仅这一天：${oneOff.title}`)
+      setEditor(null)
+      return
+    }
+
     const base: CalendarEvent = {
       ...editor,
       id: editor.id || uid('event'),
@@ -305,7 +377,9 @@ export function CalendarPage({
       linkTo: editor.kind === 'deadline' ? editor.linkTo ?? inferDeadlineLink(base) : editor.linkTo,
       done: Boolean(editor.done),
     }
-    onChangeEvents(editor.id ? events.map((item) => (item.id === editor.id ? next : item)) : [...events, next])
+    onChangeSchedule({
+      events: editor.id ? events.map((item) => (item.id === editor.id ? next : item)) : [...events, next],
+    })
     setSelectedDay(next.date)
     notify.success(`已保存：${next.title}`)
     setEditor(null)
@@ -313,22 +387,52 @@ export function CalendarPage({
 
   const remove = () => {
     if (!editor?.id) return
-    onChangeEvents(events.filter((item) => item.id !== editor.id))
+    if (isDutyEventId(editor.id)) {
+      onChangeSchedule({ events: events.filter((item) => item.id !== editor.id) })
+      notify.warning(`本周不去：${editor.title}`)
+      setEditor(null)
+      return
+    }
+    onChangeSchedule({ events: events.filter((item) => item.id !== editor.id) })
     notify.warning(`已删除：${editor.title}`, '已删除')
     setEditor(null)
   }
 
-  const newEvent = (date = selectedDay || iso(cursor), kind: CalendarKind = 'meeting') =>
+  const dropDutySeries = async () => {
+    if (!editor) return
+    const parsed = parseDutyEventId(editor.id)
+    if (!parsed) return
+    try {
+      await confirm({
+        title: '取消每周值班',
+        message: `本学期不再自动出现「${editor.title}」。`,
+        confirmButtonText: '取消每周',
+        confirmButtonClass: 'danger',
+      })
+    } catch {
+      return
+    }
+    onChangeSchedule({
+      events,
+      dutyRoster: dutyRoster.filter((item) => item.id !== parsed.slotId),
+    })
+    notify.warning(`已取消每周值班：${editor.title}`)
+    setEditor(null)
+  }
+
+  const newEvent = (date = selectedDay || iso(cursor), kind: CalendarKind = 'meeting') => {
+    setWeeklyRepeat(kind === 'duty')
     setEditor({
       id: '',
       date,
       start: kind === 'deadline' ? 0 : 6,
-      length: 1,
       title: '',
       detail: '',
       kind,
       major: null,
+      length: 1,
     })
+  }
 
   const closeReminderEditor = () => {
     setReminderEditor(null)
@@ -465,15 +569,10 @@ export function CalendarPage({
   }
 
   const toggleEventDone = (item: CalendarEvent) => {
-    onChangeEvents(events.map((event) => (event.id === item.id ? { ...event, done: !event.done } : event)))
+    onChangeSchedule({
+      events: events.map((event) => (event.id === item.id ? { ...event, done: !event.done } : event)),
+    })
     notify.success(item.done ? `已恢复「${item.title}」` : `已完成「${item.title}」`)
-  }
-
-  const openDeadlineLink = (item: CalendarEvent) => {
-    const link = item.linkTo ?? inferDeadlineLink(item)
-    if (!link || DISABLED_NAV.has(link.route) || !onNavigate) return false
-    onNavigate(link.route, link.param)
-    return true
   }
 
   const dropCourse = async (item: CalendarEvent) => {
@@ -487,7 +586,7 @@ export function CalendarPage({
     } catch {
       return
     }
-    onChangeEvents(events.filter((event) => event.id !== item.id))
+    onChangeSchedule({ events: events.filter((event) => event.id !== item.id) })
     notify.warning(`已调课：${item.title}`)
     setPeek(null)
   }
@@ -495,15 +594,13 @@ export function CalendarPage({
   const openItem = (item: CalendarEvent) => {
     setSelectedDay(item.date)
     setActiveEventId(item.id)
-    if (item.kind === 'journal') {
-      onNavigate?.('journal')
-      return
-    }
-    if (item.kind === 'course') {
+    if (isProjectedEvent(item)) {
+      setEditor(null)
       setPeek(item)
       return
     }
-    if (item.kind === 'deadline' && openDeadlineLink(item)) return
+    setPeek(null)
+    setWeeklyRepeat(isDutyEventId(item.id))
     setEditor(item)
   }
 
@@ -610,23 +707,36 @@ export function CalendarPage({
             className="calendar-composer"
             role="dialog"
             aria-modal="true"
-            aria-labelledby="calendar-course-dialog-title"
+            aria-labelledby="calendar-peek-dialog-title"
             onMouseDown={(event) => event.stopPropagation()}
           >
             <div className="composer-heading">
               <div>
-                <p className="section-label">课程</p>
-                <h2 id="calendar-course-dialog-title">{peek.title}</h2>
+                <p className="section-label">{CALENDAR_KIND_LABELS[peek.kind]}</p>
+                <h2 id="calendar-peek-dialog-title">{peek.title}</h2>
               </div>
               <button type="button" className="icon-button" onClick={() => setPeek(null)} aria-label="关闭">
                 ×
               </button>
             </div>
-            <p className="composer-hint">{peek.detail}</p>
+            <p className="composer-hint">{peekHint(peek)}</p>
+            <label className="settings-check">
+              <input
+                type="checkbox"
+                checked={Boolean(peek.done)}
+                onChange={() => {
+                  toggleEventDone(peek)
+                  setPeek({ ...peek, done: !peek.done })
+                }}
+              />
+              已完成
+            </label>
             <div className="composer-actions">
-              <button type="button" className="delete-action" onClick={() => void dropCourse(peek)}>
-                本节省课
-              </button>
+              {peek.kind === 'course' && (
+                <button type="button" className="delete-action" onClick={() => void dropCourse(peek)}>
+                  本节省课
+                </button>
+              )}
               <span />
               <button type="button" className="outline-action" onClick={() => setPeek(null)}>
                 关闭
@@ -691,6 +801,7 @@ export function CalendarPage({
                       start: isAllDayCalendarKind(kind) ? 0 : editor.start || 6,
                       length: isAllDayCalendarKind(kind) ? 1 : editor.length || 1,
                     })
+                    setWeeklyRepeat(kind === 'duty')
                   }}
                 >
                   {CREATABLE_KINDS.map((value) => (
@@ -731,34 +842,25 @@ export function CalendarPage({
                 </label>
               </div>
             )}
-            {editor.kind === 'deadline' && (
+            {editor.kind === 'duty' && (
               <>
-                <p className="composer-hint">截止日期出现在全天行。保存后可从日程跳到对应页面。</p>
-                <label>
-                  处理入口
-                  <select
-                    value={editor.linkTo ? `${editor.linkTo.route}:${editor.linkTo.param ?? ''}` : ''}
-                    onChange={(event) => {
-                      const value = event.target.value
-                      if (!value) {
-                        setEditor({ ...editor, linkTo: undefined })
-                        return
-                      }
-                      const [route, param] = value.split(':') as [RouteId, string]
-                      const linkTo: DeadlineLink = param ? { route, param } : { route }
-                      setEditor({ ...editor, linkTo })
-                    }}
-                  >
-                    <option value="">不关联（保存时按标题推断）</option>
-                    <option value="students:">学生与评价</option>
-                    <option value="resources:">教学资源库</option>
-                    <option value="journal:">随手记</option>
-                    <option value="papers:">论文指导</option>
-                    <option value="courses:">教学</option>
-                    <option value="tasks:">教学看板</option>
-                  </select>
+                <label className="settings-check">
+                  <input
+                    type="checkbox"
+                    checked={weeklyRepeat}
+                    onChange={(event) => setWeeklyRepeat(event.target.checked)}
+                  />
+                  每周重复（本学期）
                 </label>
+                <p className="composer-hint">
+                  {weeklyRepeat
+                    ? '按所选周几在本学期每周出现。改时间或地点会同步到值班表，不必离开本页。'
+                    : '只记这一天。'}
+                </p>
               </>
+            )}
+            {editor.kind === 'deadline' && (
+              <p className="composer-hint">截止日期出现在全天行。在本页勾选即可完成，不会跳到其他页面。</p>
             )}
             {editor.id && (
               <label className="settings-check">
@@ -773,7 +875,12 @@ export function CalendarPage({
             <div className="composer-actions">
               {editor.id && (
                 <button type="button" className="delete-action" onClick={remove}>
-                  删除
+                  {isDutyEventId(editor.id) ? '本周不去' : '删除'}
+                </button>
+              )}
+              {isDutyEventId(editor.id) && (
+                <button type="button" className="outline-action" onClick={() => void dropDutySeries()}>
+                  取消每周
                 </button>
               )}
               <span />
@@ -825,12 +932,7 @@ export function CalendarPage({
                 智能解析
               </button>
             </div>
-            {aiPreview && (
-              <p className="composer-hint">
-                {aiPreview.explanation} · 置信度
-                {aiPreview.confidence === 'high' ? '高' : aiPreview.confidence === 'medium' ? '中' : '低'}
-              </p>
-            )}
+            {aiPreview && <p className="composer-hint">{aiPreview.explanation}</p>}
             <label>
               提醒标题
               <input

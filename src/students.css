@@ -378,10 +378,6 @@
 }
 
 /* Sheet recipe — humane */
-.students-page {
-  padding: 0;
-}
-
 .students-heading h1 {
   margin: 2px 0 6px;
   color: var(--moss-10);

@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import type { PetKind } from '../data/types'
 import { getResourceFile } from '../lib/resource-files'
-import { PET_AVATAR_EVENT } from '../lib/q-pet'
+import { DEFAULT_Q_PET_SRC, PET_AVATAR_EVENT } from '../lib/q-pet'
 import { petDisplayName, resolvePetKind } from '../lib/pet-kind'
+import { Live2DDeskPet } from './Live2DDeskPet'
 import { PetMascot } from './PetMascots'
 import './desk-pet.css'
 
@@ -25,7 +26,7 @@ function PetFigure({
 }: {
   mood: Mood
   facing: 1 | -1
-  kind: PetKind
+  kind: Exclude<PetKind, 'live2d-cat' | 'live2d-white-cat'>
   photoUrl: string | null
 }) {
   if (kind === 'photo' && photoUrl) {
@@ -42,17 +43,40 @@ function PetFigure({
   return <PetMascot kind={mascot} mood={mood} facing={facing} />
 }
 
-export function DeskPet({ greetingName, pageId, petAvatarId, petKind }: Props) {
-  const kind = resolvePetKind({ petKind, petAvatarId })
-  const [pos, setPos] = useState({ x: 24, y: 80 })
+export function DeskPet(props: Props) {
+  const kind = resolvePetKind(props)
+  if (kind === 'live2d-cat' || kind === 'live2d-white-cat') {
+    return <Live2DDeskPet greetingName={props.greetingName} variant={kind === 'live2d-white-cat' ? 'white' : 'black'} />
+  }
+  return <ClassicDeskPet {...props} kind={kind} />
+}
+
+function photoCorner() {
+  const compact = window.innerWidth <= 860
+  return {
+    x: Math.max(12, window.innerWidth - (compact ? 96 : 128)),
+    y: Math.max(72, window.innerHeight - (compact ? 152 : 204)),
+  }
+}
+
+function ClassicDeskPet({ greetingName, pageId, petAvatarId, kind }: Props & { kind: Exclude<PetKind, 'live2d-cat' | 'live2d-white-cat'> }) {
+  const [pos, setPos] = useState(() =>
+    kind === 'photo'
+      ? photoCorner()
+      : {
+          x: Math.max(24, window.innerWidth - 108),
+          y: Math.max(80, window.innerHeight - 168),
+        },
+  )
   const [facing, setFacing] = useState<1 | -1>(-1)
   const [mood, setMood] = useState<Mood>('idle')
   const [speech, setSpeech] = useState('')
   const [docked, setDocked] = useState(false)
   const [shaking, setShaking] = useState(false)
-  const [photoUrl, setPhotoUrl] = useState<string | null>(null)
+  const [photoUrl, setPhotoUrl] = useState<string | null>(kind === 'photo' ? DEFAULT_Q_PET_SRC : null)
   const drag = useRef<{ x: number; y: number; px: number; py: number } | null>(null)
   const moved = useRef(false)
+  const pinned = useRef(kind === 'photo')
   const pauseUntil = useRef(0)
   const dirRef = useRef({ x: -0.7, y: 0.25 })
   const mounted = useRef(false)
@@ -61,14 +85,18 @@ export function DeskPet({ greetingName, pageId, petAvatarId, petKind }: Props) {
     let url: string | null = null
     let cancelled = false
     const load = async () => {
-      if (kind !== 'photo' || !petAvatarId) {
+      if (kind !== 'photo') {
         setPhotoUrl(null)
+        return
+      }
+      if (!petAvatarId) {
+        setPhotoUrl(DEFAULT_Q_PET_SRC)
         return
       }
       const stored = await getResourceFile(petAvatarId)
       if (cancelled) return
       if (!stored) {
-        setPhotoUrl(null)
+        setPhotoUrl(DEFAULT_Q_PET_SRC)
         return
       }
       url = URL.createObjectURL(stored.blob)
@@ -96,11 +124,31 @@ export function DeskPet({ greetingName, pageId, petAvatarId, petKind }: Props) {
   }
 
   useEffect(() => {
+    pinned.current = kind === 'photo'
+    if (kind === 'photo') {
+      setPos(photoCorner())
+      return
+    }
     setPos({
       x: Math.max(24, window.innerWidth - 108),
       y: Math.max(80, window.innerHeight - 168),
     })
-  }, [])
+  }, [kind])
+
+  useEffect(() => {
+    const onResize = () => {
+      if (kind === 'photo' && pinned.current && !drag.current) {
+        setPos(photoCorner())
+        return
+      }
+      setPos((current) => ({
+        x: Math.min(Math.max(16, current.x), Math.max(16, window.innerWidth - 92)),
+        y: Math.min(Math.max(72, current.y), Math.max(72, window.innerHeight - 148)),
+      }))
+    }
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [kind])
 
   useEffect(() => {
     const first = !mounted.current
@@ -113,7 +161,7 @@ export function DeskPet({ greetingName, pageId, petAvatarId, petKind }: Props) {
   }, [pageId])
 
   useEffect(() => {
-    if (docked) return undefined
+    if (docked || kind === 'photo') return undefined
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     if (reduced) return undefined
     const tick = window.setInterval(() => {
@@ -147,7 +195,7 @@ export function DeskPet({ greetingName, pageId, petAvatarId, petKind }: Props) {
       window.clearInterval(tick)
       window.clearInterval(pauseWalk)
     }
-  }, [docked])
+  }, [docked, kind])
 
   useEffect(() => {
     const id = window.setInterval(() => {
@@ -170,7 +218,9 @@ export function DeskPet({ greetingName, pageId, petAvatarId, petKind }: Props) {
   const onPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     event.currentTarget.setPointerCapture(event.pointerId)
     moved.current = false
-    drag.current = { x: pos.x, y: pos.y, px: event.clientX, py: event.clientY }
+    const rect = event.currentTarget.getBoundingClientRect()
+    drag.current = { x: rect.left, y: rect.top, px: event.clientX, py: event.clientY }
+    setPos({ x: rect.left, y: rect.top })
     pauseUntil.current = Date.now() + 12_000
     setMood('idle')
   }
@@ -179,7 +229,10 @@ export function DeskPet({ greetingName, pageId, petAvatarId, petKind }: Props) {
     if (!drag.current) return
     const dx = event.clientX - drag.current.px
     const dy = event.clientY - drag.current.py
-    if (Math.abs(dx) + Math.abs(dy) > 6) moved.current = true
+    if (Math.abs(dx) + Math.abs(dy) > 6) {
+      moved.current = true
+      pinned.current = false
+    }
     setPos({
       x: drag.current.x + dx,
       y: drag.current.y + dy,
@@ -190,12 +243,21 @@ export function DeskPet({ greetingName, pageId, petAvatarId, petKind }: Props) {
     drag.current = null
   }
 
+  const cornered = kind === 'photo' && pinned.current
+
   if (docked) {
     return (
       <button
         type="button"
-        className={`desk-pet-dock${shaking ? ' is-shaking' : ''}`}
-        style={{ left: Math.min(Math.max(12, pos.x), window.innerWidth - 52), top: Math.min(Math.max(72, pos.y + 48), window.innerHeight - 58) }}
+        className={`desk-pet-dock${kind === 'photo' ? ' kind-photo' : ''}${shaking ? ' is-shaking' : ''}`}
+        style={
+          cornered
+            ? { right: 16, bottom: 16, left: 'auto', top: 'auto' }
+            : {
+                left: Math.min(Math.max(12, pos.x), window.innerWidth - (kind === 'photo' ? 64 : 52)),
+                top: Math.min(Math.max(72, pos.y + 48), window.innerHeight - (kind === 'photo' ? 88 : 58)),
+              }
+        }
         onClick={() => {
           setShaking(true)
           window.setTimeout(() => setShaking(false), 480)
@@ -211,8 +273,8 @@ export function DeskPet({ greetingName, pageId, petAvatarId, petKind }: Props) {
 
   return (
     <div
-      className={`desk-pet-stage mood-${mood}`}
-      style={{ left: pos.x, top: pos.y }}
+      className={`desk-pet-stage mood-${mood}${kind === 'photo' ? ' kind-photo' : ''}`}
+      style={cornered ? { right: 16, bottom: 12, left: 'auto', top: 'auto' } : { left: pos.x, top: pos.y }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
