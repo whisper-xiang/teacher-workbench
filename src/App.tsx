@@ -41,6 +41,7 @@ const ResourcesPage = lazy(() =>
   import('./pages/ResourcesPage').then((module) => ({ default: module.ResourcesPage })),
 )
 const SettingsPage = lazy(() => import('./pages/SettingsPage').then((module) => ({ default: module.SettingsPage })))
+const CoursesPage = lazy(() => import('./pages/CoursesPage').then((module) => ({ default: module.CoursesPage })))
 const GlobalSearchPanel = lazy(() =>
   import('./components/GlobalSearchPanel').then((module) => ({ default: module.GlobalSearchPanel })),
 )
@@ -242,25 +243,6 @@ function App() {
           }
         }
 
-        if (draft.kind === 'resource') {
-          const item = {
-            id: uid('res'),
-            title: draft.title,
-            course: draft.course || '未关联课程',
-            type: draft.type,
-            updated: '刚刚',
-            size: '—',
-            accent: 'teal',
-            description: '由助手登记，可再补传文件。',
-            tags: ['助手'],
-            format: '其他' as const,
-            major: inferMajorFromText(`${draft.course} ${draft.title}`),
-          }
-          message = `已登记资源「${item.title}」，可到资源库补传文件。`
-          notify.success(message)
-          return { ...current, resources: [item, ...current.resources] }
-        }
-
         const task = {
           id: uid('task'),
           title: draft.title,
@@ -372,7 +354,6 @@ function App() {
                 const disabled = DISABLED_NAV.has(id)
                 const badge =
                   id === 'tasks' ? data.tasks.filter((t) => t.status !== 'done').length :
-                  id === 'students' ? data.students.filter((s) => s.status !== '正常').length :
                   id === 'papers' ? (data.thesisAdvisees ?? []).filter((person) => person.nextDate && person.nextDate < new Date().toISOString().slice(0, 10)).length :
                   id === 'news' ? data.news.filter((n) => n.fresh && !data.newsRead.includes(n.id)).length :
                   id === 'calendar'
@@ -474,7 +455,7 @@ function App() {
         </header>
 
         <RouteErrorBoundary key={activeId}>
-        <Suspense fallback={<div className="route-loading" role="status">正在打开…</div>}>
+        <Suspense fallback={<section className="page route-loading" aria-live="polite">正在打开…</section>}>
         {activeId === 'overview' && (
           <Dashboard
             meta={data.meta}
@@ -542,6 +523,8 @@ function App() {
             onChangeAdvisees={(thesisAdvisees) => patch('thesisAdvisees', thesisAdvisees)}
             onChangeEvents={(events) => patch('events', events)}
             onOpenSettings={() => selectPage('settings')}
+            onOpenPerson={(id) => selectPage('papers', id)}
+            onBack={() => selectPage('papers')}
           />
         )}
         {activeId === 'research' && (
@@ -557,17 +540,10 @@ function App() {
           <StudentsPage
             courses={data.courses}
             students={data.students}
-            assignments={data.assignments}
             grades={data.grades}
             initialCourseId={routeParam}
             onChangeStudents={(students) => patch('students', students)}
             onChangeGrades={(grades) => patch('grades', grades)}
-            onChangeAssignments={(assignments) => {
-              update((current) => {
-                const next = { ...current, assignments }
-                return { ...next, events: syncDerivedEvents(next) }
-              })
-            }}
           />
         )}
         {activeId === 'resources' && (
@@ -576,6 +552,18 @@ function App() {
             courses={data.courses}
             initialCourseId={routeParam}
             onChangeResources={(resources) => patch('resources', resources)}
+          />
+        )}
+        {activeId === 'courses' && (
+          <CoursesPage
+            courses={data.courses}
+            weekNumber={data.meta.weekNumber}
+            onChange={(courses) =>
+              update((current) => {
+                const next = { ...current, courses }
+                return { ...next, events: syncDerivedEvents(next) }
+              })
+            }
           />
         )}
         {activeId === 'settings' && (

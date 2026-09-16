@@ -3,6 +3,7 @@ import type { PetKind } from '../data/types'
 import { getResourceFile } from '../lib/resource-files'
 import { DEFAULT_Q_PET_SRC, PET_AVATAR_EVENT } from '../lib/q-pet'
 import { petDisplayName, resolvePetKind } from '../lib/pet-kind'
+import { nextPetTip, petTipLine } from '../lib/pet-tips'
 import { Live2DDeskPet } from './Live2DDeskPet'
 import { PetMascot } from './PetMascots'
 import './desk-pet.css'
@@ -15,8 +16,6 @@ type Props = {
   petAvatarId?: string
   petKind?: PetKind
 }
-
-const REFLECT_PROMPT = '吾日三省吾身：喝水、走动、提肛。'
 
 function PetFigure({
   mood,
@@ -80,6 +79,7 @@ function ClassicDeskPet({ greetingName, pageId, petAvatarId, kind }: Props & { k
   const pauseUntil = useRef(0)
   const dirRef = useRef({ x: -0.7, y: 0.25 })
   const mounted = useRef(false)
+  const lastTip = useRef<string | null>(null)
 
   useEffect(() => {
     let url: string | null = null
@@ -119,8 +119,9 @@ function ClassicDeskPet({ greetingName, pageId, petAvatarId, kind }: Props & { k
   }
 
   const remind = () => {
-    const name = greetingName || '老师'
-    say(`${name}，${REFLECT_PROMPT}`)
+    const tip = nextPetTip(lastTip.current)
+    lastTip.current = tip
+    say(petTipLine(greetingName, tip))
   }
 
   useEffect(() => {
@@ -281,7 +282,7 @@ function ClassicDeskPet({ greetingName, pageId, petAvatarId, kind }: Props & { k
     >
       {(speech || mood === 'talk') && (
         <div className="desk-pet-bubble" role="status">
-          {speech || REFLECT_PROMPT}
+          {speech || petTipLine(greetingName, lastTip.current ?? nextPetTip())}
         </div>
       )}
       <button
@@ -293,7 +294,7 @@ function ClassicDeskPet({ greetingName, pageId, petAvatarId, kind }: Props & { k
           window.setTimeout(() => setShaking(false), 480)
           remind()
         }}
-        aria-label={`${petDisplayName(kind)}，点击听三省提示`}
+        aria-label={`${petDisplayName(kind)}，点击听健康提示`}
       >
         <PetFigure mood={mood} facing={facing} kind={kind} photoUrl={photoUrl} />
       </button>

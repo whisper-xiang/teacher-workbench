@@ -1,7 +1,8 @@
 .students-heading-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  align-items: center;
+  gap: 8px;
 }
 
 .students-course-tabs {
@@ -17,18 +18,32 @@
   flex: 0 0 auto;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
-  border: 1px solid var(--line);
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--moss-80);
   border-radius: 999px;
-  background: var(--surface);
-  color: var(--muted);
+  background: transparent;
+  color: var(--moss-50);
   cursor: pointer;
   font: inherit;
   font-size: 13px;
+  line-height: 1;
+  transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+}
+
+.students-course-tabs button:hover {
+  border-color: var(--moss-70);
+  background: var(--moss-95);
+  color: var(--moss-30);
+}
+
+.students-course-tabs button:focus-visible {
+  outline: 3px solid var(--moss-90);
+  outline-offset: 1px;
 }
 
 .students-course-tabs button small {
-  color: var(--subtle);
+  color: var(--moss-60);
   font-size: 11px;
 }
 
@@ -37,6 +52,16 @@
   background: var(--moss-90);
   color: var(--moss-30);
   font-weight: 650;
+}
+
+.students-course-tabs button.active small {
+  color: var(--moss-40);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .students-course-tabs button {
+    transition: none;
+  }
 }
 
 @media (max-width: 620px) {

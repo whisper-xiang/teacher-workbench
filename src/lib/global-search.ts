@@ -48,7 +48,7 @@ export function buildSearchIndex(data: WorkbenchData): SearchResult[] {
       {
         id: `student-${student.id}`,
         title: student.name,
-        meta: `${student.number} · ${student.className} · ${student.status}`,
+        meta: `${student.number} · ${student.className}`,
         group: '学生',
         route: 'students',
         param: student.courseId,
@@ -140,22 +140,6 @@ export function buildSearchIndex(data: WorkbenchData): SearchResult[] {
         route: 'calendar',
       },
       event.id,
-    )
-  })
-
-  data.assignments.forEach((assignment) => {
-    const course = data.courses.find((item) => item.id === assignment.courseId)
-    push(
-      results,
-      {
-        id: `assignment-${assignment.id}`,
-        title: assignment.title,
-        meta: `${course?.name ?? '课程'} · 截止 ${assignment.due.slice(0, 10)}`,
-        group: '作业',
-        route: 'students',
-        param: assignment.courseId,
-      },
-      assignment.id,
     )
   })
 

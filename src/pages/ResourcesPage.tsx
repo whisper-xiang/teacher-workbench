@@ -9,41 +9,42 @@ import {
   deleteResourceFile,
   formatFileSize,
   inferResourceFormat,
+  inferResourceType,
   openStoredFile,
   putResourceFile,
 } from '../lib/resource-files'
 
 const RESOURCE_TYPES = ['课件', '教案', '试题', '视频', '文献'] as const
 
-type ContextMenuState = {
-  resourceId: string
-  x: number
-  y: number
-}
+type ResourceType = (typeof RESOURCE_TYPES)[number]
 
 type Props = {
   resources: TeachingResource[]
   courses: Course[]
   initialCourseId?: string
   onChangeResources: (resources: TeachingResource[]) => void
-  onOpenCourse?: (courseId: string) => void
-  onBack?: () => void
 }
 
-export function ResourcesPage({ resources, courses, initialCourseId, onChangeResources, onOpenCourse, onBack }: Props) {
+function fileTitle(name: string) {
+  return name.replace(/\.[^.]+$/, '').trim() || name
+}
+
+export function ResourcesPage({ resources, courses, initialCourseId, onChangeResources }: Props) {
   const [query, setQuery] = useState('')
   const [courseFilter, setCourseFilter] = useState(initialCourseId ?? '')
   const [composerOpen, setComposerOpen] = useState(false)
   const [editing, setEditing] = useState<TeachingResource | null>(null)
   const [pendingFile, setPendingFile] = useState<File | null>(null)
+  const [title, setTitle] = useState('')
+  const [type, setType] = useState<ResourceType>('课件')
+  const [courseName, setCourseName] = useState('')
   const [dragging, setDragging] = useState(false)
-  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
-  const menuRef = useRef<HTMLDivElement | null>(null)
   const dropRef = useRef<HTMLElement | null>(null)
+  const fileRef = useRef<HTMLInputElement | null>(null)
 
   const courseNames = courses.map((course) => course.name)
-  const contextResource = contextMenu ? resources.find((item) => item.id === contextMenu.resourceId) : null
   const filterCourse = courses.find((course) => course.id === courseFilter)
+  const filed = useMemo(() => resources.filter((item) => item.fileId), [resources])
 
   useEffect(() => {
     if (initialCourseId) setCourseFilter(initialCourseId)
@@ -51,44 +52,36 @@ export function ResourcesPage({ resources, courses, initialCourseId, onChangeRes
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return resources.filter((item) => {
+    return filed.filter((item) => {
       if (filterCourse && item.course !== filterCourse.name) return false
       if (!q) return true
-      return `${item.title}${item.course}${item.type}${item.description}${item.fileName ?? ''}`.toLowerCase().includes(q)
+      return `${item.title}${item.course}${item.type}${item.fileName ?? ''}`.toLowerCase().includes(q)
     })
-  }, [resources, query, filterCourse])
+  }, [filed, query, filterCourse])
 
-  useEffect(() => {
-    if (!contextMenu) return
-    const close = () => setContextMenu(null)
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') close()
-    }
-    window.addEventListener('pointerdown', close)
-    window.addEventListener('keydown', onKey)
-    window.addEventListener('scroll', close, true)
-    return () => {
-      window.removeEventListener('pointerdown', close)
-      window.removeEventListener('keydown', onKey)
-      window.removeEventListener('scroll', close, true)
-    }
-  }, [contextMenu])
+  const applyFile = (file: File, keepTitle: boolean) => {
+    setPendingFile(file)
+    setType(inferResourceType(file.name, file.type))
+    if (!keepTitle) setTitle(fileTitle(file.name))
+  }
 
-  useEffect(() => {
-    if (!contextMenu || !menuRef.current) return
-    const rect = menuRef.current.getBoundingClientRect()
-    const pad = 8
-    let x = contextMenu.x
-    let y = contextMenu.y
-    if (x + rect.width > window.innerWidth - pad) x = window.innerWidth - rect.width - pad
-    if (y + rect.height > window.innerHeight - pad) y = window.innerHeight - rect.height - pad
-    if (x !== contextMenu.x || y !== contextMenu.y) setContextMenu({ ...contextMenu, x, y })
-  }, [contextMenu])
-
-  const openComposer = (item: TeachingResource | null) => {
-    setContextMenu(null)
+  const openComposer = (item: TeachingResource | null, file?: File | null) => {
     setEditing(item)
-    setPendingFile(null)
+    if (item) {
+      setTitle(item.title)
+      setType(item.type)
+      setCourseName(item.course === '未关联课程' ? '' : item.course)
+      if (file) applyFile(file, true)
+      else setPendingFile(null)
+    } else {
+      setCourseName(filterCourse?.name ?? '')
+      if (file) applyFile(file, false)
+      else {
+        setPendingFile(null)
+        setTitle('')
+        setType('课件')
+      }
+    }
     setComposerOpen(true)
   }
 
@@ -96,29 +89,16 @@ export function ResourcesPage({ resources, courses, initialCourseId, onChangeRes
     setComposerOpen(false)
     setEditing(null)
     setPendingFile(null)
-  }
-
-  const markUsed = (item: TeachingResource) => {
-    onChangeResources(
-      resources.map((resource) =>
-        resource.id === item.id
-          ? { ...resource, usedCount: (resource.usedCount ?? 0) + 1, lastUsed: '刚刚', updated: resource.updated }
-          : resource,
-      ),
-    )
+    setTitle('')
+    setType('课件')
+    setCourseName('')
+    if (fileRef.current) fileRef.current.value = ''
   }
 
   const openFile = async (item: TeachingResource) => {
-    setContextMenu(null)
-    if (!item.fileId) {
-      notify.info(`「${item.title}」还没有上传文件`)
-      openComposer(item)
-      return
-    }
+    if (!item.fileId) return
     try {
       await openStoredFile(item.fileId)
-      markUsed(item)
-      notify.success(`已打开「${item.title}」`)
     } catch (error) {
       notify.error(error instanceof Error ? error.message : '无法打开文件')
     }
@@ -135,14 +115,11 @@ export function ResourcesPage({ resources, courses, initialCourseId, onChangeRes
     if (item.fileId) await deleteResourceFile(item.fileId).catch(() => undefined)
     onChangeResources(resources.filter((resource) => resource.id !== id))
     notify.warning(`已删除：${item.title}`, '已删除')
-    setContextMenu(null)
     if (editing?.id === id) closeComposer()
   }
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    const form = new FormData(event.currentTarget)
-    const courseName = String(form.get('course') || '').trim()
     const linked = courses.find((course) => course.name === courseName)
     const id = editing?.id || uid('res')
     let fileId = editing?.fileId
@@ -150,6 +127,11 @@ export function ResourcesPage({ resources, courses, initialCourseId, onChangeRes
     let mimeType = editing?.mimeType
     let size = editing?.size ?? '—'
     let format = editing?.format ?? '其他'
+
+    if (!pendingFile && !fileId) {
+      notify.error('请先选择要保存的文件')
+      return
+    }
 
     if (pendingFile) {
       const nextFileId = fileId || uid('file')
@@ -167,34 +149,39 @@ export function ResourcesPage({ resources, courses, initialCourseId, onChangeRes
       format = inferResourceFormat(pendingFile.name, pendingFile.type)
     }
 
+    const nextTitle = title.trim() || fileName || '未命名文件'
     const base: TeachingResource = {
       id,
-      title: String(form.get('title') || '').trim() || fileName || '未命名资源',
+      title: nextTitle,
       course: courseName || '未关联课程',
-      type: String(form.get('type')) as TeachingResource['type'],
+      type,
       updated: '刚刚',
       size,
       accent: editing?.accent ?? 'teal',
-      description: String(form.get('description') || '').trim() || '本地保存的教学资源。',
+      description: editing?.description ?? '',
       tags: editing?.tags ?? [],
       major: linked?.major ?? editing?.major,
       format,
-      usedCount: editing?.usedCount,
-      lastUsed: editing?.lastUsed,
       fileId,
       fileName,
       mimeType,
     }
-    if (!base.title) return
 
     if (editing) {
       onChangeResources(resources.map((item) => (item.id === editing.id ? { ...item, ...base } : item)))
       notify.success(`已更新「${base.title}」`)
     } else {
-      onChangeResources([base, ...resources])
-      notify.success(fileId ? `已保存「${base.title}」到本机` : `已登记「${base.title}」`)
+      onChangeResources([base, ...resources.filter((item) => item.fileId)])
+      notify.success(`已保存「${base.title}」`)
     }
     closeComposer()
+  }
+
+  const emptyCopy = () => {
+    if (filed.length === 0) return '还没有文件。拖进来，或'
+    if (query.trim()) return '没有匹配的文件'
+    if (filterCourse) return `「${filterCourse.name}」还没有文件`
+    return '没有匹配的文件'
   }
 
   return (
@@ -216,24 +203,22 @@ export function ResourcesPage({ resources, courses, initialCourseId, onChangeRes
         setDragging(false)
         const file = event.dataTransfer.files[0]
         if (!file) return
-        setPendingFile(file)
-        if (!composerOpen) openComposer(null)
+        if (composerOpen) {
+          applyFile(file, Boolean(editing) || Boolean(title.trim()))
+          return
+        }
+        openComposer(null, file)
       }}
     >
       <div className="resources-heading">
         <div>
           <p className="section-label">日常工作</p>
           <h1>教学资源库</h1>
-          <p>文件保存在本机浏览器中，可绑定课程并标记已用</p>
+          <p>文件只保存在这个浏览器。按课放入，下次打开</p>
         </div>
         <div className="students-heading-actions">
-          {onBack && (
-            <button type="button" className="outline-action" onClick={onBack}>
-              ← 返回教学
-            </button>
-          )}
           <button type="button" className="primary-action" onClick={() => openComposer(null)}>
-            ＋ 登记资源
+            ＋ 添加
           </button>
         </div>
       </div>
@@ -250,44 +235,38 @@ export function ResourcesPage({ resources, courses, initialCourseId, onChangeRes
             onClick={() => setCourseFilter(course.id)}
           >
             {course.name}
-            <small>{resources.filter((item) => item.course === course.name).length}</small>
+            <small>{filed.filter((item) => item.course === course.name).length}</small>
           </button>
         ))}
       </div>
 
-      <label className="resource-search-simple">
-        <span>⌕</span>
-        <input
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="搜索标题、课程或文件名"
-          aria-label="搜索教学资源"
-        />
-      </label>
+      {filed.length > 0 && (
+        <label className="resource-search-simple">
+          <span>⌕</span>
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="搜索标题或文件名"
+            aria-label="搜索教学资源"
+          />
+        </label>
+      )}
 
       <div className="resource-list-simple">
         {visible.map((item) => (
-          <article
-            key={item.id}
-            className={`resource-row${contextMenu?.resourceId === item.id ? ' is-menu-open' : ''}`}
-            onContextMenu={(event) => {
-              event.preventDefault()
-              setContextMenu({ resourceId: item.id, x: event.clientX, y: event.clientY })
-            }}
-          >
+          <article key={item.id} className="resource-row">
             <span className="resource-type-pill">{item.type}</span>
             <div className="resource-row-body">
               <strong>{item.title}</strong>
               <small>
                 {item.course}
-                {item.fileName ? ` · ${item.fileName}` : ' · 未上传文件'}
+                {item.fileName ? ` · ${item.fileName}` : ''}
                 {item.size && item.size !== '—' ? ` · ${item.size}` : ''}
-                {item.usedCount ? ` · 用过 ${item.usedCount} 次` : ''}
               </small>
             </div>
             <div className="resource-row-actions">
-              <button type="button" className="text-action" onClick={() => openFile(item)}>
-                {item.fileId ? '打开' : '补传'}
+              <button type="button" className="text-action" onClick={() => void openFile(item)}>
+                打开
               </button>
               <button type="button" className="text-action" onClick={() => openComposer(item)}>
                 编辑
@@ -297,81 +276,74 @@ export function ResourcesPage({ resources, courses, initialCourseId, onChangeRes
         ))}
         {visible.length === 0 && (
           <div className="resource-empty-simple">
-            {resources.length === 0 ? (
-              <>
-                还没有资源，可从课程卡进来补传。
-                <button type="button" className="text-action" onClick={() => openComposer(null)}>
-                  登记资源
-                </button>
-              </>
-            ) : (
-              '没有匹配的资源'
+            {emptyCopy()}
+            {!query.trim() && (
+              <button type="button" className="text-action" onClick={() => openComposer(null)}>
+                添加
+              </button>
             )}
           </div>
         )}
       </div>
-
-      {contextMenu && contextResource && (
-        <div
-          ref={menuRef}
-          className="task-context-menu"
-          style={{ left: contextMenu.x, top: contextMenu.y }}
-          role="menu"
-          aria-label={`资源操作：${contextResource.title}`}
-          onPointerDown={(event) => event.stopPropagation()}
-        >
-          <button type="button" role="menuitem" onClick={() => openFile(contextResource)}>
-            打开文件
-          </button>
-          {onOpenCourse && courses.find((course) => course.name === contextResource.course) && (
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                const course = courses.find((item) => item.name === contextResource.course)
-                if (course) onOpenCourse(course.id)
-                setContextMenu(null)
-              }}
-            >
-              查看课程
-            </button>
-          )}
-          <button type="button" role="menuitem" onClick={() => openComposer(contextResource)}>
-            编辑
-          </button>
-          <button type="button" role="menuitem" className="is-danger" onClick={() => removeById(contextResource.id)}>
-            删除
-          </button>
-        </div>
-      )}
 
       {composerOpen && (
         <div className="resources-modal-backdrop" onMouseDown={closeComposer}>
           <form
             className="resources-composer"
             onMouseDown={(event) => event.stopPropagation()}
-            onSubmit={handleSubmit}
+            onSubmit={(event) => void handleSubmit(event)}
           >
             <div>
-              <p className="section-label">{editing ? '编辑资源' : '登记资源'}</p>
-              <h2>{editing ? `修改「${editing.title}」` : '保存到本机资源库'}</h2>
+              <p className="section-label">{editing ? '编辑' : '放入文件'}</p>
+              <h2>{editing ? `修改「${editing.title}」` : '保存到本机'}</h2>
             </div>
+            <label className="resource-file-field">
+              文件
+              <input
+                ref={fileRef}
+                type="file"
+                hidden
+                onChange={(event) => {
+                  const file = event.target.files?.[0]
+                  if (file) applyFile(file, Boolean(editing) || Boolean(title.trim()))
+                  else if (!editing) setPendingFile(null)
+                  event.target.value = ''
+                }}
+              />
+              <span className="resource-file-row">
+                <button type="button" className="outline-action" onClick={() => fileRef.current?.click()}>
+                  {pendingFile || editing?.fileName ? '更换文件' : '选择文件'}
+                </button>
+                <small>
+                  {pendingFile
+                    ? `将保存 ${pendingFile.name}（${formatFileSize(pendingFile.size)}）`
+                    : editing?.fileName
+                      ? `已有 ${editing.fileName}`
+                      : '必选。也可把文件拖到页面上。'}
+                </small>
+              </span>
+            </label>
             <label>
               标题
-              <input name="title" required autoFocus defaultValue={editing?.title} placeholder="可与文件名不同" />
+              <input
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                autoFocus={!pendingFile}
+                placeholder="默认同文件名"
+              />
             </label>
             <div className="composer-grid">
               <label>
                 类型
-                <select name="type" defaultValue={editing?.type ?? '课件'}>
+                <select value={type} onChange={(event) => setType(event.target.value as ResourceType)}>
                   {RESOURCE_TYPES.map((item) => (
                     <option key={item}>{item}</option>
                   ))}
                 </select>
               </label>
               <label>
-                关联课程
-                <select name="course" defaultValue={editing?.course ?? filterCourse?.name ?? ''}>
+                课程
+                <select value={courseName} onChange={(event) => setCourseName(event.target.value)}>
                   <option value="">未关联课程</option>
                   {courseNames.map((name) => (
                     <option key={name} value={name}>
@@ -384,27 +356,9 @@ export function ResourcesPage({ resources, courses, initialCourseId, onChangeRes
                 </select>
               </label>
             </div>
-            <label className="resource-file-field">
-              本地文件
-              <input
-                type="file"
-                onChange={(event) => setPendingFile(event.target.files?.[0] ?? null)}
-              />
-              <small>
-                {pendingFile
-                  ? `将保存 ${pendingFile.name}（${formatFileSize(pendingFile.size)}）`
-                  : editing?.fileName
-                    ? `已有 ${editing.fileName}`
-                    : '可选。也可把文件拖到页面上。'}
-              </small>
-            </label>
-            <label>
-              说明
-              <input name="description" defaultValue={editing?.description} placeholder="一句话说明用途（可选）" />
-            </label>
             <div className="composer-actions">
               {editing && (
-                <button type="button" className="danger-action" onClick={() => removeById(editing.id)}>
+                <button type="button" className="danger-action" onClick={() => void removeById(editing.id)}>
                   删除
                 </button>
               )}

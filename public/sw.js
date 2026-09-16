@@ -1,4 +1,4 @@
-const CACHE_NAME = 'teacher-workbench-v4'
+const CACHE_NAME = 'teacher-workbench-v5'
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/favicon.svg', '/apple-touch-icon.png', '/icon-192.png', '/icon-512.png', '/icons.svg']
 
 self.addEventListener('install', (event) => {
@@ -18,6 +18,8 @@ self.addEventListener('fetch', (event) => {
   if (request.method !== 'GET') return
   const url = new URL(request.url)
   if (url.origin !== self.location.origin) return
+  // 开发服务走网络：缓存 Vite 热更新模块会让懒加载页整页黑掉
+  if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') return
 
   event.respondWith(
     caches.match(request).then((cached) => {

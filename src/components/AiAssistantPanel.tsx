@@ -27,13 +27,13 @@ type Props = {
 const STARTERS = [
   { label: '明天提醒批作业', prompt: '提醒我明天批改作业' },
   { label: '周三安排课程', prompt: '帮我在周三下午加一节教育心理学' },
-  { label: '登记观察记录', prompt: '上传一份课堂观察记录到资源库' },
+  { label: '看板加任务', prompt: '看板加一个整理教案的任务' },
 ]
 
 const WELCOME: ChatMessage = {
   id: 'welcome',
   role: 'assistant',
-  text: '你好，我是教学工作台助手。可以帮你创建提醒、安排课程、登记资源和添加任务。\n\n所有更改都会先生成草稿，确认后才会写入本机。',
+  text: '你好，我是教学工作台助手。可以帮你创建提醒、安排课程和添加任务。\n\n所有更改都会先生成草稿，确认后才会写入本机。课件请到「教学资源库」拖进去。',
 }
 
 const MARGIN = 16

@@ -189,12 +189,12 @@
 }
 
 .desk-pet-stage.kind-photo {
-  width: 118px;
+  width: 108px;
   align-items: flex-end;
 }
 
 .desk-pet-stage.kind-photo .desk-pet-avatar {
-  width: 118px;
+  width: 108px;
   animation: pet-idle-bob 2.6s ease-in-out infinite;
 }
 
@@ -203,8 +203,8 @@
 }
 
 .desk-pet-stage.kind-photo .desk-pet-photo {
-  width: 118px;
-  max-height: 176px;
+  width: 108px;
+  max-height: 236px;
 }
 
 .desk-pet-stage.kind-photo .desk-pet-bubble {
@@ -221,8 +221,8 @@
 }
 
 .desk-pet-dock.kind-photo .desk-pet-photo {
-  width: 52px;
-  max-height: 78px;
+  width: 48px;
+  max-height: 104px;
 }
 
 @keyframes pet-idle-bob {
@@ -281,16 +281,16 @@
   }
 
   .desk-pet-stage.kind-photo {
-    width: 84px;
+    width: 80px;
   }
 
   .desk-pet-stage.kind-photo .desk-pet-avatar {
-    width: 84px;
+    width: 80px;
   }
 
   .desk-pet-stage.kind-photo .desk-pet-photo {
-    width: 84px;
-    max-height: 128px;
+    width: 80px;
+    max-height: 176px;
   }
 }
 

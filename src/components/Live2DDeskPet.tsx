@@ -1,23 +1,30 @@
 import { useEffect } from 'react'
 import type { Widget } from 'l2d-widget'
+import { shuffledPetTipLines } from '../lib/pet-tips'
 
 type Props = {
   greetingName: string
   variant: 'black' | 'white'
 }
 
-const REFLECT_PROMPT = '吾日三省吾身：喝水、走动、提肛。'
-
 export function Live2DDeskPet({ greetingName, variant }: Props) {
   useEffect(() => {
     let cancelled = false
     let widget: Widget | null = null
+    let layerTimer: ReturnType<typeof setInterval> | undefined
     const compact = window.matchMedia('(max-width: 620px)').matches
     const name = greetingName || '老师'
     const modelFolder = variant === 'white' ? 'tororo' : 'hijiki'
-    const petName = variant === 'white' ? 'Tororo' : 'Hijiki'
+    const tips = shuffledPetTipLines(name)
     void import('l2d-widget').then(({ createWidget }) => {
       if (cancelled) return
+      const lowerLayer = () => {
+        document.querySelectorAll('body > div').forEach((node) => {
+          const el = node as HTMLElement
+          if (el.style.zIndex === '9999') el.style.zIndex = '24'
+          if (el.style.zIndex === '9998') el.style.zIndex = '23'
+        })
+      }
       widget = createWidget({
         model: {
           path: `${import.meta.env.BASE_URL}live2d/${modelFolder}/model.json`,
@@ -26,8 +33,8 @@ export function Live2DDeskPet({ greetingName, variant }: Props) {
           volume: 0,
           logLevel: 'warn',
           tips: {
-            welcomeMessage: [`${name}，我是${petName}。`, REFLECT_PROMPT],
-            messages: [REFLECT_PROMPT, '看远处 20 秒，眼睛也要下课。'],
+            welcomeMessage: tips,
+            messages: tips,
             duration: 4200,
             interval: 4 * 60 * 1000,
             typing: { speed: 72 },
@@ -63,10 +70,16 @@ export function Live2DDeskPet({ greetingName, variant }: Props) {
           },
         },
       })
+      lowerLayer()
+      layerTimer = window.setInterval(lowerLayer, 120)
+      window.setTimeout(() => {
+        if (layerTimer) window.clearInterval(layerTimer)
+      }, 2000)
     })
 
     return () => {
       cancelled = true
+      if (layerTimer) window.clearInterval(layerTimer)
       if (widget) void widget.destroy()
     }
   }, [greetingName, variant])

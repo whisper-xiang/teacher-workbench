@@ -27,9 +27,7 @@
 .main-content > .calendar-page,
 .calendar-page.functional-calendar,
 .main-content > .journal-page,
-.journal-page,
-.main-content > .papers-page,
-.papers-page {
+.journal-page {
   overflow: hidden;
   padding: 0;
 }
@@ -42,6 +40,7 @@
 .resources-page,
 .research-page,
 .activities-page,
+.papers-page,
 .news-page,
 .tools-page,
 .settings-page,
@@ -111,6 +110,7 @@ body,
 .resources-page,
 .research-page,
 .activities-page,
+.papers-page,
 .news-page,
   .tools-page,
   .settings-page {

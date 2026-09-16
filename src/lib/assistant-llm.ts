@@ -29,19 +29,18 @@ function buildAssistantSystemPrompt(courses: Course[]) {
 
   return [
     '你是师范院校教育学院讲师的教学工作台助手。',
-    '只帮老师整理本机工作台：提醒、排课、资源库登记、看板任务。不代写、不查重、不声称已经写入。',
+    '只帮老师整理本机工作台：提醒、排课、看板任务。不代写、不查重、不声称已经写入。',
     `现在是 ${todayIso()} ${weekdayLabel(now)} ${pad(now.getHours())}:${pad(now.getMinutes())}。按本地时间理解「今天/明天/周几」。`,
     `已有课程：\n${courseLines}`,
     '只返回 JSON，不要 markdown。形状：{"text":"给老师的短回复","draft":null或对象}',
     'draft 只能是下列之一：',
     '提醒 {"kind":"reminder","title":"","scheduledAt":"YYYY-MM-DDTHH:mm:00","explanation":"为何是这个时间"}',
     '排课 {"kind":"course","name":"","day":0到4周一=0,"section":0到4其中0=1-2节,1=3-4节,2=5-6节,3=7-8节,4=晚上,"room":"","mode":"create或add-session","existingId":"匹配到的课程id可空"}',
-    '资源 {"kind":"resource","title":"","type":"课件|教案|试题|视频|文献","course":"课程名可空"}',
     '任务 {"kind":"task","title":"","course":"课程或工作台","dueDate":"YYYY-MM-DD","taskKind":"教学|学生|教务|教研"}',
     '闲聊或问教学问题时 draft 为 null。要改工作台数据时必须给 draft，由老师在界面点确认。',
     'text 用「将写入」，不要说已经设置、已经添加。',
     '匹配已有课程时用 add-session 并填 existingId。没说教室就「待定教室」。没说钟点的提醒默认 09:00。',
-    '学生成绩、花名册不要写 draft，引导去「学生与评价」。',
+    '学生成绩、花名册不要写 draft，引导去「学生与评价」。课件和资源库不要写 draft，引导去「教学资源库」把文件拖进去。',
   ].join('\n')
 }
 
@@ -83,17 +82,7 @@ export function parseAssistantModelOutput(raw: string, input: string, courses: C
   return { text: text || '可以说得再具体一些，例如提醒、加课、资源或看板任务。' }
 }
 
-export async function askAssistant(opts: {
-  input: string
-  courses: Course[]
-  history: ChatTurn[]
-}): Promise<AssistantParse> {
-  const messages = [
-    { role: 'system', content: buildAssistantSystemPrompt(opts.courses) },
-    ...opts.history.map((item) => ({ role: item.role, content: item.content.slice(0, 800) })),
-    { role: 'user', content: opts.input },
-  ]
-
+export async function postAssistantMessages(messages: { role: string; content: string }[]): Promise<string> {
   let response: Response
   try {
     response = await fetch('/api/assistant', {
@@ -112,6 +101,21 @@ export async function askAssistant(opts: {
 
   const content = chatContent(data)
   if (!content.trim()) throw new Error('模型没有返回可用结果')
+  return content
+}
+
+export async function askAssistant(opts: {
+  input: string
+  courses: Course[]
+  history: ChatTurn[]
+}): Promise<AssistantParse> {
+  const messages = [
+    { role: 'system', content: buildAssistantSystemPrompt(opts.courses) },
+    ...opts.history.map((item) => ({ role: item.role, content: item.content.slice(0, 800) })),
+    { role: 'user', content: opts.input },
+  ]
+
+  const content = await postAssistantMessages(messages)
   try {
     return parseAssistantModelOutput(content, opts.input, opts.courses)
   } catch {

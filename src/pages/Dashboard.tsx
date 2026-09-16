@@ -39,12 +39,18 @@ function hourLabel(item: CalendarEvent) {
   return item.kind === 'deadline' ? '截止' : times[item.start]
 }
 
-function buildTodayWork(events: CalendarEvent[], tasks: BoardTask[], courses: Course[], today: string): TodayItem[] {
+function buildTodayWork(
+  events: CalendarEvent[],
+  tasks: BoardTask[],
+  courses: Course[],
+  today: string,
+  week: number,
+): TodayItem[] {
   const fromEvents: TodayItem[] = events
     .filter((item) => item.date === today && item.kind !== 'journal')
     .map((item) => {
       const course = matchCourseFromEvent(item, courses)
-      const topic = course ? currentCourseTopic(course) : ''
+      const topic = course ? currentCourseTopic(course, week) : ''
       return {
         id: item.id,
         source: 'event' as const,
@@ -87,7 +93,10 @@ export function Dashboard({
   const week = termWeekOf(now, meta.weekStart, meta.weekNumber)
   const kicker = `${formatDayLabel(now)} ${weekdayLabel(now)} · 开学第 ${week} 周`
 
-  const todayWork = useMemo(() => buildTodayWork(events, tasks, courses, today), [events, tasks, courses, today])
+  const todayWork = useMemo(
+    () => buildTodayWork(events, tasks, courses, today, week),
+    [events, tasks, courses, today, week],
+  )
   const pendingWork = todayWork.filter((item) => !item.done)
   const total = todayWork.length
   const doneCount = total - pendingWork.length

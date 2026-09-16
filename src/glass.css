@@ -444,10 +444,9 @@ body,
   border: 1px solid rgba(255, 255, 255, 0.4);
   border-radius: 24px;
   margin: 0 18px 18px 4px;
-  background: rgba(255, 252, 247, 0.86);
+  background: rgba(255, 252, 247, 0.94);
   box-shadow: 0 16px 40px rgba(12, 20, 16, 0.12);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  /* 可滚动页不要 backdrop-filter：与 overflow + 圆角叠在一起时 Chrome 会整块涂黑 */
 }
 
 .app-shell:not(.is-overview) .main-content > .calendar-page {
@@ -458,8 +457,7 @@ body,
   padding: 18px 22px 16px;
 }
 
-.app-shell:not(.is-overview) .main-content > .journal-page,
-.app-shell:not(.is-overview) .main-content > .papers-page {
+.app-shell:not(.is-overview) .main-content > .journal-page {
   min-height: 0;
   overflow: hidden;
   padding: 0;

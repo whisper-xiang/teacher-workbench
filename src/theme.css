@@ -182,20 +182,39 @@ h1,
 }
 
 .primary-action,
-button.primary-action {
-  border: 0;
-  border-radius: var(--radius-sm);
-  color: #fffdf9;
-  background: var(--moss-40);
+button.primary-action,
+.outline-action,
+button.outline-action,
+.filter-action,
+.confirmed-action,
+.danger-action,
+button.danger-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 10px;
   box-shadow: none;
-  transition: background 0.16s ease, filter 0.16s ease;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease;
 }
 
-.primary-action:hover,
-button.primary-action:hover {
+.primary-action,
+button.primary-action {
+  border: 0;
+  color: #fffdf9;
+  background: var(--moss-40);
+}
+
+.primary-action:hover:not(:disabled),
+button.primary-action:hover:not(:disabled) {
   background: var(--accent-hover);
   filter: none;
-  box-shadow: none;
 }
 
 .primary-action:active,
@@ -207,17 +226,46 @@ button.primary-action:active {
 .filter-action,
 .confirmed-action,
 button.outline-action {
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  color: #524b43;
-  background: rgba(255, 252, 247, 0.9);
-  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--moss-80);
+  color: var(--moss-30);
+  background: transparent;
 }
 
-.outline-action:hover,
-.filter-action:hover {
-  border-color: #d5cbbd;
-  background: #fff;
+.outline-action:hover:not(:disabled),
+.filter-action:hover:not(:disabled),
+button.outline-action:hover:not(:disabled) {
+  border-color: var(--moss-70);
+  background: var(--moss-95);
+}
+
+.danger-action,
+button.danger-action {
+  border: 1px solid rgba(143, 91, 80, 0.35);
+  background: transparent;
+  color: var(--clay);
+}
+
+.danger-action:hover:not(:disabled),
+button.danger-action:hover:not(:disabled) {
+  background: rgba(143, 91, 80, 0.08);
+}
+
+.primary-action:disabled,
+.outline-action:disabled,
+button.primary-action:disabled,
+button.outline-action:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.primary-action:focus-visible,
+.outline-action:focus-visible,
+.danger-action:focus-visible,
+button.primary-action:focus-visible,
+button.outline-action:focus-visible,
+button.danger-action:focus-visible {
+  outline: 3px solid var(--moss-90);
+  outline-offset: 2px;
 }
 
 .dashboard-panel,
@@ -417,7 +465,32 @@ button.outline-action {
 }
 
 .text-action {
-  color: var(--accent-deep) !important;
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--moss-30) !important;
+  box-shadow: none;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.text-action:hover:not(:disabled) {
+  color: var(--moss-20) !important;
+}
+
+.text-action:focus-visible {
+  outline: 3px solid var(--moss-90);
+  outline-offset: 2px;
+}
+
+.text-action:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .timeline-content {

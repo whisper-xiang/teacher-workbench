@@ -1,4 +1,4 @@
-import type { BoardTask, Course, TeachingResource } from '../data/types'
+import type { BoardTask, Course } from '../data/types'
 import { SECTIONS, WEEK_DAYS } from './courses'
 import { iso, shift, todayIso } from './dates'
 import { parseReminderNaturalLanguage } from './reminder-nlp'
@@ -21,12 +21,6 @@ export type AssistantDraft =
       mode: 'create' | 'add-session'
     }
   | {
-      kind: 'resource'
-      title: string
-      type: TeachingResource['type']
-      course: string
-    }
-  | {
       kind: 'task'
       title: string
       course: string
@@ -39,7 +33,6 @@ export type AssistantParse = {
   draft?: AssistantDraft
 }
 
-const RESOURCE_TYPES = ['课件', '教案', '试题', '视频', '文献'] as const
 const TASK_KINDS = ['教学', '学生', '教务', '教研'] as const
 
 function pad(n: number) {
@@ -111,18 +104,6 @@ export function draftFromModel(value: unknown, input: string, courses: Course[])
       existingId: existing?.id,
       mode: existing ? 'add-session' : 'create',
     }
-  }
-
-  if (kind === 'resource') {
-    const title = String(row.title ?? '').trim()
-    if (!title) return undefined
-    const typeRaw = String(row.type ?? '').trim()
-    const type = RESOURCE_TYPES.includes(typeRaw as (typeof RESOURCE_TYPES)[number])
-      ? (typeRaw as TeachingResource['type'])
-      : '教案'
-    const courseName = String(row.course ?? '').trim()
-    const course = matchCourse(courseName, '', courses)
-    return { kind: 'resource', title, type, course: course?.name ?? courseName }
   }
 
   if (kind === 'task') {
@@ -206,22 +187,6 @@ function parseCourse(input: string, courses: Course[]): Extract<AssistantDraft, 
   }
 }
 
-function parseResource(input: string, courses: Course[]): Extract<AssistantDraft, { kind: 'resource' }> | undefined {
-  if (!/资源|课件|教案|上传|文献|试题|观察记录/.test(input)) return undefined
-  const type: TeachingResource['type'] = /试题|测验|试卷/.test(input)
-    ? '试题'
-    : /视频/.test(input)
-      ? '视频'
-      : /文献|论文/.test(input)
-        ? '文献'
-        : /课件|PPT|ppt/.test(input)
-          ? '课件'
-          : '教案'
-  const course = courses.find((item) => input.includes(item.name))
-  const title = cleanup(input, ['上传', '到资源库', '资源库', '资源', '添加到', '加入', course?.name ?? '']) || '未命名资源'
-  return { kind: 'resource', title, type, course: course?.name ?? '' }
-}
-
 function parseTask(input: string, courses: Course[]): Extract<AssistantDraft, { kind: 'task' }> | undefined {
   if (!/任务|看板|待办/.test(input)) return undefined
   const reminder = parseReminderNaturalLanguage(input)
@@ -242,7 +207,7 @@ export function parseAssistantInput(input: string, courses: Course[]): Assistant
   if (!text) return { text: '请先说要记什么。' }
 
   if (/学生|花名册|成绩/.test(text) && !/任务|看板|提醒/.test(text)) {
-    return { text: '学生与过程性评价请到「学生与评价」查看或导入花名册。我可以帮你记提醒、加课、登资源和看板任务。' }
+    return { text: '学生与过程性评价请到「学生与评价」查看或导入花名册。我可以帮你记提醒、加课和看板任务。' }
   }
 
   const reminderLike = /提醒|记得|别忘|备忘|通知/.test(text)
@@ -266,12 +231,8 @@ export function parseAssistantInput(input: string, courses: Course[]): Assistant
     }
   }
 
-  const resource = parseResource(text, courses)
-  if (resource) {
-    return {
-      text: `将在资源库登记「${resource.title}」（${resource.type}${resource.course ? ` · ${resource.course}` : ''}）。确认后可再补传文件。`,
-      draft: resource,
-    }
+  if (/资源库/.test(text) || (/上传|放到|拖/.test(text) && /课件|教案|试题|文献|视频|观察记录/.test(text))) {
+    return { text: '文件请到「教学资源库」拖进去，选好课程后保存。我不能代存文件。' }
   }
 
   const task = parseTask(text, courses)
@@ -288,7 +249,7 @@ export function parseAssistantInput(input: string, courses: Course[]): Assistant
   }
 
   return {
-    text: '可以说：\n· 「明天 8:30 提醒我批改作业」\n· 「周三下午加一节教育心理学」\n· 「把课堂观察记录加到资源库」\n· 「看板加一个整理教案的任务」',
+    text: '可以说：\n· 「明天 8:30 提醒我批改作业」\n· 「周三下午加一节教育心理学」\n· 「看板加一个整理教案的任务」',
   }
 }
 
@@ -300,6 +261,5 @@ export function draftSummary(draft: AssistantDraft): { title: string; meta: stri
       meta: `${WEEK_DAYS[draft.day]} ${SECTIONS[draft.section]} · ${draft.room}${draft.mode === 'add-session' ? '（加时段）' : '（新建）'}`,
     }
   }
-  if (draft.kind === 'resource') return { title: draft.title, meta: `${draft.type}${draft.course ? ` · ${draft.course}` : ''}` }
   return { title: draft.title, meta: `${draft.course} · ${draft.dueDate}` }
 }

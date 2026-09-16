@@ -23,6 +23,7 @@ type IconName =
   | 'wind'
   | 'drop'
   | 'eye'
+  | 'back'
 
 const svg = {
   width: 22,
@@ -201,6 +202,12 @@ export function NavIcon({ name, size = 22 }: { name: IconName; size?: number }) 
         <svg {...props}>
           <path d="M2.8 12s3.4-6.2 9.2-6.2S21.2 12 21.2 12 17.8 18.2 12 18.2 2.8 12 2.8 12Z" />
           <circle cx="12" cy="12" r="2.4" />
+        </svg>
+      )
+    case 'back':
+      return (
+        <svg {...props}>
+          <path d="M15 5 8 12l7 7" />
         </svg>
       )
   }

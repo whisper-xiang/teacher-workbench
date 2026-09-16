@@ -37,6 +37,17 @@ export function inferResourceFormat(name: string, mime = ''): 'PPT' | 'DOC' | 'P
   return '其他'
 }
 
+export function inferResourceType(name: string, mime = ''): '课件' | '教案' | '试题' | '视频' | '文献' {
+  const lower = `${name} ${mime}`.toLowerCase()
+  if (/\.(mp4|webm|mov)(\b|$)/.test(lower) || lower.includes('video')) return '视频'
+  if (/试题|测验|试卷|quiz|exam/.test(lower)) return '试题'
+  if (/教案|教学设计|lesson/.test(lower)) return '教案'
+  if (/文献|指南|论文|reading/.test(lower)) return '文献'
+  if (/\.pdf(\b|$)/.test(lower) || lower.includes('pdf')) return '文献'
+  if (/\.docx?(\b|$)/.test(lower) || lower.includes('word') || lower.includes('msword')) return '教案'
+  return '课件'
+}
+
 export async function putResourceFile(id: string, file: Blob, name = 'file') {
   if (file.size > MAX_BYTES) {
     throw new Error(`文件超过 ${formatFileSize(MAX_BYTES)}，请压缩后再上传`)

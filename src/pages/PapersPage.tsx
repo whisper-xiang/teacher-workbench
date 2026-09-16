@@ -10,6 +10,7 @@ import { deleteResourceFile, formatFileSize, openStoredFile, putResourceFile } f
 import { analysisToNote, analyzeThesis, buildThesisPrompt, parseThesisAnalysis } from '../lib/thesis-analyze'
 import { dropPaperEvents, upsertPaperDeadline } from '../lib/thesis-events'
 import { extractThesisText } from '../lib/thesis-text'
+import { NavIcon } from '../nav-icons'
 
 const DRAFT_ACCEPT = '.doc,.docx,.pdf,.txt,.md,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain'
 
@@ -20,6 +21,18 @@ type Props = {
   onChangeAdvisees: (advisees: ThesisAdvisee[]) => void
   onChangeEvents: (events: CalendarEvent[]) => void
   onOpenSettings: () => void
+  onOpenPerson: (id: string) => void
+  onBack: () => void
+}
+
+type TimelineItem = {
+  id: string
+  date: string
+  kind: 'draft' | 'note' | 'remind' | 'stage'
+  title: string
+  body?: string
+  draft?: ThesisDraft
+  current?: boolean
 }
 
 function currentDraft(person: ThesisAdvisee) {
@@ -37,8 +50,57 @@ function formatDate(value?: string) {
   return `${date.getMonth() + 1} 月 ${date.getDate()} 日`
 }
 
-export function PapersPage({ advisees, events, initialId, onChangeAdvisees, onChangeEvents, onOpenSettings }: Props) {
-  const [selectedId, setSelectedId] = useState(initialId || advisees[0]?.id || '')
+function buildTimeline(person: ThesisAdvisee, today: string): TimelineItem[] {
+  const lastDraftId = currentDraft(person)?.id
+  const items: TimelineItem[] = person.drafts.map((draft) => ({
+    id: draft.id,
+    date: draft.receivedAt,
+    kind: 'draft',
+    title: draft.fileName,
+    body: draft.size,
+    draft,
+    current: draft.id === lastDraftId,
+  }))
+  for (const note of person.notes) {
+    items.push({
+      id: note.id,
+      date: note.date,
+      kind: 'note',
+      title: `指导意见 · ${note.stage}`,
+      body: note.text,
+    })
+  }
+  if (person.stageChangedAt) {
+    items.push({
+      id: `stage-${person.id}`,
+      date: person.stageChangedAt,
+      kind: 'stage',
+      title: `阶段改为${person.stage}`,
+    })
+  }
+  if (person.nextDate) {
+    const overdue = person.nextDate < today
+    items.push({
+      id: `remind-${person.id}`,
+      date: person.nextDate,
+      kind: 'remind',
+      title: overdue ? '逾期待看' : '下次看',
+    })
+  }
+  return items.sort((a, b) => (a.date === b.date ? b.id.localeCompare(a.id) : a.date < b.date ? 1 : -1))
+}
+
+export function PapersPage({
+  advisees,
+  events,
+  initialId,
+  onChangeAdvisees,
+  onChangeEvents,
+  onOpenSettings,
+  onOpenPerson,
+  onBack,
+}: Props) {
+  const [adding, setAdding] = useState(false)
   const [name, setName] = useState('')
   const [topic, setTopic] = useState('')
   const [noteDraft, setNoteDraft] = useState('')
@@ -47,13 +109,21 @@ export function PapersPage({ advisees, events, initialId, onChangeAdvisees, onCh
   const [analyzing, setAnalyzing] = useState(false)
   const [pasteOpen, setPasteOpen] = useState(false)
   const [pasteText, setPasteText] = useState('')
+  const [dragging, setDragging] = useState(false)
   const [llmReady, setLlmReady] = useState(hasLlmSettings)
   const fileRef = useRef<HTMLInputElement>(null)
+  const dragDepth = useRef(0)
   const today = todayIso()
 
-  useEffect(() => {
-    if (initialId && advisees.some((item) => item.id === initialId)) setSelectedId(initialId)
-  }, [initialId, advisees])
+  const selected = initialId ? advisees.find((item) => item.id === initialId) : undefined
+  const draft = selected ? currentDraft(selected) : undefined
+  const overdueCount = advisees.filter((item) => isOverdue(item, today)).length
+  const timeline = useMemo(() => (selected ? buildTimeline(selected, today) : []), [selected, today])
+  const summary = advisees.length
+    ? overdueCount
+      ? `${advisees.length} 人，${overdueCount} 人逾期待看`
+      : `${advisees.length} 人`
+    : '还没有人'
 
   useEffect(() => {
     const sync = () => setLlmReady(hasLlmSettings())
@@ -65,14 +135,14 @@ export function PapersPage({ advisees, events, initialId, onChangeAdvisees, onCh
     }
   }, [])
 
-  const selected = advisees.find((item) => item.id === selectedId)
-  const draft = selected ? currentDraft(selected) : undefined
-  const overdueCount = advisees.filter((item) => isOverdue(item, today)).length
-  const header = useMemo(() => {
-    if (!advisees.length) return '还没有人'
-    if (overdueCount) return `${advisees.length} 人，${overdueCount} 人逾期待看`
-    return `${advisees.length} 人`
-  }, [advisees.length, overdueCount])
+  useEffect(() => {
+    if (!adding) return
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setAdding(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [adding])
 
   useEffect(() => {
     if (!selected) {
@@ -80,6 +150,8 @@ export function PapersPage({ advisees, events, initialId, onChangeAdvisees, onCh
       setRemindDate(addDaysIso(today, 7))
       setPasteOpen(false)
       setPasteText('')
+      setDragging(false)
+      dragDepth.current = 0
       return
     }
     setNoteDraft(selected.analysis ? analysisToNote(selected.analysis) : '')
@@ -107,9 +179,10 @@ export function PapersPage({ advisees, events, initialId, onChangeAdvisees, onCh
       notes: [],
     }
     onChangeAdvisees([next, ...advisees])
-    setSelectedId(next.id)
+    setAdding(false)
     setName('')
     setTopic('')
+    onOpenPerson(next.id)
     notify.success(`已添加「${next.name}」`)
   }
 
@@ -136,8 +209,7 @@ export function PapersPage({ advisees, events, initialId, onChangeAdvisees, onCh
       }
       patchPerson(selected.id, (person) => {
         const last = person.drafts[person.drafts.length - 1]
-        const replace =
-          last && last.fileName === nextDraft.fileName && last.receivedAt === nextDraft.receivedAt
+        const replace = last && last.fileName === nextDraft.fileName && last.receivedAt === nextDraft.receivedAt
         if (replace && last.fileId && last.fileId !== fileId) {
           void deleteResourceFile(last.fileId).catch(() => undefined)
         }
@@ -264,78 +336,118 @@ export function PapersPage({ advisees, events, initialId, onChangeAdvisees, onCh
     const files = selected.drafts.map((item) => item.fileId).filter((id): id is string => Boolean(id))
     onChangeAdvisees(advisees.filter((item) => item.id !== selected.id))
     onChangeEvents(dropPaperEvents(events, selected.id))
-    setSelectedId(advisees.find((item) => item.id !== selected.id)?.id ?? '')
     files.forEach((id) => void deleteResourceFile(id).catch(() => undefined))
+    onBack()
     notify.warning(`已移出「${selected.name}」`)
   }
 
-  const olderDrafts = selected ? selected.drafts.slice(0, -1).slice(-4).reverse() : []
+  const onDragEnter = (event: React.DragEvent) => {
+    if (![...event.dataTransfer.types].includes('Files')) return
+    event.preventDefault()
+    dragDepth.current += 1
+    setDragging(true)
+  }
+
+  const onDragLeave = (event: React.DragEvent) => {
+    if (![...event.dataTransfer.types].includes('Files')) return
+    event.preventDefault()
+    dragDepth.current -= 1
+    if (dragDepth.current <= 0) {
+      dragDepth.current = 0
+      setDragging(false)
+    }
+  }
+
+  const onDropFile = (event: React.DragEvent) => {
+    event.preventDefault()
+    dragDepth.current = 0
+    setDragging(false)
+    void takeFile(event.dataTransfer.files[0])
+  }
 
   return (
     <section className="papers-page" aria-label="论文指导">
-      <aside className="papers-list-pane">
-        <div className="papers-list-tools">
-          <p className="section-label">日常工作 · 论文指导</p>
-          <h1>论文指导</h1>
-          <p className="papers-summary">{header}</p>
-          <form className="papers-add" onSubmit={addPerson}>
-            <input value={name} onChange={(event) => setName(event.target.value)} placeholder="姓名" aria-label="姓名" />
-            <input value={topic} onChange={(event) => setTopic(event.target.value)} placeholder="题目，可先空着" aria-label="题目" />
-            <button type="submit" className="papers-new">
-              添加
-            </button>
-          </form>
-        </div>
-        <ul className="papers-note-list" role="listbox" aria-label="指导名单">
-          {advisees.map((person) => {
-            const selectedRow = person.id === selectedId
-            const overdue = isOverdue(person, today)
-            return (
-              <li key={person.id}>
-                <button
-                  type="button"
-                  className={`${selectedRow ? 'is-selected' : ''}${overdue ? ' is-overdue' : ''}`}
-                  onClick={() => setSelectedId(person.id)}
-                >
-                  <strong>{person.name}</strong>
-                  <span>
-                    {person.topic.trim() || '未定题'} · {person.stage}
-                    {person.nextDate ? ` · ${formatDate(person.nextDate)}` : ''}
-                  </span>
-                </button>
-              </li>
-            )
-          })}
-        </ul>
-        {!advisees.length && <p className="papers-empty">还没有人。先添加一个人。</p>}
-      </aside>
+      {!selected && (
+        <>
+          <div className="papers-heading">
+            <div>
+              <h1>论文指导</h1>
+              <p>{summary}</p>
+            </div>
+            <div className="papers-heading-actions">
+              <button type="button" className="primary-action" onClick={() => setAdding(true)}>
+                添加
+              </button>
+            </div>
+          </div>
 
-      <div className="papers-archive">
-        {!selected && <p className="papers-empty-main">还没有人。左边添加一个人。</p>}
-        {selected && (
-          <>
-            <div className="papers-block">
-              <div className="papers-block-head">
-                <h2>人</h2>
-                <button type="button" className="text-action" onClick={() => void removePerson()}>
-                  移出
-                </button>
-              </div>
-              <label>
-                姓名
-                <input
-                  value={selected.name}
-                  onChange={(event) => patchPerson(selected.id, (person) => ({ ...person, name: event.target.value }))}
-                />
-              </label>
-              <label>
-                题目
-                <input
-                  value={selected.topic}
-                  onChange={(event) => patchPerson(selected.id, (person) => ({ ...person, topic: event.target.value }))}
-                  placeholder="未定题"
-                />
-              </label>
+          <div className="papers-table-wrap">
+            <table className="papers-table">
+              <thead>
+                <tr>
+                  <th>姓名</th>
+                  <th>题目</th>
+                  <th>阶段</th>
+                  <th>当前稿</th>
+                  <th>下次看</th>
+                </tr>
+              </thead>
+              <tbody>
+                {advisees.map((person) => {
+                  const latest = currentDraft(person)
+                  const overdue = isOverdue(person, today)
+                  return (
+                    <tr
+                      key={person.id}
+                      className={overdue ? 'is-overdue' : undefined}
+                      onClick={() => onOpenPerson(person.id)}
+                    >
+                      <td>
+                        <button type="button" className="papers-name-btn" onClick={() => onOpenPerson(person.id)}>
+                          <strong>{person.name}</strong>
+                          {overdue ? <small>逾期待看</small> : null}
+                        </button>
+                      </td>
+                      <td>{person.topic.trim() || '未定题'}</td>
+                      <td>{person.stage}</td>
+                      <td>{latest?.fileName || '—'}</td>
+                      <td>{person.nextDate ? formatDate(person.nextDate) : '—'}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+            {!advisees.length && <div className="papers-empty">还没有人。先添加一个人。</div>}
+          </div>
+        </>
+      )}
+
+      {selected && (
+        <div
+          className={`papers-detail${dragging ? ' is-dragging' : ''}`}
+          onDragEnter={onDragEnter}
+          onDragOver={(event) => event.preventDefault()}
+          onDragLeave={onDragLeave}
+          onDrop={onDropFile}
+        >
+          <div className="papers-heading papers-heading-detail">
+            <div className="papers-heading-lead">
+              <button type="button" className="papers-back" onClick={onBack} aria-label="返回" title="返回">
+                <NavIcon name="back" size={18} />
+              </button>
+              <input
+                className="papers-title-input"
+                value={selected.name}
+                aria-label="姓名"
+                onChange={(event) => patchPerson(selected.id, (person) => ({ ...person, name: event.target.value }))}
+              />
+              <input
+                className="papers-topic-input"
+                value={selected.topic}
+                aria-label="题目"
+                placeholder="未定题"
+                onChange={(event) => patchPerson(selected.id, (person) => ({ ...person, topic: event.target.value }))}
+              />
               <div className="papers-stages" role="group" aria-label="阶段">
                 {THESIS_STAGES.map((stage) => (
                   <button
@@ -349,147 +461,137 @@ export function PapersPage({ advisees, events, initialId, onChangeAdvisees, onCh
                 ))}
               </div>
             </div>
+            <div className="papers-heading-actions">
+              <button type="button" className="text-action" onClick={() => void removePerson()}>
+                移出
+              </button>
+            </div>
+          </div>
 
-            <div className="papers-block">
-              <h2>当前稿</h2>
-              <div
-                className={`papers-drop${draft ? ' has-file' : ''}`}
-                onDragOver={(event) => event.preventDefault()}
-                onDrop={(event) => {
-                  event.preventDefault()
-                  void takeFile(event.dataTransfer.files[0])
-                }}
-              >
-                <input
-                  ref={fileRef}
-                  type="file"
-                  accept={DRAFT_ACCEPT}
-                  hidden
-                  onChange={(event) => {
-                    void takeFile(event.target.files?.[0])
-                    event.target.value = ''
-                  }}
-                />
-                {draft ? (
-                  <div className="papers-draft-now">
-                    <button type="button" className="text-action" onClick={() => void openDraft(draft)}>
-                      {draft.fileName}
+          <button
+            type="button"
+            className={`papers-drop${dragging ? ' is-over' : ''}`}
+            disabled={busy}
+            onClick={() => fileRef.current?.click()}
+          >
+            {busy ? '正在收下…' : draft ? '换一版，或把文件拖进来' : '把 Word 或 PDF 拖进来'}
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept={DRAFT_ACCEPT}
+            hidden
+            onChange={(event) => {
+              void takeFile(event.target.files?.[0])
+              event.target.value = ''
+            }}
+          />
+
+          {timeline.length ? (
+            <ol className="papers-timeline">
+              {timeline.map((item) => (
+                <li key={item.id} className={`is-${item.kind}${item.current ? ' is-current' : ''}`}>
+                  <time dateTime={item.date}>{formatDate(item.date)}</time>
+                  {item.kind === 'draft' && item.draft ? (
+                    <button type="button" className="text-action" onClick={() => void openDraft(item.draft!)}>
+                      {item.current ? '当前稿 · ' : ''}
+                      {item.title}
                     </button>
-                    <span>
-                      {formatDate(draft.receivedAt)}
-                      {draft.size ? ` · ${draft.size}` : ''}
-                    </span>
-                  </div>
-                ) : (
-                  <p>把 Word 或 PDF 拖到这里</p>
-                )}
-                <button type="button" className="outline-action" disabled={busy} onClick={() => fileRef.current?.click()}>
-                  {busy ? '正在收下…' : draft ? '换一版' : '上传这一版'}
+                  ) : (
+                    <strong>{item.title}</strong>
+                  )}
+                  {item.kind === 'note' && item.body ? <p>{item.body}</p> : null}
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p className="papers-help">还没有过程。</p>
+          )}
+
+          <div className="papers-composer">
+            <textarea
+              className="papers-note-input"
+              value={noteDraft}
+              onChange={(event) => setNoteDraft(event.target.value)}
+              rows={4}
+              placeholder="写下意见，或先分析这一版"
+            />
+            {pasteOpen && (
+              <div className="papers-paste">
+                <textarea
+                  value={pasteText}
+                  onChange={(event) => setPasteText(event.target.value)}
+                  rows={3}
+                  placeholder="把模型返回的 JSON 贴在这里"
+                />
+                <button type="button" className="outline-action" onClick={applyPasted}>
+                  采用
                 </button>
               </div>
-              {olderDrafts.length > 0 && (
-                <ul className="papers-old-drafts">
-                  {olderDrafts.map((item) => (
-                    <li key={item.id}>
-                      <span>上一版</span>
-                      <button type="button" className="text-action" onClick={() => void openDraft(item)}>
-                        {item.fileName}
-                      </button>
-                      <span>{formatDate(item.receivedAt)}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-
-            <div className="papers-block">
-              <h2>分析这一版</h2>
-              <div className="papers-analyze-actions">
-                <button
-                  type="button"
-                  className="primary-action"
-                  disabled={analyzing || !draft?.extractedText}
-                  title={!draft?.extractedText ? '先上传一份能读出正文的稿' : !llmReady ? '到设置填写模型接口' : '分析当前稿'}
-                  onClick={() => void runAnalysis()}
-                >
-                  {analyzing ? '正在读…' : '分析这一版'}
-                </button>
-                {!llmReady && (
-                  <button type="button" className="text-action" onClick={onOpenSettings}>
-                    到设置填写接口
-                  </button>
-                )}
-                {draft?.extractedText && (
+            )}
+            <div className="papers-note-actions">
+              <button
+                type="button"
+                className="outline-action"
+                disabled={analyzing || !draft?.extractedText}
+                title={!draft?.extractedText ? '先上传一份能读出正文的稿' : !llmReady ? '到设置填写模型接口' : '分析当前稿'}
+                onClick={() => void runAnalysis()}
+              >
+                {analyzing ? '正在读…' : '分析'}
+              </button>
+              {draft?.extractedText && (!llmReady || pasteOpen) && (
+                <>
                   <button type="button" className="text-action" onClick={() => void copyPrompt()}>
                     复制提示词
                   </button>
-                )}
-              </div>
-              {!draft?.extractedText && <p className="papers-help">有正文后才能分析。文稿只在你点分析时发往设置里的模型。</p>}
-              {selected.analysis && (
-                <div className="papers-analysis">
-                  <p>{selected.analysis.summary}</p>
-                  {selected.analysis.findings.map((item, index) => (
-                    <article key={`${item.issue}-${index}`}>
-                      <strong>{item.issue}</strong>
-                      {item.location ? <span>{item.location}</span> : null}
-                      {item.say ? <em>{item.say}</em> : null}
-                    </article>
-                  ))}
-                </div>
-              )}
-              {(pasteOpen || (!llmReady && !selected.analysis)) && draft?.extractedText && (
-                <div className="papers-paste">
-                  <textarea
-                    value={pasteText}
-                    onChange={(event) => setPasteText(event.target.value)}
-                    rows={4}
-                    placeholder="模型回了 JSON，贴在这里"
-                  />
-                  <button type="button" className="outline-action" onClick={applyPasted}>
-                    采用这段结果
+                  <button type="button" className="text-action" onClick={() => setPasteOpen((open) => !open)}>
+                    {pasteOpen ? '收起贴回' : '贴回结果'}
                   </button>
-                </div>
+                </>
               )}
+              <button type="button" className="primary-action" onClick={writeNote}>
+                写入
+              </button>
+              <label className="papers-remind">
+                下次
+                <input type="date" value={remindDate} onChange={(event) => setRemindDate(event.target.value)} />
+              </label>
+              <button type="button" className="outline-action" onClick={remindNext}>
+                提醒我
+              </button>
             </div>
+          </div>
+        </div>
+      )}
 
-            <div className="papers-block">
-              <h2>意见</h2>
-              <textarea
-                className="papers-note-input"
-                value={noteDraft}
-                onChange={(event) => setNoteDraft(event.target.value)}
-                rows={6}
-                placeholder="分析后会出现草稿，也可以自己写"
-              />
-              <div className="papers-note-actions">
-                <button type="button" className="primary-action" onClick={writeNote}>
-                  写入指导意见
-                </button>
-                <label className="papers-remind">
-                  下次
-                  <input type="date" value={remindDate} onChange={(event) => setRemindDate(event.target.value)} />
-                </label>
-                <button type="button" className="outline-action" onClick={remindNext}>
-                  提醒我下次看
-                </button>
-              </div>
-              {selected.notes.length > 0 && (
-                <ol className="papers-notes">
-                  {selected.notes.map((item) => (
-                    <li key={item.id}>
-                      <strong>
-                        {formatDate(item.date)} · {item.stage}
-                      </strong>
-                      <p>{item.text}</p>
-                    </li>
-                  ))}
-                </ol>
-              )}
+      {adding && (
+        <div className="papers-modal-backdrop" onMouseDown={() => setAdding(false)}>
+          <form className="papers-composer-dialog" aria-labelledby="papers-add-title" onSubmit={addPerson} onMouseDown={(event) => event.stopPropagation()}>
+            <div className="papers-composer-head">
+              <h2 id="papers-add-title">添加</h2>
+              <button type="button" className="papers-composer-close" onClick={() => setAdding(false)} aria-label="关闭">
+                ×
+              </button>
             </div>
-          </>
-        )}
-      </div>
+            <label>
+              姓名
+              <input value={name} onChange={(event) => setName(event.target.value)} placeholder="姓名" autoFocus />
+            </label>
+            <label>
+              题目
+              <input value={topic} onChange={(event) => setTopic(event.target.value)} placeholder="可先空着" />
+            </label>
+            <div className="papers-note-actions">
+              <button type="button" className="outline-action" onClick={() => setAdding(false)}>
+                取消
+              </button>
+              <button type="submit" className="primary-action">
+                添加
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </section>
   )
 }

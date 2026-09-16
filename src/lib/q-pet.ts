@@ -2,7 +2,7 @@ import { putResourceFile } from './resource-files'
 
 export const PET_AVATAR_FILE_ID = 'pet-q-avatar'
 export const PET_AVATAR_EVENT = 'pet-avatar-change'
-export const DEFAULT_Q_PET_SRC = `${import.meta.env.BASE_URL}pets/q-child.png`
+export const DEFAULT_Q_PET_SRC = `${import.meta.env.BASE_URL}pets/q-child.png?v=2`
 
 const OUTPUT = 512
 

@@ -274,7 +274,7 @@ function mergeWithSeed(partial: Partial<WorkbenchData> | null): WorkbenchData {
     tasks: (partial.tasks ?? seed.tasks).map(normalizeTask).map((task) =>
       task.assignee === LEGACY_DEMO_TEACHER_NAME ? { ...task, assignee: seed.profile.name } : task,
     ),
-    resources: (partial.resources ?? seed.resources).map(normalizeResource),
+    resources: (partial.resources ?? seed.resources).map(normalizeResource).filter((item) => Boolean(item.fileId)),
     savedResources: partial.savedResources ?? seed.savedResources,
     news,
     newsBookmarks,
@@ -311,7 +311,8 @@ export function loadWorkbenchData(): WorkbenchData {
       if (
         (parsed.meta?.presetToolsVersion ?? 0) < PRESET_TOOLS_VERSION ||
         (parsed.meta?.petPresetVersion ?? 0) < PET_PRESET_VERSION ||
-        parsed.profile?.name === LEGACY_DEMO_TEACHER_NAME
+        parsed.profile?.name === LEGACY_DEMO_TEACHER_NAME ||
+        (parsed.resources ?? []).some((item) => !item.fileId)
       ) {
         saveWorkbenchData(data)
       }
