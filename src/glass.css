@@ -492,6 +492,22 @@ body,
   padding: 18px 28px 16px 22px;
 }
 
+.app-shell:not(.is-overview) .main-content > .news-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  padding: 18px 28px 16px 22px;
+}
+
+@media (max-width: 920px) {
+  .app-shell:not(.is-overview) .main-content > .news-page {
+    display: block;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+}
+
 .app-shell:not(.is-overview) .main-content > .journal-page {
   min-height: 0;
   overflow: hidden;

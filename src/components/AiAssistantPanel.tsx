@@ -7,6 +7,7 @@ import {
   type AssistantParse,
 } from '../lib/assistant'
 import { askAssistant } from '../lib/assistant-llm'
+import { formatReminderTime } from '../lib/reminder-nlp'
 import { NavIcon } from '../nav-icons'
 
 type ChatMessage = {

@@ -13,6 +13,7 @@ import type {
   ClassNodeKind,
   Course,
   CourseClassGroup,
+  NewsCustomFeed,
   NewsItem,
   StudentRecord,
   TeachingResource,
@@ -22,6 +23,7 @@ import type {
 } from './types'
 import { inferMajorFromText, THESIS_STAGES } from './types'
 import { isWeeklyDutySlot } from '../lib/duty'
+import { isNewsCustomFeed, withFreshFlags } from '../lib/news'
 import { syncDerivedEvents } from './sync'
 
 export const STORAGE_KEY = 'teacher-workbench-data-v1'
@@ -179,17 +181,57 @@ function normalizeEvent(event: CalendarEvent): CalendarEvent {
   }
 }
 
+function normalizeCustomFeeds(raw: unknown): NewsCustomFeed[] {
+  if (!Array.isArray(raw)) return []
+  const seen = new Set<string>()
+  const feeds: NewsCustomFeed[] = []
+  for (const item of raw) {
+    if (!isNewsCustomFeed(item)) continue
+    if (seen.has(item.url) || seen.has(item.id)) continue
+    seen.add(item.url)
+    seen.add(item.id)
+    feeds.push({
+      id: item.id,
+      name: item.name.trim() || '自订源',
+      url: item.url.trim(),
+    })
+  }
+  return feeds
+}
+
 function normalizeNews(partial: Partial<WorkbenchData>) {
   const raw = partial.news ?? []
   const isLegacySeed = raw.length > 0 && raw.every((item) => !item.id.startsWith('rss-'))
   if (isLegacySeed) {
-    return { news: [] as NewsItem[], newsBookmarks: [] as string[], newsRead: [] as string[] }
+    return {
+      news: [] as NewsItem[],
+      newsBookmarks: [] as string[],
+      newsRead: [] as string[],
+      newsCustomFeeds: normalizeCustomFeeds(partial.newsCustomFeeds),
+      newsDisabledFeeds: [] as string[],
+    }
   }
-  const ids = new Set(raw.map((item) => item.id))
+  const news = withFreshFlags(raw)
+  const ids = new Set(news.map((item) => item.id))
+  const urlToId = new Map(news.map((item) => [item.url, item.id]))
+  const prevById = new Map(raw.map((item) => [item.id, item]))
+  const remap = (values: string[]) =>
+    [...new Set(
+      values
+        .map((id) => {
+          if (ids.has(id)) return id
+          const prev = prevById.get(id)
+          return prev ? (urlToId.get(prev.url) ?? id) : id
+        })
+        .filter((id) => ids.has(id)),
+    )]
+  const disabled = (partial.newsDisabledFeeds ?? []).filter((id) => typeof id === 'string')
   return {
-    news: raw,
-    newsBookmarks: (partial.newsBookmarks ?? []).filter((id) => ids.has(id)),
-    newsRead: (partial.newsRead ?? []).filter((id) => ids.has(id)),
+    news,
+    newsBookmarks: remap(partial.newsBookmarks ?? []),
+    newsRead: remap(partial.newsRead ?? []),
+    newsCustomFeeds: normalizeCustomFeeds(partial.newsCustomFeeds),
+    newsDisabledFeeds: [...new Set(disabled)],
   }
 }
 
@@ -242,7 +284,7 @@ function mergeWithSeed(partial: Partial<WorkbenchData> | null): WorkbenchData {
     hiddenCourseEventIds: partial.hiddenCourseEventIds ?? seed.hiddenCourseEventIds,
     meta,
   } as WorkbenchData)
-  const { news, newsBookmarks, newsRead } = normalizeNews(partial)
+  const { news, newsBookmarks, newsRead, newsCustomFeeds, newsDisabledFeeds } = normalizeNews(partial)
 
   const storedProfile = partial.profile
   const storedPetVersion = partial.meta?.petPresetVersion ?? 0
@@ -283,6 +325,8 @@ function mergeWithSeed(partial: Partial<WorkbenchData> | null): WorkbenchData {
     news,
     newsBookmarks,
     newsRead,
+    newsCustomFeeds,
+    newsDisabledFeeds,
     tools,
     favoriteTools: (partial.favoriteTools ?? seed.favoriteTools).filter((id) => toolIds.has(id)),
     grades: partial.grades ?? seed.grades,

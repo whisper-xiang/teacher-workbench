@@ -1,4 +1,5 @@
-const DB_NAME = 'teacher-workbench-files'
+export const FILES_DB_NAME = 'teacher-workbench-files'
+const DB_NAME = FILES_DB_NAME
 const STORE = 'blobs'
 const DB_VERSION = 1
 const MAX_BYTES = 80 * 1024 * 1024

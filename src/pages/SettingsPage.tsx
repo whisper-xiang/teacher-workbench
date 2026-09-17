@@ -15,6 +15,7 @@ import {
 } from '../lib/atmosphere'
 import { hasLlmSettings, loadLlmSettings, saveLlmSettings, type LlmSettings } from '../lib/llm-settings'
 import { parseSettingsSection, type SettingsSectionId } from '../lib/settings-nav'
+import { describeStorageLocation } from '../lib/storage-location'
 
 type Props = {
   section?: SettingsSectionId
@@ -60,6 +61,10 @@ function sameProfile(a: TeacherProfile, b: TeacherProfile) {
 
 function sameMeta(a: WorkbenchMeta, b: WorkbenchMeta) {
   return a.termLabel === b.termLabel && a.weekNumber === b.weekNumber && a.weekStart === b.weekStart
+}
+
+function pathForDisplay(path: string | null) {
+  return path ? path.replace(/([/\\])/g, '$1\u200b').replace(/(\.indexeddb)/g, '\u200b$1') : ''
 }
 
 export function SettingsPage({ section: sectionProp, profile, meta, updatedAt, onSaveProfile, onExport, onImport, onReset }: Props) {
@@ -181,6 +186,15 @@ export function SettingsPage({ section: sectionProp, profile, meta, updatedAt, o
     }
   }
 
+  const copyTextValue = async (value: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(value)
+      notify.success(`已复制${label}`)
+    } catch {
+      notify.warning('复制失败，请手动选择文字')
+    }
+  }
+
   const persistLlm = (next: LlmSettings, toast?: string) => {
     const saved = {
       baseUrl: next.baseUrl.trim(),
@@ -195,6 +209,7 @@ export function SettingsPage({ section: sectionProp, profile, meta, updatedAt, o
 
   const selectedKind = resolvePetKind(form)
   const selectedAtmosphere = resolveAtmosphereId(form)
+  const storageLocation = describeStorageLocation()
 
   const heading =
     section === 'profile'
@@ -493,6 +508,41 @@ export function SettingsPage({ section: sectionProp, profile, meta, updatedAt, o
         {section === 'data' && (
         <section className="settings-block" aria-labelledby="settings-data">
           <h2 id="settings-data">本机数据</h2>
+          <dl className="settings-location">
+            <div>
+              <dt>文件夹位置</dt>
+              <dd>
+                <code>{pathForDisplay(storageLocation.folderPath) || '当前浏览器未给出可打开的磁盘路径'}</code>
+                {storageLocation.folderPath ? (
+                  <button
+                    type="button"
+                    className="text-action"
+                    onClick={() => {
+                      const path = storageLocation.folderPath
+                      if (path) void copyTextValue(path, '文件夹位置')
+                    }}
+                  >
+                    复制
+                  </button>
+                ) : null}
+              </dd>
+            </div>
+            <div>
+              <dt>绑定网址</dt>
+              <dd>
+                <code>{storageLocation.origin || '—'}</code>
+                {storageLocation.origin ? (
+                  <button type="button" className="text-action" onClick={() => void copyTextValue(storageLocation.origin, '绑定网址')}>
+                    复制
+                  </button>
+                ) : null}
+              </dd>
+            </div>
+          </dl>
+          <p className="settings-help">
+            课件、照片、论文稿在这个文件夹。课表、学生、成绩写在同一配置的网页存储（{storageLocation.jsonKey}）。{storageLocation.folderHint}{' '}
+            换浏览器、换网址或清除站点数据会找不到这份数据。
+          </p>
           <div className="settings-actions">
             <button
               className="primary-action"

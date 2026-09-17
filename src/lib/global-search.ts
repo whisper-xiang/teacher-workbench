@@ -166,6 +166,21 @@ export function buildSearchIndex(data: WorkbenchData): SearchResult[] {
     )
   })
 
+  data.news?.forEach((item) => {
+    push(
+      results,
+      {
+        id: `news-${item.id}`,
+        title: item.title,
+        meta: `${item.source} · ${item.category} · ${item.summary}`,
+        group: '热点资讯',
+        route: 'news',
+        param: item.id,
+      },
+      item.id,
+    )
+  })
+
   return results
 }
 

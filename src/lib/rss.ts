@@ -1,12 +1,22 @@
 import type { NewsItem } from '../data/types'
+import { inferNewsMajors } from './news'
 import { RSS_FEEDS, type RssFeedConfig } from './rss-feeds'
 
 export type { NewsPortal, RssFeedConfig } from './rss-feeds'
-export { NEWS_PORTALS, RSS_FEEDS } from './rss-feeds'
+export { NEWS_PORTALS, RSS_FEEDS, customFeedToConfig, resolveActiveFeeds } from './rss-feeds'
+
+export type RssFetchFailure = {
+  id: string
+  name: string
+}
+
+export type RssFetchResult = {
+  items: NewsItem[]
+  failures: RssFetchFailure[]
+}
 
 function stripHtml(html: string): string {
-  if (!html.includes('<')) return html.trim()
-  const doc = new DOMParser().parseFromString(html, 'text/html')
+  const doc = new DOMParser().parseFromString(`<div>${html}</div>`, 'text/html')
   return (doc.body.textContent ?? html.replace(/<[^>]+>/g, '')).replace(/\s+/g, ' ').trim()
 }
 
@@ -18,11 +28,14 @@ function formatNewsDate(dateStr: string): string {
 
 function inferCategory(title: string, summary: string, fallback: NewsItem['category']): NewsItem['category'] {
   const text = `${title}${summary}`
+  if (/课标|课程标准|师范认证|专业认证|培养方案|印发|意见|办法|规定|部署/.test(text) && /教育|教师|学校|师范/.test(text)) {
+    return '政策通知'
+  }
+  if (/政策|通知/.test(text) && /教育|教师|学校|教育部/.test(text)) return '政策通知'
+  if (/征稿|征文|论坛|会议|学术|投稿|课题申报/.test(text)) return '学术活动'
   if (/AI|人工智能|大模型|ChatGPT|生成式|智能体/i.test(text)) return 'AI热点'
-  if (/政策|通知|意见|办法|规定|部署|印发/i.test(text)) return '政策通知'
-  if (/教研|工作坊|教学改进|课堂观察|教师发展|学前|幼儿|幼儿园|指南|游戏课程/i.test(text)) return '教研动态'
-  if (/论坛|会议|征文|征稿|学术|投稿/i.test(text)) return '学术活动'
-  if (/大学|高校|师范|院校|校园/i.test(text)) return '高校动态'
+  if (/教研|工作坊|教学改进|课堂观察|教师发展|学前|幼儿|幼儿园|指南|游戏课程/.test(text)) return '教研动态'
+  if (/大学|高校|师范|院校|校园/.test(text)) return '高校动态'
   return fallback
 }
 
@@ -60,7 +73,7 @@ function parseRssXml(xml: string, feed: RssFeedConfig): Array<{ item: NewsItem; 
   const items: Array<{ item: NewsItem; pubMs: number }> = []
 
   nodes.forEach((node, index) => {
-    const title = itemText(node, ['title'])
+    const title = stripHtml(itemText(node, ['title']))
     const link = itemLink(node)
     if (!title || !link) return
 
@@ -70,6 +83,7 @@ function parseRssXml(xml: string, feed: RssFeedConfig): Array<{ item: NewsItem; 
     if (feed.keywords && !feed.keywords.test(`${title}${summary}`)) return
     const pubRaw = itemText(node, ['pubDate', 'published', 'updated'])
     const pubMs = pubRaw ? new Date(pubRaw).getTime() : now - index * 3_600_000
+    const safePub = Number.isNaN(pubMs) ? now - index * 3_600_000 : pubMs
     const category = inferCategory(title, summary, feed.category)
     const accent =
       category === 'AI热点'
@@ -81,21 +95,24 @@ function parseRssXml(xml: string, feed: RssFeedConfig): Array<{ item: NewsItem; 
             : category === '学术活动'
               ? 'amber'
               : feed.accent
+    const blob = `${title}${summary}`
 
     items.push({
-      pubMs: Number.isNaN(pubMs) ? now - index * 3_600_000 : pubMs,
+      pubMs: safePub,
       item: {
-        id: `rss-${feed.id}-${encodeURIComponent(link).slice(0, 80)}`,
+        id: `rss-${feed.id}-${link}`,
         category,
         title,
         summary,
         source: feed.name,
-        date: formatNewsDate(pubRaw || new Date(pubMs).toISOString()),
+        date: formatNewsDate(pubRaw || new Date(safePub).toISOString()),
         tag: feed.tag,
         accent,
-        fresh: now - pubMs < 3 * 86_400_000,
-        hot: index < 2 || now - pubMs < 86_400_000,
+        fresh: now - safePub < 3 * 86_400_000,
+        hot: index < 2 || now - safePub < 86_400_000,
         url: link,
+        pubAt: new Date(safePub).toISOString(),
+        majors: inferNewsMajors(blob),
       },
     })
   })
@@ -109,26 +126,34 @@ async function fetchFeedXml(url: string): Promise<string> {
   return res.text()
 }
 
-export async function fetchRssNews(limitPerFeed = 8): Promise<NewsItem[]> {
+export async function fetchRssNews(feeds: RssFeedConfig[] = RSS_FEEDS, limitPerFeed = 8): Promise<RssFetchResult> {
   const batches = await Promise.allSettled(
-    RSS_FEEDS.map(async (feed) => {
+    feeds.map(async (feed) => {
       const xml = await fetchFeedXml(feed.url)
-      return parseRssXml(xml, feed).slice(0, limitPerFeed)
+      return { feed, rows: parseRssXml(xml, feed).slice(0, limitPerFeed) }
     }),
   )
 
   const scored: Array<{ item: NewsItem; pubMs: number }> = []
   const seen = new Set<string>()
+  const failures: RssFetchFailure[] = []
 
-  for (const batch of batches) {
-    if (batch.status !== 'fulfilled') continue
-    for (const entry of batch.value) {
-      const key = entry.item.url ?? entry.item.title
+  for (const [index, batch] of batches.entries()) {
+    const feed = feeds[index]
+    if (batch.status !== 'fulfilled') {
+      if (feed) failures.push({ id: feed.id, name: feed.name })
+      continue
+    }
+    for (const entry of batch.value.rows) {
+      const key = entry.item.url || entry.item.title
       if (seen.has(key)) continue
       seen.add(key)
       scored.push(entry)
     }
   }
 
-  return scored.sort((a, b) => b.pubMs - a.pubMs).map((entry) => entry.item)
+  return {
+    items: scored.sort((a, b) => b.pubMs - a.pubMs).map((entry) => entry.item),
+    failures,
+  }
 }

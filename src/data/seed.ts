@@ -291,6 +291,8 @@ function buildRawSeed(weekStart: string, today: string): WorkbenchData {
     news: [],
     newsBookmarks: [],
     newsRead: [],
+    newsCustomFeeds: [],
+    newsDisabledFeeds: [],
     tools: DEFAULT_TOOLS,
     favoriteTools: DEFAULT_FAVORITE_TOOL_IDS,
     grades: [

@@ -1,4 +1,4 @@
-import type { NewsItem } from '../data/types'
+import type { NewsCustomFeed, NewsItem } from '../data/types'
 
 export type RssFeedConfig = {
   id: string
@@ -51,12 +51,31 @@ export const RSS_FEEDS: RssFeedConfig[] = [
     id: 'chinanews-scroll',
     name: '中国新闻网',
     url: 'https://www.chinanews.com.cn/rss/scroll-news.xml',
-    category: '政策通知',
+    category: '行业观察',
     accent: 'slate',
     tag: '教育相关',
     keywords: PEDAGOGY_KEYWORDS,
   },
 ]
+
+export function customFeedToConfig(feed: NewsCustomFeed): RssFeedConfig {
+  return {
+    id: feed.id,
+    name: feed.name,
+    url: feed.url,
+    category: '行业观察',
+    accent: 'slate',
+    tag: '自订源',
+  }
+}
+
+export function resolveActiveFeeds(disabledIds: string[], customFeeds: NewsCustomFeed[]): RssFeedConfig[] {
+  const disabled = new Set(disabledIds)
+  return [
+    ...RSS_FEEDS.filter((feed) => !disabled.has(feed.id)),
+    ...customFeeds.filter((feed) => !disabled.has(feed.id)).map(customFeedToConfig),
+  ]
+}
 
 /** 无公开 RSS、但对教育学教师高频的官方入口 */
 export const NEWS_PORTALS: NewsPortal[] = [

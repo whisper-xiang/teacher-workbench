@@ -195,6 +195,44 @@
   line-height: 1.65;
 }
 
+.settings-location {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+}
+
+.settings-location dt {
+  margin: 0 0 6px;
+  color: var(--moss-50);
+  font-size: 13px;
+}
+
+.settings-location dd {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 0;
+}
+
+.settings-location code {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 11px;
+  border: 1px solid var(--moss-80);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--moss-10);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.settings-location .text-action {
+  flex-shrink: 0;
+  margin-top: 9px;
+}
+
 .settings-actions {
   display: flex;
   flex-wrap: wrap;
@@ -421,5 +459,16 @@
   .pet-preset-grid,
   .atmosphere-grid {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .settings-location dd {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+
+  .settings-location .text-action {
+    margin-top: 0;
+    align-self: flex-start;
   }
 }

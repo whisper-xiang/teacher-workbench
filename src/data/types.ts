@@ -197,6 +197,16 @@ export type NewsItem = {
   fresh?: boolean
   hot?: boolean
   url: string
+  /** 原始发布时间，用于未读与排序；缺省时回退 date */
+  pubAt?: string
+  /** 从标题摘要推断的专业；空数组表示通用 */
+  majors?: MajorId[]
+}
+
+export type NewsCustomFeed = {
+  id: string
+  name: string
+  url: string
 }
 
 export type ToolCategory = '文献与平台' | '课堂与教务' | '我的入口'
@@ -447,6 +457,9 @@ export type WorkbenchData = {
   news: NewsItem[]
   newsBookmarks: string[]
   newsRead: string[]
+  /** 老师自订的 RSS；预置源关闭记在 newsDisabledFeeds */
+  newsCustomFeeds: NewsCustomFeed[]
+  newsDisabledFeeds: string[]
   tools: ToolItem[]
   favoriteTools: string[]
   grades: GradeItem[]

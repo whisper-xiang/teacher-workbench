@@ -10,10 +10,22 @@ import './glass.css'
 import { useWorkbenchStore } from './hooks/useWorkbenchStore'
 import { uid } from './data/store'
 import { syncDerivedEvents } from './data/sync'
-import { inferMajorFromText, type Course, type RouteId } from './data/types'
+import { inferMajorFromText, type Course, type NewsCustomFeed, type NewsItem, type RouteId } from './data/types'
 import type { AssistantDraft } from './lib/assistant'
-import { dueLabel } from './lib/dates'
+import { dueLabel, todayIso } from './lib/dates'
+import {
+  guessNewsDeadline,
+  hasJournalClip,
+  hasOpenNewsDeadline,
+  hasResearchClip,
+  makeNewsDeadline,
+  makeNewsJournalNote,
+  makeNewsResearchNotice,
+  mergeFetchedNews,
+  remapNewsIds,
+} from './lib/news'
 import { notify } from './lib/notify'
+import { fetchRssNews, resolveActiveFeeds, type RssFeedConfig, type RssFetchFailure } from './lib/rss'
 import { clearAllResourceFiles } from './lib/resource-files'
 import { useAtmosphereSrc } from './lib/atmosphere'
 import { BrandMark } from './components/BrandMark'
@@ -49,6 +61,7 @@ const ResourcesPage = lazy(() =>
 const SettingsPage = lazy(() => import('./pages/SettingsPage').then((module) => ({ default: module.SettingsPage })))
 const CoursesPage = lazy(() => import('./pages/CoursesPage').then((module) => ({ default: module.CoursesPage })))
 const ToolsPage = lazy(() => import('./pages/ToolsPage').then((module) => ({ default: module.ToolsPage })))
+const NewsPage = lazy(() => import('./pages/NewsPage').then((module) => ({ default: module.NewsPage })))
 const GlobalSearchPanel = lazy(() =>
   import('./components/GlobalSearchPanel').then((module) => ({ default: module.GlobalSearchPanel })),
 )
@@ -309,6 +322,77 @@ function App() {
       return message
     },
     [update],
+  )
+
+  const refreshNewsFeeds = useCallback(
+    async (feeds?: RssFeedConfig[]): Promise<RssFetchFailure[]> => {
+      const list = feeds ?? resolveActiveFeeds(data.newsDisabledFeeds ?? [], data.newsCustomFeeds ?? [])
+      const { items, failures } = await fetchRssNews(list)
+      update((current) => {
+        const news = mergeFetchedNews(current.news, items, current.newsBookmarks)
+        return {
+          ...current,
+          news,
+          newsBookmarks: remapNewsIds(current.newsBookmarks, current.news, news),
+          newsRead: remapNewsIds(current.newsRead, current.news, news),
+          meta: { ...current.meta, newsFetchedAt: new Date().toISOString() },
+        }
+      })
+      return failures
+    },
+    [data.newsCustomFeeds, data.newsDisabledFeeds, update],
+  )
+
+  const addNewsDeadline = useCallback(
+    (item: NewsItem, date: string) => {
+      const due = date || guessNewsDeadline(item)
+      if (hasOpenNewsDeadline(data.events, item.id)) {
+        notify.warning('这条已经在日程里')
+        return
+      }
+      patch('events', [...data.events, makeNewsDeadline(item, due)])
+      notify.success('已写入日程')
+    },
+    [data.events, patch],
+  )
+
+  const clipNewsJournal = useCallback(
+    (item: NewsItem, courseId?: string) => {
+      if (hasJournalClip(data.workNotes, item.url)) {
+        notify.warning('随手记里已经有这条原文')
+        return
+      }
+      const course = data.courses.find((entry) => entry.id === courseId)
+      const note = makeNewsJournalNote(item, {
+        id: uid('note'),
+        date: todayIso(),
+        createdAt: new Date().toISOString(),
+        courseName: course?.name,
+      })
+      update((current) => {
+        const next = { ...current, workNotes: [note, ...current.workNotes] }
+        return { ...next, events: syncDerivedEvents(next) }
+      })
+      notify.success(course ? `已剪藏到「${course.name}」随手记` : '已剪藏到随手记')
+    },
+    [data.courses, data.workNotes, update],
+  )
+
+  const clipNewsResearch = useCallback(
+    (item: NewsItem) => {
+      if (hasResearchClip(data.researchNotices, item.url)) {
+        notify.warning('科研通知里已经有这条')
+        return
+      }
+      const notice = makeNewsResearchNotice(item, {
+        id: uid('rn'),
+        today: todayIso(),
+        closeAt: guessNewsDeadline(item),
+      })
+      patch('researchNotices', [notice, ...data.researchNotices])
+      notify.success('已放入科研「待开始」')
+    },
+    [data.researchNotices, patch],
   )
 
   useEffect(() => {
@@ -678,6 +762,35 @@ function App() {
             onChangeGrades={(grades) => patch('grades', grades)}
             onOpenTool={(id) => selectPage('tools', id)}
             onOpenStudents={(courseId) => selectPage('students', courseId)}
+          />
+        )}
+        {activeId === 'news' && (
+          <NewsPage
+            news={data.news}
+            readItems={data.newsRead}
+            bookmarks={data.newsBookmarks}
+            fetchedAt={data.meta.newsFetchedAt}
+            courses={data.courses}
+            customFeeds={data.newsCustomFeeds ?? []}
+            disabledFeeds={data.newsDisabledFeeds ?? []}
+            initialId={routeParam || undefined}
+            onChangeRead={(newsRead) => patch('newsRead', newsRead)}
+            onChangeBookmarks={(newsBookmarks) => patch('newsBookmarks', newsBookmarks)}
+            onChangeDisabledFeeds={(newsDisabledFeeds) => patch('newsDisabledFeeds', newsDisabledFeeds)}
+            onAddCustomFeed={(feed: NewsCustomFeed) =>
+              patch('newsCustomFeeds', [...(data.newsCustomFeeds ?? []), feed])
+            }
+            onRemoveCustomFeed={(id) =>
+              update((current) => ({
+                ...current,
+                newsCustomFeeds: (current.newsCustomFeeds ?? []).filter((feed) => feed.id !== id),
+                newsDisabledFeeds: (current.newsDisabledFeeds ?? []).filter((item) => item !== id),
+              }))
+            }
+            onRefresh={refreshNewsFeeds}
+            onAddDeadline={addNewsDeadline}
+            onClipJournal={clipNewsJournal}
+            onClipResearch={clipNewsResearch}
           />
         )}
         {activeId === 'settings' && (
