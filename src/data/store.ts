@@ -299,6 +299,7 @@ function mergeWithSeed(partial: Partial<WorkbenchData> | null): WorkbenchData {
   const profile = isLegacyDemoProfile
     ? {
         ...seed.profile,
+        avatarFileId: storedProfile.avatarFileId,
         petAvatarId: storedProfile.petAvatarId,
         petKind: migratedPetKind,
         atmosphereId: storedProfile.atmosphereId,

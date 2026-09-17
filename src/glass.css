@@ -21,7 +21,7 @@
   --glass-subtle: rgba(247, 251, 248, 0.52);
   --font-display-num: "Noto Serif SC", "Songti SC", "STSong", serif;
   --font-welcome: "Noto Serif SC", "Songti SC", "STSong", serif;
-  --atmosphere-image: url("/glass-sky.jpg");
+  --atmosphere-image: url("/glass-sky.jpg?v=4");
   --atmosphere-position: center;
   background: var(--moss-05);
 }
@@ -251,8 +251,25 @@ body,
 }
 
 .app-shell .avatar {
+  display: grid;
+  flex: 0 0 34px;
+  place-items: center;
+  overflow: hidden;
+  line-height: 1;
+  text-align: center;
   color: #3d2c1c;
   background: linear-gradient(160deg, #f3e6d2, #d9c3a4);
+}
+
+.app-shell .avatar img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.app-shell .avatar.has-photo {
+  background: var(--moss-90);
 }
 
 .app-shell .nav-collapse {

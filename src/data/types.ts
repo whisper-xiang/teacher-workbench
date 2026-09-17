@@ -268,6 +268,8 @@ export type TeacherProfile = {
   title: string
   college: string
   greetingName: string
+  /** IndexedDB 中的侧栏 / 顶栏头像 */
+  avatarFileId?: string
   /** IndexedDB 中的照片 Q 版大头 */
   petAvatarId?: string
   /** 桌宠形象：预设萌宠或照片 Q 版 */

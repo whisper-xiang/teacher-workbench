@@ -28,6 +28,7 @@ import { notify } from './lib/notify'
 import { fetchRssNews, resolveActiveFeeds, type RssFeedConfig, type RssFetchFailure } from './lib/rss'
 import { clearAllResourceFiles } from './lib/resource-files'
 import { useAtmosphereSrc } from './lib/atmosphere'
+import { profileAvatarInitial, useProfileAvatarSrc } from './lib/profile-avatar'
 import { BrandMark } from './components/BrandMark'
 import { DeskPet } from './components/DeskPet'
 import { NotifyHost } from './components/NotifyHost'
@@ -166,6 +167,7 @@ function App() {
   const { activeId, routeParam, navigate } = useWorkbenchRoute()
   const { data, patch, update, reset, exportJson, importJson } = useWorkbenchStore()
   const atmosphere = useAtmosphereSrc(data.profile)
+  const avatarSrc = useProfileAvatarSrc(data.profile.avatarFileId)
   const [navOpen, setNavOpen] = useState(false)
   const [navCollapsed, setNavCollapsed] = useState(readNavCollapsed)
   const [searchOpen, setSearchOpen] = useState(false)
@@ -558,7 +560,9 @@ function App() {
           aria-label="打开设置"
           title="设置"
         >
-          <div className="avatar">{data.profile.name.slice(0, 1)}</div>
+          <div className={`avatar${avatarSrc ? ' has-photo' : ''}`}>
+            {avatarSrc ? <img src={avatarSrc} alt="" /> : <span>{profileAvatarInitial(data.profile.name)}</span>}
+          </div>
           <div className="profile-copy">
             <strong>{data.profile.name}</strong>
             <span>{data.profile.college} · {data.profile.title}</span>
@@ -632,7 +636,9 @@ function App() {
               title={data.profile.name}
               onClick={() => openSettings()}
             >
-              <span className="avatar">{data.profile.name.slice(0, 1)}</span>
+              <span className={`avatar${avatarSrc ? ' has-photo' : ''}`}>
+                {avatarSrc ? <img src={avatarSrc} alt="" /> : <span>{profileAvatarInitial(data.profile.name)}</span>}
+              </span>
             </button>
           </div>
         </header>

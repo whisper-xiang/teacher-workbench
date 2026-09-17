@@ -49,6 +49,11 @@ export function buildSearchIndex(data: WorkbenchData): SearchResult[] {
       item.id,
     )
   })
+  push(
+    results,
+    { title: '头像', meta: '个人信息', group: '设置', route: 'settings', param: 'profile' },
+    'avatar',
+  )
 
   data.students.forEach((student) => {
     push(

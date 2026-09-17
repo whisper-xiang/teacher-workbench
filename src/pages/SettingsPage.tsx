@@ -5,6 +5,13 @@ import { thisMondayIso, termWeekOf } from '../lib/dates'
 import { notify } from '../lib/notify'
 import { confirm } from '../lib/confirm'
 import { deleteResourceFile, getResourceFile, putResourceFile } from '../lib/resource-files'
+import {
+  PROFILE_AVATAR_EVENT,
+  PROFILE_AVATAR_FILE_ID,
+  profileAvatarInitial,
+  saveProfileAvatar,
+  useProfileAvatarSrc,
+} from '../lib/profile-avatar'
 import { DEFAULT_Q_PET_SRC, generateQPetSprite, PET_AVATAR_FILE_ID, saveGeneratedPet } from '../lib/q-pet'
 import { PET_PRESETS, resolvePetKind } from '../lib/pet-kind'
 import { PetMascot } from '../components/PetMascots'
@@ -52,6 +59,7 @@ function sameProfile(a: TeacherProfile, b: TeacherProfile) {
     a.title === b.title &&
     a.college === b.college &&
     a.greetingName === b.greetingName &&
+    a.avatarFileId === b.avatarFileId &&
     a.petKind === b.petKind &&
     a.petAvatarId === b.petAvatarId &&
     a.atmosphereId === b.atmosphereId &&
@@ -72,8 +80,10 @@ export function SettingsPage({ section: sectionProp, profile, meta, updatedAt, o
   const [form, setForm] = useState(() => withGreeting(profile))
   const [metaForm, setMetaForm] = useState(() => liveMeta(meta))
   const fileRef = useRef<HTMLInputElement>(null)
+  const avatarInputRef = useRef<HTMLInputElement>(null)
   const petInputRef = useRef<HTMLInputElement>(null)
   const atmosphereInputRef = useRef<HTMLInputElement>(null)
+  const avatarPreview = useProfileAvatarSrc(form.avatarFileId)
   const [qPreview, setQPreview] = useState<string | null>(DEFAULT_Q_PET_SRC)
   const [atmospherePreview, setAtmospherePreview] = useState<string | null>(null)
   const [petBusy, setPetBusy] = useState(false)
@@ -151,6 +161,22 @@ export function SettingsPage({ section: sectionProp, profile, meta, updatedAt, o
     persist(next, metaForm, toast)
   }
 
+  const saveAvatarPhoto = async (file: File) => {
+    try {
+      await saveProfileAvatar(file)
+      persist({ ...form, avatarFileId: PROFILE_AVATAR_FILE_ID }, metaForm)
+      notify.success('头像已更新')
+    } catch (error) {
+      notify.error(error instanceof Error ? error.message : '头像保存失败')
+    }
+  }
+
+  const clearAvatarPhoto = async () => {
+    await deleteResourceFile(PROFILE_AVATAR_FILE_ID).catch(() => undefined)
+    window.dispatchEvent(new Event(PROFILE_AVATAR_EVENT))
+    persist({ ...form, avatarFileId: undefined }, metaForm, '已恢复默认头像')
+  }
+
   const saveAtmospherePhoto = async (file: File) => {
     try {
       await putResourceFile(ATMOSPHERE_FILE_ID, file, file.name)
@@ -213,7 +239,7 @@ export function SettingsPage({ section: sectionProp, profile, meta, updatedAt, o
 
   const heading =
     section === 'profile'
-      ? { title: '个人信息', lead: '改完即存。概览会按这里的称呼问候你。' }
+      ? { title: '个人信息', lead: '改完即存。头像会出现在侧栏和顶栏。' }
       : section === 'appearance'
         ? { title: '外观', lead: '点一下就换整页风景。自己的照片只留在这台电脑。' }
         : section === 'data'
@@ -234,6 +260,45 @@ export function SettingsPage({ section: sectionProp, profile, meta, updatedAt, o
           <>
         <section className="settings-block" aria-labelledby="settings-me">
           <h2 id="settings-me">我</h2>
+          <div className="settings-avatar-row">
+            <button
+              type="button"
+              className={`settings-avatar${avatarPreview ? ' has-photo' : ''}`}
+              aria-label={avatarPreview ? '更换头像' : '上传头像'}
+              onClick={() => avatarInputRef.current?.click()}
+            >
+              {avatarPreview ? <img src={avatarPreview} alt="" /> : <span>{profileAvatarInitial(form.name)}</span>}
+            </button>
+            <div className="settings-avatar-copy">
+              <div className="settings-avatar-actions">
+                <button type="button" className="text-action" onClick={() => avatarInputRef.current?.click()}>
+                  {avatarPreview ? '换一张照片' : '上传头像'}
+                </button>
+                {avatarPreview ? (
+                  <button type="button" className="text-action" onClick={() => void clearAvatarPhoto()}>
+                    清除照片
+                  </button>
+                ) : null}
+              </div>
+              <p className="settings-help">照片只留在这台电脑。侧栏和顶栏会换成这张图。</p>
+            </div>
+          </div>
+          <input
+            ref={avatarInputRef}
+            type="file"
+            accept="image/*"
+            hidden
+            onChange={(event) => {
+              const file = event.target.files?.[0]
+              event.target.value = ''
+              if (!file) return
+              if (!file.type.startsWith('image/')) {
+                notify.warning('请选择图片文件')
+                return
+              }
+              void saveAvatarPhoto(file)
+            }}
+          />
           <div className="settings-grid">
             <label>
               姓名
@@ -261,7 +326,7 @@ export function SettingsPage({ section: sectionProp, profile, meta, updatedAt, o
               />
             </label>
           </div>
-          <p className="settings-help">概览会叫你「{form.greetingName || '老师'}」。侧栏显示学院与职称。</p>
+          <p className="settings-help">概览会叫你「{form.greetingName || '老师'}」。侧栏显示头像、学院与职称。</p>
         </section>
 
         <section className="settings-block" aria-labelledby="settings-term">
