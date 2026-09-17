@@ -1,8 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import '../tools.css'
-import { TOOL_CATEGORIES } from '../data/default-tools'
+import { GradeSimPanel } from '../components/tools/GradeSimPanel'
+import { RollcallPanel } from '../components/tools/RollcallPanel'
+import {
+  isNativeTool,
+  nativeToolByParam,
+  NATIVE_TOOL_IDS,
+  TOOL_CATEGORIES,
+} from '../data/default-tools'
 import { uid } from '../data/store'
-import type { ToolCategory, ToolItem } from '../data/types'
+import type { Course, GradeItem, StudentRecord, ToolCategory, ToolItem } from '../data/types'
 import { notify } from '../lib/notify'
 import { confirm } from '../lib/confirm'
 import { NavIcon, type IconName } from '../nav-icons'
@@ -21,57 +28,97 @@ type MenuState = {
   y: number
 }
 
-const emptyDraft: Draft = { id: '', name: '', description: '', url: '', category: '备课工具' }
+const emptyDraft: Draft = { id: '', name: '', description: '', url: '', category: '我的入口' }
 
-const CAT_META: Record<string, { icon: IconName; desc: string }> = {
-  政策与学会: { icon: 'news', desc: '教育部、学会与教育媒体入口' },
-  备课工具: { icon: 'courses', desc: '课件制作、教学设计、课堂互动工具' },
-  教学平台: { icon: 'students', desc: '课程管理、在线教学、教务协同平台' },
-  学术工具: { icon: 'research', desc: '文献检索、数据分析、质性研究工具' },
-  效率工具: { icon: 'tasks', desc: '问卷、协作文档、录屏、PDF 处理等效率工具' },
-  AI工具: { icon: 'tools', desc: 'AI 对话、文档解析、学术搜索等 AI 辅助工具' },
-  备课与课堂: { icon: 'courses', desc: '备课与课堂相关入口' },
-  研究与写作: { icon: 'research', desc: '研究与写作相关入口' },
-  协作与事务: { icon: 'activities', desc: '协作与事务相关入口' },
+const CAT_META: Record<ToolCategory, { icon: IconName; desc: string }> = {
+  文献与平台: { icon: 'research', desc: '知网、期刊与文献管理' },
+  课堂与教务: { icon: 'courses', desc: '课堂平台、教材与问卷' },
+  我的入口: { icon: 'pin', desc: '自己添加的常用网页' },
 }
 
 type Props = {
   tools: ToolItem[]
   favorites: string[]
+  courses: Course[]
+  students: StudentRecord[]
+  grades: GradeItem[]
+  initialToolId?: string
   onChangeTools: (tools: ToolItem[]) => void
   onChangeFavorites: (ids: string[]) => void
+  onChangeGrades: (grades: GradeItem[]) => void
+  onOpenTool: (id?: string) => void
+  onOpenStudents: (courseId: string) => void
 }
 
-export function ToolsPage({ tools, favorites, onChangeTools, onChangeFavorites }: Props) {
+function nativeIcon(id: string): IconName {
+  return id === 'native-gradesim' ? 'tasks' : 'students'
+}
+
+function matchesQuery(tool: ToolItem, query: string) {
+  return `${tool.name}${tool.description}${tool.category}${tool.typeLabel ?? ''}${tool.tags?.join('') ?? ''}`
+    .toLowerCase()
+    .includes(query)
+}
+
+function touch(tools: ToolItem[], id: string) {
+  const now = new Date().toISOString()
+  return tools.map((tool) => (tool.id === id ? { ...tool, lastUsedAt: now } : tool))
+}
+
+export function ToolsPage({
+  tools,
+  favorites,
+  courses,
+  students,
+  grades,
+  initialToolId,
+  onChangeTools,
+  onChangeFavorites,
+  onChangeGrades,
+  onOpenTool,
+  onOpenStudents,
+}: Props) {
   const [query, setQuery] = useState('')
   const [draft, setDraft] = useState<Draft | null>(null)
   const [menu, setMenu] = useState<MenuState | null>(null)
   const menuRef = useRef<HTMLDivElement | null>(null)
 
   const editing = Boolean(draft?.id)
+  const activeNative = nativeToolByParam(tools, initialToolId)
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase()
     if (!q) return tools
-    return tools.filter((tool) =>
-      `${tool.name}${tool.description}${tool.category}${tool.typeLabel ?? ''}${tool.tags?.join('') ?? ''}`
-        .toLowerCase()
-        .includes(q),
-    )
+    return tools.filter((tool) => matchesQuery(tool, q))
   }, [tools, query])
+
+  const natives = useMemo(() => {
+    return visible
+      .filter(isNativeTool)
+      .sort((left, right) => {
+        const a = NATIVE_TOOL_IDS.findIndex((id) => id === left.id)
+        const b = NATIVE_TOOL_IDS.findIndex((id) => id === right.id)
+        return (a < 0 ? 99 : a) - (b < 0 ? 99 : b)
+      })
+  }, [visible])
+
+  const favoriteItems = useMemo(
+    () => visible.filter((tool) => favorites.includes(tool.id) && !isNativeTool(tool)),
+    [visible, favorites],
+  )
 
   const sections = useMemo(() => {
     const order = [...TOOL_CATEGORIES]
-    tools.forEach((tool) => {
-      if (!order.includes(tool.category)) order.push(tool.category)
+    visible.forEach((tool) => {
+      if (!isNativeTool(tool) && !order.includes(tool.category)) order.push(tool.category)
     })
     return order
-      .map((category) => {
-        const items = visible.filter((tool) => tool.category === category)
-        return { category, items, total: tools.filter((tool) => tool.category === category).length }
-      })
+      .map((category) => ({
+        category,
+        items: visible.filter((tool) => !isNativeTool(tool) && tool.category === category),
+      }))
       .filter((section) => section.items.length > 0)
-  }, [tools, visible])
+  }, [visible])
 
   useEffect(() => {
     if (!menu) return
@@ -107,6 +154,7 @@ export function ToolsPage({ tools, favorites, onChangeTools, onChangeFavorites }
   const openCreate = () => setDraft({ ...emptyDraft })
 
   const openEdit = (tool: ToolItem) => {
+    if (isNativeTool(tool)) return
     setMenu(null)
     setDraft({
       id: tool.id,
@@ -120,7 +168,13 @@ export function ToolsPage({ tools, favorites, onChangeTools, onChangeFavorites }
   const closeDraft = () => setDraft(null)
 
   const launch = (tool: ToolItem) => {
+    if (isNativeTool(tool)) {
+      onChangeTools(touch(tools, tool.id))
+      onOpenTool(tool.nativeId)
+      return
+    }
     if (tool.url) {
+      onChangeTools(touch(tools, tool.id))
       window.open(tool.url, '_blank', 'noopener,noreferrer')
       notify.success(`已打开「${tool.name}」`)
       return
@@ -137,7 +191,7 @@ export function ToolsPage({ tools, favorites, onChangeTools, onChangeFavorites }
 
   const removeById = async (id: string) => {
     const item = tools.find((tool) => tool.id === id)
-    if (!item) return
+    if (!item || isNativeTool(item)) return
     try {
       await confirm.delete(`确定删除「${item.name}」？`)
     } catch {
@@ -154,9 +208,10 @@ export function ToolsPage({ tools, favorites, onChangeTools, onChangeFavorites }
     event.preventDefault()
     if (!draft?.name.trim()) return
     const name = draft.name.trim()
-    const description = draft.description.trim() || '常用工具入口'
+    const description = draft.description.trim() || '常用入口'
     const url = draft.url.trim() || undefined
     const existing = draft.id ? tools.find((tool) => tool.id === draft.id) : undefined
+    if (existing && isNativeTool(existing)) return
 
     const next: ToolItem = {
       id: draft.id || uid('tool'),
@@ -165,10 +220,11 @@ export function ToolsPage({ tools, favorites, onChangeTools, onChangeFavorites }
       category: draft.category,
       initials: name.slice(0, 1),
       tone: existing?.tone ?? 'teal',
-      icon: existing?.icon,
       url,
       typeLabel: existing?.typeLabel ?? '网页',
       tags: existing?.tags,
+      kind: 'link',
+      lastUsedAt: existing?.lastUsedAt,
     }
 
     onChangeTools(draft.id ? tools.map((tool) => (tool.id === draft.id ? next : tool)) : [...tools, next])
@@ -178,15 +234,95 @@ export function ToolsPage({ tools, favorites, onChangeTools, onChangeFavorites }
 
   const menuTool = menu ? tools.find((tool) => tool.id === menu.toolId) : null
 
+  const renderCard = (tool: ToolItem) => {
+    const saved = favorites.includes(tool.id)
+    const native = isNativeTool(tool)
+    return (
+      <article
+        key={tool.id}
+        className={`tool-card${menu?.toolId === tool.id ? ' is-menu-open' : ''}${saved ? ' is-favorite' : ''}${native ? ' is-native' : ''}`}
+      >
+        <button type="button" className="tool-card-main" onClick={() => launch(tool)}>
+          <span className="tool-card-icon" aria-hidden="true">
+            {native ? <NavIcon name={nativeIcon(tool.id)} size={18} /> : tool.initials}
+          </span>
+          <span className="tool-card-info">
+            <span className="tool-card-name">{tool.name}</span>
+            {tool.typeLabel && <span className="tool-card-type">{tool.typeLabel}</span>}
+            <span className="tool-card-desc">{tool.description}</span>
+          </span>
+          <span className="tool-card-arrow" aria-hidden="true">
+            {native ? '→' : '↗'}
+          </span>
+        </button>
+        <button
+          type="button"
+          className={`tool-favorite${saved ? ' saved' : ''}`}
+          aria-label={saved ? '移出常用' : '加入常用'}
+          onClick={() => toggleFavorite(tool.id)}
+        >
+          {saved ? '★' : '☆'}
+        </button>
+        <button
+          type="button"
+          className="tool-menu-btn"
+          aria-label={`更多操作：${tool.name}`}
+          onClick={(event) => {
+            event.stopPropagation()
+            openMenu(tool.id, { clientX: event.clientX, clientY: event.clientY })
+          }}
+          onContextMenu={(event) => {
+            event.preventDefault()
+            event.stopPropagation()
+            openMenu(tool.id, { clientX: event.clientX, clientY: event.clientY })
+          }}
+        >
+          ⋯
+        </button>
+      </article>
+    )
+  }
+
+  if (activeNative) {
+    return (
+      <section className="tools-page" aria-label={activeNative.name}>
+        <div className="tools-heading">
+          <div>
+            <button type="button" className="text-action tools-back" onClick={() => onOpenTool()}>
+              ← 返回工具箱
+            </button>
+            <h1>{activeNative.name}</h1>
+            <p>{activeNative.description}</p>
+          </div>
+        </div>
+        {activeNative.nativeId === 'rollcall' ? (
+          <RollcallPanel courses={courses} students={students} onOpenStudents={onOpenStudents} />
+        ) : (
+          <GradeSimPanel
+            courses={courses}
+            students={students}
+            grades={grades}
+            onChangeGrades={onChangeGrades}
+            onOpenStudents={onOpenStudents}
+          />
+        )}
+      </section>
+    )
+  }
+
+  const searching = Boolean(query.trim())
+  const empty = natives.length === 0 && favoriteItems.length === 0 && sections.length === 0
+
   return (
     <section className="tools-page" aria-label="工具箱">
-      <div className="tools-banner">
-        <div className="tools-banner-text">
+      <div className="tools-heading">
+        <div>
+          <p className="section-label">资讯与工具</p>
           <h1>教师工具箱</h1>
-          <p>精选 {tools.length} 款大学教师常用工具 · 备课 · 教学 · 科研 · 效率 · AI</p>
+          <p>本机小工具，算完能用；外链只留每周会点的</p>
         </div>
-        <button type="button" className="tools-banner-add" onClick={openCreate}>
-          ＋ 添加工具
+        <button type="button" className="primary-action" onClick={openCreate}>
+          ＋ 添加入口
         </button>
       </div>
 
@@ -196,14 +332,16 @@ export function ToolsPage({ tools, favorites, onChangeTools, onChangeFavorites }
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="搜索工具名称或功能..."
+            placeholder="搜索本机工具或入口"
             aria-label="搜索工具"
           />
         </label>
-        <span className="tools-filter-count">共 {query.trim() ? visible.length : tools.length} 款工具</span>
+        <span className="tools-filter-count">
+          {searching ? `${visible.length} 个匹配` : `${natives.length} 个本机 · ${tools.filter((tool) => !isNativeTool(tool)).length} 个入口`}
+        </span>
       </div>
 
-      {sections.length === 0 ? (
+      {empty ? (
         <div className="tools-empty">
           <h3>没有匹配的工具</h3>
           <p>试试其他关键词，或清空搜索</p>
@@ -212,81 +350,58 @@ export function ToolsPage({ tools, favorites, onChangeTools, onChangeFavorites }
           </button>
         </div>
       ) : (
-        sections.map((section) => {
-          const meta = CAT_META[section.category] ?? { icon: 'tools' as IconName, desc: '' }
-          return (
-            <section key={section.category} className="tools-section">
+        <>
+          {natives.length > 0 && (
+            <section className="tools-section">
               <div className="tools-section-header">
                 <h2 className="tools-section-title">
                   <span className="tools-section-icon" aria-hidden="true">
-                    <NavIcon name={meta.icon} size={18} />
+                    <NavIcon name="tools" size={18} />
                   </span>
-                  {section.category}
+                  本机工具
                 </h2>
-                <span className="tools-section-count">{section.items.length}款</span>
+                <span className="tools-section-count">{natives.length}</span>
               </div>
-              {meta.desc && <p className="tools-section-desc">{meta.desc}</p>}
-              <div className="tools-grid">
-                {section.items.map((tool) => {
-                  const saved = favorites.includes(tool.id)
-                  return (
-                    <article
-                      key={tool.id}
-                      className={`tool-card${menu?.toolId === tool.id ? ' is-menu-open' : ''}${saved ? ' is-favorite' : ''}`}
-                    >
-                      <button type="button" className="tool-card-main" onClick={() => launch(tool)}>
-                        <span className={`tool-card-icon${tool.icon ? '' : ` tone-${tool.tone}`}`} aria-hidden="true">
-                          {tool.icon ?? tool.initials}
-                        </span>
-                        <span className="tool-card-info">
-                          <span className="tool-card-name">{tool.name}</span>
-                          {tool.typeLabel && <span className="tool-card-type">{tool.typeLabel}</span>}
-                          <span className="tool-card-desc">{tool.description}</span>
-                          {tool.tags && tool.tags.length > 0 && (
-                            <span className="tool-card-tags">
-                              {tool.tags.map((tag) => (
-                                <em key={tag} className="tool-card-tag">
-                                  {tag}
-                                </em>
-                              ))}
-                            </span>
-                          )}
-                        </span>
-                        <span className="tool-card-arrow" aria-hidden="true">
-                          ↗
-                        </span>
-                      </button>
-                      <button
-                        type="button"
-                        className={`tool-favorite${saved ? ' saved' : ''}`}
-                        aria-label={saved ? '移出常用' : '加入常用'}
-                        onClick={() => toggleFavorite(tool.id)}
-                      >
-                        {saved ? '★' : '☆'}
-                      </button>
-                      <button
-                        type="button"
-                        className="tool-menu-btn"
-                        aria-label={`更多操作：${tool.name}`}
-                        onClick={(event) => {
-                          event.stopPropagation()
-                          openMenu(tool.id, { clientX: event.clientX, clientY: event.clientY })
-                        }}
-                        onContextMenu={(event) => {
-                          event.preventDefault()
-                          event.stopPropagation()
-                          openMenu(tool.id, { clientX: event.clientX, clientY: event.clientY })
-                        }}
-                      >
-                        ⋯
-                      </button>
-                    </article>
-                  )
-                })}
-              </div>
+              <p className="tools-section-desc">读花名册和成绩，用完可复制或写回工作台</p>
+              <div className="tools-grid">{natives.map(renderCard)}</div>
             </section>
-          )
-        })
+          )}
+
+          {favoriteItems.length > 0 && (
+            <section className="tools-section">
+              <div className="tools-section-header">
+                <h2 className="tools-section-title">
+                  <span className="tools-section-icon" aria-hidden="true">
+                    <NavIcon name="pin" size={18} />
+                  </span>
+                  常用
+                </h2>
+                <span className="tools-section-count">{favoriteItems.length}</span>
+              </div>
+              <p className="tools-section-desc">收藏的网页入口会出现在这里</p>
+              <div className="tools-grid">{favoriteItems.map(renderCard)}</div>
+            </section>
+          )}
+
+          {sections.map((section) => {
+            const meta = CAT_META[section.category] ?? { icon: 'tools' as IconName, desc: '' }
+            return (
+              <section key={section.category} className="tools-section">
+                <div className="tools-section-header">
+                  <h2 className="tools-section-title">
+                    <span className="tools-section-icon" aria-hidden="true">
+                      <NavIcon name={meta.icon} size={18} />
+                    </span>
+                    {section.category}
+                  </h2>
+                  <span className="tools-section-count">{section.items.length}</span>
+                </div>
+                {meta.desc && <p className="tools-section-desc">{meta.desc}</p>}
+                <div className="tools-grid">{section.items.map(renderCard)}</div>
+              </section>
+            )
+          })}
+        </>
       )}
 
       {menu && menuTool && (
@@ -299,17 +414,21 @@ export function ToolsPage({ tools, favorites, onChangeTools, onChangeFavorites }
           onPointerDown={(event) => event.stopPropagation()}
         >
           <button type="button" role="menuitem" onClick={() => launch(menuTool)}>
-            打开链接
+            {isNativeTool(menuTool) ? '打开' : '打开链接'}
           </button>
           <button type="button" role="menuitem" onClick={() => toggleFavorite(menuTool.id)}>
             {favorites.includes(menuTool.id) ? '移出常用' : '加入常用'}
           </button>
-          <button type="button" role="menuitem" onClick={() => openEdit(menuTool)}>
-            编辑
-          </button>
-          <button type="button" role="menuitem" className="is-danger" onClick={() => removeById(menuTool.id)}>
-            删除
-          </button>
+          {!isNativeTool(menuTool) && (
+            <>
+              <button type="button" role="menuitem" onClick={() => openEdit(menuTool)}>
+                编辑
+              </button>
+              <button type="button" role="menuitem" className="is-danger" onClick={() => removeById(menuTool.id)}>
+                删除
+              </button>
+            </>
+          )}
         </div>
       )}
 
@@ -317,17 +436,17 @@ export function ToolsPage({ tools, favorites, onChangeTools, onChangeFavorites }
         <div className="tools-modal-backdrop" onMouseDown={closeDraft}>
           <form className="tools-composer" onMouseDown={(event) => event.stopPropagation()} onSubmit={save}>
             <div>
-              <p className="section-label">{editing ? '编辑工具' : '添加工具'}</p>
-              <h2>{editing ? '修改常用入口' : '添加常用入口'}</h2>
+              <p className="section-label">{editing ? '编辑入口' : '添加入口'}</p>
+              <h2>{editing ? '修改常用网页' : '添加常用网页'}</h2>
             </div>
             <label>
-              工具名称
+              名称
               <input
                 required
                 autoFocus
                 value={draft.name}
                 onChange={(event) => setDraft({ ...draft, name: event.target.value })}
-                placeholder="例如：课程云平台"
+                placeholder="例如：学院教务通知"
               />
             </label>
             <label>

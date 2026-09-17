@@ -135,6 +135,11 @@
   margin-top: 28px;
 }
 
+.settings-stack > .settings-block:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
 .settings-block {
   padding: 22px 0;
   border-top: 1px solid var(--moss-90);

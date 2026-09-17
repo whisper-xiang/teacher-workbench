@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import './App.css'
 import './routes.css'
 import './icon-overrides.css'
@@ -24,6 +24,12 @@ import { RouteErrorBoundary } from './components/RouteErrorBoundary'
 import './components/topbar-tools.css'
 import { useReminderScheduler } from './hooks/useReminderScheduler'
 import { DISABLED_NAV } from './lib/disabled-nav'
+import {
+  DEFAULT_SETTINGS_SECTION,
+  parseSettingsSection,
+  SETTINGS_SECTIONS,
+  type SettingsSectionId,
+} from './lib/settings-nav'
 import { NavIcon, type IconName } from './nav-icons'
 
 const Dashboard = lazy(() => import('./pages/Dashboard').then((module) => ({ default: module.Dashboard })))
@@ -42,6 +48,7 @@ const ResourcesPage = lazy(() =>
 )
 const SettingsPage = lazy(() => import('./pages/SettingsPage').then((module) => ({ default: module.SettingsPage })))
 const CoursesPage = lazy(() => import('./pages/CoursesPage').then((module) => ({ default: module.CoursesPage })))
+const ToolsPage = lazy(() => import('./pages/ToolsPage').then((module) => ({ default: module.ToolsPage })))
 const GlobalSearchPanel = lazy(() =>
   import('./components/GlobalSearchPanel').then((module) => ({ default: module.GlobalSearchPanel })),
 )
@@ -64,7 +71,7 @@ const pages: NavPage[] = [
   { id: 'resources', label: '教学资源库', icon: 'resources' },
   { id: 'news', label: '热点资讯', icon: 'news' },
   { id: 'tools', label: '工具箱', icon: 'tools' },
-  { id: 'settings', label: '设置与备份', icon: 'settings' },
+  { id: 'settings', label: '设置', icon: 'settings' },
 ]
 
 const NAV_COLLAPSED_KEY = 'teacher-workbench-nav-collapsed'
@@ -80,7 +87,7 @@ function readNavCollapsed() {
 const groups = [
   { label: '工作台', ids: ['overview', 'calendar', 'journal'] as RouteId[] },
   { label: '日常工作', ids: ['courses', 'students', 'resources', 'papers', 'research', 'activities'] as RouteId[] },
-  { label: '资讯与工具', ids: ['news', 'tools', 'settings'] as RouteId[] },
+  { label: '资讯与工具', ids: ['news', 'tools'] as RouteId[] },
 ]
 
 const isRouteId = (value: string): value is RouteId => pages.some((page) => page.id === value)
@@ -96,6 +103,9 @@ const readLocation = () => {
   }
   if (DISABLED_NAV.has(route as RouteId)) {
     return { activeId: 'overview' as RouteId, routeParam: '' }
+  }
+  if (route === 'settings') {
+    return { activeId: 'settings' as RouteId, routeParam: parseSettingsSection(parts[1]) }
   }
   return {
     activeId: isRouteId(route) ? route : ('overview' as RouteId),
@@ -115,6 +125,11 @@ function useWorkbenchRoute() {
         window.history.replaceState(null, '', '#/calendar')
       } else if (DISABLED_NAV.has(first as RouteId)) {
         window.history.replaceState(null, '', '#/overview')
+      } else if (first === 'settings') {
+        const section = window.location.hash.replace(/^#\/?/, '').split('/')[1] ?? ''
+        if (!section || section !== parseSettingsSection(section)) {
+          window.history.replaceState(null, '', `#/settings/${DEFAULT_SETTINGS_SECTION}`)
+        }
       } else if (!window.location.hash || !isRouteId(first)) {
         window.history.replaceState(null, '', '#/overview')
       }
@@ -126,7 +141,8 @@ function useWorkbenchRoute() {
   }, [])
 
   const navigate = (id: RouteId, param?: string) => {
-    const destination = param ? `#/${id}/${param}` : `#/${id}`
+    const section = id === 'settings' ? parseSettingsSection(param) : param
+    const destination = section ? `#/${id}/${section}` : `#/${id}`
     if (window.location.hash !== destination) window.location.hash = destination
   }
 
@@ -142,23 +158,54 @@ function App() {
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [aiOpen, setAiOpen] = useState(false)
+  const lastMainRoute = useRef<{ id: RouteId; param?: string }>({ id: 'overview' })
+  const collapsedBeforeSettings = useRef(false)
+  const inSettings = activeId === 'settings'
+  const settingsSection = parseSettingsSection(routeParam)
 
+  useEffect(() => {
+    if (activeId === 'settings') return
+    lastMainRoute.current = { id: activeId, param: routeParam || undefined }
+  }, [activeId, routeParam])
+
+  const persistNavCollapsed = (next: boolean) => {
+    setNavCollapsed(next)
+    try {
+      localStorage.setItem(NAV_COLLAPSED_KEY, next ? '1' : '0')
+    } catch {
+      /* ignore quota / private mode */
+    }
+  }
   const toggleNavCollapsed = () => {
-    setNavCollapsed((prev) => {
-      const next = !prev
-      try {
-        localStorage.setItem(NAV_COLLAPSED_KEY, next ? '1' : '0')
-      } catch {
-        /* ignore quota / private mode */
-      }
-      return next
-    })
+    persistNavCollapsed(!navCollapsed)
   }
   const active = pages.find((page) => page.id === activeId) ?? pages[0]
-  const selectPage = (id: string, param?: string) => {
+  const settingsLabel = SETTINGS_SECTIONS.find((item) => item.id === settingsSection)?.label ?? '设置'
+  const selectPage = (id: string, param?: string, options?: { keepNav?: boolean }) => {
     if (DISABLED_NAV.has(id as RouteId)) return
     navigate(id as RouteId, param)
-    setNavOpen(false)
+    if (!options?.keepNav) setNavOpen(false)
+  }
+  const openSettings = (section: SettingsSectionId = DEFAULT_SETTINGS_SECTION) => {
+    if (!inSettings) {
+      setNavCollapsed((prev) => {
+        collapsedBeforeSettings.current = prev
+        if (!prev) return prev
+        try {
+          localStorage.setItem(NAV_COLLAPSED_KEY, '0')
+        } catch {
+          /* ignore quota / private mode */
+        }
+        return false
+      })
+    }
+    selectPage('settings', section, { keepNav: true })
+  }
+  const exitSettings = () => {
+    if (collapsedBeforeSettings.current) persistNavCollapsed(true)
+    collapsedBeforeSettings.current = false
+    const previous = lastMainRoute.current
+    selectPage(previous.id === 'settings' ? 'overview' : previous.id, previous.param, { keepNav: true })
   }
 
   const fireReminder = useCallback(
@@ -326,12 +373,27 @@ function App() {
           />
         )}
       </Suspense>
-      <aside className={navOpen ? 'sidebar sidebar-open' : 'sidebar'} aria-label="主导航">
+      <aside className={navOpen ? 'sidebar sidebar-open' : 'sidebar'} aria-label={inSettings ? '设置' : '主导航'}>
         <div className="brand">
-          <BrandMark />
+          {inSettings ? (
+            <button type="button" className="nav-back" onClick={exitSettings} aria-label="返回" title="返回">
+              <NavIcon name="back" size={18} />
+            </button>
+          ) : (
+            <BrandMark />
+          )}
           <div className="brand-copy">
-            <strong>教学工作台</strong>
-            <span>{data.profile.college}教师端 · 本地</span>
+            {inSettings ? (
+              <>
+                <strong>设置</strong>
+                <span>本机偏好</span>
+              </>
+            ) : (
+              <>
+                <strong>教学工作台</strong>
+                <span>{data.profile.college}教师端 · 本地</span>
+              </>
+            )}
           </div>
           <button
             type="button"
@@ -345,44 +407,74 @@ function App() {
           </button>
         </div>
         <nav className="navigation">
-          {groups.map((group) => (
-            <section className="nav-group" key={group.label} aria-label={group.label}>
-              <h2>{group.label}</h2>
-              {group.ids.map((id) => {
-                const page = pages.find((item) => item.id === id)!
-                const selected = id === activeId
-                const disabled = DISABLED_NAV.has(id)
-                const badge =
-                  id === 'tasks' ? data.tasks.filter((t) => t.status !== 'done').length :
-                  id === 'papers' ? (data.thesisAdvisees ?? []).filter((person) => person.nextDate && person.nextDate < new Date().toISOString().slice(0, 10)).length :
-                  id === 'news' ? data.news.filter((n) => n.fresh && !data.newsRead.includes(n.id)).length :
-                  id === 'calendar'
-                    ? data.events.filter((e) => e.kind === 'deadline' && !e.done).length +
-                      data.reminders.filter((r) => r.status === 'pending').length :
-                  0
+          {inSettings ? (
+            <section className="nav-group" aria-label="设置">
+              {SETTINGS_SECTIONS.map((item) => {
+                const selected = item.id === settingsSection
                 return (
                   <button
-                    className={`nav-item${selected ? ' nav-item-active' : ''}${disabled ? ' nav-item-disabled' : ''}`}
-                    key={id}
+                    className={`nav-item${selected ? ' nav-item-active' : ''}`}
+                    key={item.id}
                     type="button"
-                    disabled={disabled}
-                    title={page.label}
-                    aria-label={disabled ? `${page.label}，暂未开放` : page.label}
+                    title={item.label}
+                    aria-label={item.label}
                     aria-current={selected ? 'page' : undefined}
-                    onClick={() => selectPage(id)}
+                    onClick={() => selectPage('settings', item.id)}
                   >
                     <span className="nav-icon" aria-hidden="true">
-                      <NavIcon name={page.icon} />
+                      <NavIcon name={item.icon} />
                     </span>
-                    <span className="nav-item-label">{page.label}</span>
-                    {badge > 0 && !disabled && <span className="nav-item-badge">{badge}</span>}
+                    <span className="nav-item-label">{item.label}</span>
                   </button>
                 )
               })}
             </section>
-          ))}
+          ) : (
+            groups.map((group) => (
+              <section className="nav-group" key={group.label} aria-label={group.label}>
+                <h2>{group.label}</h2>
+                {group.ids.map((id) => {
+                  const page = pages.find((item) => item.id === id)!
+                  const selected = id === activeId
+                  const disabled = DISABLED_NAV.has(id)
+                  const badge =
+                    id === 'tasks' ? data.tasks.filter((t) => t.status !== 'done').length :
+                    id === 'papers' ? (data.thesisAdvisees ?? []).filter((person) => person.nextDate && person.nextDate < new Date().toISOString().slice(0, 10)).length :
+                    id === 'news' ? data.news.filter((n) => n.fresh && !data.newsRead.includes(n.id)).length :
+                    id === 'calendar'
+                      ? data.events.filter((e) => e.kind === 'deadline' && !e.done).length +
+                        data.reminders.filter((r) => r.status === 'pending').length :
+                    0
+                  return (
+                    <button
+                      className={`nav-item${selected ? ' nav-item-active' : ''}${disabled ? ' nav-item-disabled' : ''}`}
+                      key={id}
+                      type="button"
+                      disabled={disabled}
+                      title={page.label}
+                      aria-label={disabled ? `${page.label}，暂未开放` : page.label}
+                      aria-current={selected ? 'page' : undefined}
+                      onClick={() => selectPage(id)}
+                    >
+                      <span className="nav-icon" aria-hidden="true">
+                        <NavIcon name={page.icon} />
+                      </span>
+                      <span className="nav-item-label">{page.label}</span>
+                      {badge > 0 && !disabled && <span className="nav-item-badge">{badge}</span>}
+                    </button>
+                  )
+                })}
+              </section>
+            ))
+          )}
         </nav>
-        <button type="button" className="profile profile-button" onClick={() => selectPage('settings')}>
+        <button
+          type="button"
+          className={`profile profile-button${inSettings ? ' profile-button-active' : ''}`}
+          onClick={() => openSettings()}
+          aria-label="打开设置"
+          title="设置"
+        >
           <div className="avatar">{data.profile.name.slice(0, 1)}</div>
           <div className="profile-copy">
             <strong>{data.profile.name}</strong>
@@ -400,7 +492,15 @@ function App() {
               <strong>{data.profile.greetingName}</strong>
             </div>
           ) : (
-            <div className="breadcrumb">教学工作台 <span>/</span> {active.label}</div>
+            <div className="breadcrumb">
+              教学工作台 <span>/</span> {active.label}
+              {inSettings ? (
+                <>
+                  {' '}
+                  <span>/</span> {settingsLabel}
+                </>
+              ) : null}
+            </div>
           )}
           <div className="topbar-actions">
             <button
@@ -447,7 +547,7 @@ function App() {
               className="glass-icon-btn glass-avatar-btn"
               aria-label="打开设置"
               title={data.profile.name}
-              onClick={() => selectPage('settings')}
+              onClick={() => openSettings()}
             >
               <span className="avatar">{data.profile.name.slice(0, 1)}</span>
             </button>
@@ -522,7 +622,7 @@ function App() {
             initialId={routeParam || undefined}
             onChangeAdvisees={(thesisAdvisees) => patch('thesisAdvisees', thesisAdvisees)}
             onChangeEvents={(events) => patch('events', events)}
-            onOpenSettings={() => selectPage('settings')}
+            onOpenSettings={() => openSettings('model')}
             onOpenPerson={(id) => selectPage('papers', id)}
             onBack={() => selectPage('papers')}
           />
@@ -533,7 +633,7 @@ function App() {
             projects={data.researchProjects}
             onChangeNotices={(researchNotices) => patch('researchNotices', researchNotices)}
             onChangeProjects={(researchProjects) => patch('researchProjects', researchProjects)}
-            onOpenSettings={() => selectPage('settings')}
+            onOpenSettings={() => openSettings('model')}
           />
         )}
         {activeId === 'students' && (
@@ -566,8 +666,24 @@ function App() {
             }
           />
         )}
+        {activeId === 'tools' && (
+          <ToolsPage
+            tools={data.tools}
+            favorites={data.favoriteTools}
+            courses={data.courses}
+            students={data.students}
+            grades={data.grades}
+            initialToolId={routeParam || undefined}
+            onChangeTools={(tools) => patch('tools', tools)}
+            onChangeFavorites={(favoriteTools) => patch('favoriteTools', favoriteTools)}
+            onChangeGrades={(grades) => patch('grades', grades)}
+            onOpenTool={(id) => selectPage('tools', id)}
+            onOpenStudents={(courseId) => selectPage('students', courseId)}
+          />
+        )}
         {activeId === 'settings' && (
           <SettingsPage
+            section={settingsSection}
             profile={data.profile}
             meta={data.meta}
             updatedAt={data.updatedAt}

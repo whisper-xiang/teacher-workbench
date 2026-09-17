@@ -14,8 +14,10 @@ import {
   resolveAtmosphereId,
 } from '../lib/atmosphere'
 import { hasLlmSettings, loadLlmSettings, saveLlmSettings, type LlmSettings } from '../lib/llm-settings'
+import { parseSettingsSection, type SettingsSectionId } from '../lib/settings-nav'
 
 type Props = {
+  section?: SettingsSectionId
   profile: TeacherProfile
   meta: WorkbenchMeta
   updatedAt: string
@@ -60,7 +62,8 @@ function sameMeta(a: WorkbenchMeta, b: WorkbenchMeta) {
   return a.termLabel === b.termLabel && a.weekNumber === b.weekNumber && a.weekStart === b.weekStart
 }
 
-export function SettingsPage({ profile, meta, updatedAt, onSaveProfile, onExport, onImport, onReset }: Props) {
+export function SettingsPage({ section: sectionProp, profile, meta, updatedAt, onSaveProfile, onExport, onImport, onReset }: Props) {
+  const section = parseSettingsSection(sectionProp)
   const [form, setForm] = useState(() => withGreeting(profile))
   const [metaForm, setMetaForm] = useState(() => liveMeta(meta))
   const fileRef = useRef<HTMLInputElement>(null)
@@ -193,14 +196,27 @@ export function SettingsPage({ profile, meta, updatedAt, onSaveProfile, onExport
   const selectedKind = resolvePetKind(form)
   const selectedAtmosphere = resolveAtmosphereId(form)
 
+  const heading =
+    section === 'profile'
+      ? { title: '个人信息', lead: '改完即存。概览会按这里的称呼问候你。' }
+      : section === 'appearance'
+        ? { title: '外观', lead: '点一下就换整页风景。自己的照片只留在这台电脑。' }
+        : section === 'data'
+          ? { title: '数据', lead: '全部留在这台电脑。换电脑前先导出一份。' }
+          : section === 'model'
+            ? { title: '模型配置', lead: '论文分析和科研材料优化走这里的接口。密钥不进 JSON 备份。' }
+            : { title: '桌面宠物', lead: '点一下就换。默认 Q 版守在右下角；也可以再传照片，在本机生成。' }
+
   return (
-    <section className="settings-page" aria-label="设置">
+    <section className="settings-page" aria-label={heading.title}>
       <div className="settings-heading">
-        <h1>设置</h1>
-        <p>改完即存。数据只留在这台电脑。</p>
+        <h1>{heading.title}</h1>
+        <p>{heading.lead}</p>
       </div>
 
       <div className="settings-stack">
+        {section === 'profile' && (
+          <>
         <section className="settings-block" aria-labelledby="settings-me">
           <h2 id="settings-me">我</h2>
           <div className="settings-grid">
@@ -258,16 +274,15 @@ export function SettingsPage({ profile, meta, updatedAt, onSaveProfile, onExport
           </div>
           <p className="settings-help">今天是第 {metaForm.weekNumber} 周。之后按真实日期自动往后计，不用每周来改。</p>
         </section>
+          </>
+        )}
 
-        <section className="settings-block" aria-labelledby="settings-assistant">
-          <h2 id="settings-assistant">AI 助手</h2>
-          <p className="settings-help">
-            侧栏助手使用豆包 Mini，与下方论文分析接口分开。确认后才写入本机提醒、课程、资源和任务。
-          </p>
-        </section>
-
+        {section === 'model' && (
         <section className="settings-block" aria-labelledby="settings-llm">
           <h2 id="settings-llm">智能文本处理</h2>
+          <p className="settings-help">
+            侧栏助手使用豆包 Mini，与这里的论文分析接口分开。确认后才写入本机提醒、课程、资源和任务。
+          </p>
           <div className="settings-grid">
             <label className="settings-span">
               接口地址
@@ -307,10 +322,11 @@ export function SettingsPage({ profile, meta, updatedAt, onSaveProfile, onExport
               : '填齐三项后，论文分析和科研材料优化才能调用模型。密钥不进 JSON 备份。'}
           </p>
         </section>
+        )}
 
+        {section === 'pet' && (
         <section className="settings-block" aria-labelledby="settings-pet">
           <h2 id="settings-pet">桌宠</h2>
-          <p className="settings-help">点一下就换。默认 Q 版守在右下角；也可以再传照片，在本机生成。</p>
           <div className="pet-preset-grid">
             {PET_PRESETS.map((preset) => {
               const selected = selectedKind === preset.id
@@ -394,10 +410,11 @@ export function SettingsPage({ profile, meta, updatedAt, onSaveProfile, onExport
             }}
           />
         </section>
+        )}
 
+        {section === 'appearance' && (
         <section className="settings-block" aria-labelledby="settings-atmosphere">
           <h2 id="settings-atmosphere">背景</h2>
-          <p className="settings-help">点一下就换整页风景。自己的照片只留在这台电脑。</p>
           <div className="atmosphere-grid">
             {ATMOSPHERE_PRESETS.map((preset) => {
               const selected = selectedAtmosphere === preset.id
@@ -471,10 +488,11 @@ export function SettingsPage({ profile, meta, updatedAt, onSaveProfile, onExport
             }}
           />
         </section>
+        )}
 
+        {section === 'data' && (
         <section className="settings-block" aria-labelledby="settings-data">
           <h2 id="settings-data">本机数据</h2>
-          <p className="settings-help">全部留在这台电脑。换电脑前先导出一份。</p>
           <div className="settings-actions">
             <button
               className="primary-action"
@@ -527,6 +545,7 @@ export function SettingsPage({ profile, meta, updatedAt, onSaveProfile, onExport
             }}
           />
         </section>
+        )}
       </div>
     </section>
   )

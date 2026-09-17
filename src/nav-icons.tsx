@@ -13,6 +13,11 @@ type IconName =
   | 'news'
   | 'tools'
   | 'settings'
+  | 'person'
+  | 'appearance'
+  | 'data'
+  | 'model'
+  | 'pet'
   | 'collapse'
   | 'expand'
   | 'search'
@@ -143,6 +148,45 @@ export function NavIcon({ name, size = 22 }: { name: IconName; size?: number }) 
         <svg {...props}>
           <circle cx="12" cy="12" r="3" />
           <path d="M12 3.6v2.2M12 18.2v2.2M4.8 7.2l1.9 1.1M17.3 15.7l1.9 1.1M4.8 16.8l1.9-1.1M17.3 8.3l1.9-1.1M3.6 12h2.2M18.2 12h2.2" />
+        </svg>
+      )
+    case 'model':
+      return (
+        <svg {...props}>
+          <rect x="6.5" y="7" width="11" height="10" rx="1.8" />
+          <path d="M9 7V4.8M12 7V4.8M15 7V4.8M9 19.2V17M12 19.2V17M15 19.2V17M6.5 10H4.4M6.5 14H4.4M19.6 10H17.5M19.6 14H17.5" />
+        </svg>
+      )
+    case 'person':
+      return (
+        <svg {...props}>
+          <circle cx="12" cy="8" r="3.2" />
+          <path d="M5.4 19.2c.8-3.6 3.3-5.5 6.6-5.5s5.8 1.9 6.6 5.5" />
+        </svg>
+      )
+    case 'appearance':
+      return (
+        <svg {...props}>
+          <rect x="3.5" y="5" width="17" height="14" rx="2.2" />
+          <circle cx="9" cy="10" r="1.5" />
+          <path d="m3.8 15.4 4.4-3.4 3.1 2.3 3.4-4.1 5.8 5.2" />
+        </svg>
+      )
+    case 'data':
+      return (
+        <svg {...props}>
+          <ellipse cx="12" cy="6.4" rx="7" ry="2.3" />
+          <path d="M5 6.4v11.2c0 1.3 3.1 2.3 7 2.3s7-1 7-2.3V6.4" />
+          <path d="M5 12c0 1.3 3.1 2.3 7 2.3s7-1 7-2.3" />
+        </svg>
+      )
+    case 'pet':
+      return (
+        <svg {...props}>
+          <path d="M8.2 9.2 6.8 4.8 11 8.4" />
+          <path d="M15.8 9.2 17.2 4.8 13 8.4" />
+          <circle cx="12" cy="13.4" r="5.4" />
+          <path d="M10.2 13.2h.01M13.8 13.2h.01M10.6 15.4c.8.8 2 .8 2.8 0" />
         </svg>
       )
     case 'collapse':

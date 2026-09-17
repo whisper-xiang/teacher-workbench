@@ -47,7 +47,7 @@ export function GlobalSearchPanel({ open, data, query, onQueryChange, onClose, o
             autoFocus
             value={query}
             onChange={(event) => onQueryChange(event.target.value)}
-            placeholder="搜索课程、学生、资源、任务、资讯…"
+            placeholder="搜索课程、学生、资源、任务、工具…"
             aria-label="搜索全部内容"
           />
           <kbd>⌘K</kbd>

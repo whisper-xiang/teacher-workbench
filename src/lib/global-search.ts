@@ -1,5 +1,6 @@
 import type { RouteId, WorkbenchData } from '../data/types'
 import { DISABLED_NAV } from './disabled-nav'
+import { SETTINGS_SECTIONS } from './settings-nav'
 
 export type SearchResult = {
   id: string
@@ -23,7 +24,6 @@ const PAGE_ENTRIES: { id: RouteId; label: string }[] = [
   { id: 'resources', label: '教学资源库' },
   { id: 'news', label: '热点资讯' },
   { id: 'tools', label: '工具箱' },
-  { id: 'settings', label: '设置与备份' },
 ]
 
 function push(
@@ -40,6 +40,14 @@ export function buildSearchIndex(data: WorkbenchData): SearchResult[] {
   PAGE_ENTRIES.forEach((page) => {
     if (DISABLED_NAV.has(page.id)) return
     push(results, { title: page.label, meta: '页面导航', group: '页面', route: page.id }, page.id)
+  })
+
+  SETTINGS_SECTIONS.forEach((item) => {
+    push(
+      results,
+      { title: item.label, meta: '设置', group: '设置', route: 'settings', param: item.id },
+      item.id,
+    )
   })
 
   data.students.forEach((student) => {
@@ -140,6 +148,21 @@ export function buildSearchIndex(data: WorkbenchData): SearchResult[] {
         route: 'calendar',
       },
       event.id,
+    )
+  })
+
+  data.tools.forEach((tool) => {
+    push(
+      results,
+      {
+        id: `tool-${tool.id}`,
+        title: tool.name,
+        meta: tool.kind === 'native' ? `本机工具 · ${tool.description}` : `${tool.category} · ${tool.description}`,
+        group: '工具箱',
+        route: 'tools',
+        param: tool.kind === 'native' ? tool.nativeId : undefined,
+      },
+      tool.id,
     )
   })
 

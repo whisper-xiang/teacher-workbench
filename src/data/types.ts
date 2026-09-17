@@ -199,16 +199,9 @@ export type NewsItem = {
   url: string
 }
 
-export type ToolCategory =
-  | '政策与学会'
-  | '备课工具'
-  | '教学平台'
-  | '学术工具'
-  | '效率工具'
-  | 'AI工具'
-  | '备课与课堂'
-  | '研究与写作'
-  | '协作与事务'
+export type ToolCategory = '文献与平台' | '课堂与教务' | '我的入口'
+
+export type NativeToolId = 'rollcall' | 'gradesim'
 
 export type ToolItem = {
   id: string
@@ -217,11 +210,14 @@ export type ToolItem = {
   category: ToolCategory
   initials: string
   tone: string
-  /** 卡片展示用图标，缺省回退到 initials */
+  /** 卡片展示用图标，缺省回退到 initials；本机工具不用 emoji */
   icon?: string
   url?: string
   tags?: string[]
   typeLabel?: string
+  kind?: 'link' | 'native'
+  nativeId?: NativeToolId
+  lastUsedAt?: string
 }
 
 export type ReminderStatus = 'pending' | 'fired' | 'cancelled'
@@ -278,7 +274,7 @@ export type WorkbenchMeta = {
   demoBanner: boolean
   /** RSS 资讯上次拉取时间（ISO） */
   newsFetchedAt?: string
-  /** 预置工具版本；低于当前版本时按 id 补齐新入口，不覆盖用户已有项 */
+  /** 预置工具版本；低于当前版本时补齐本机工具、撤掉退役外链，不覆盖用户自建项 */
   presetToolsVersion?: number
   /** 桌宠默认形象版本；低于当前版本时把旧默认黑猫换成预置 Q 版 */
   petPresetVersion?: number

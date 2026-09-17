@@ -57,7 +57,7 @@ body,
 
 .app-shell .sidebar {
   position: fixed;
-  z-index: 5;
+  z-index: 32;
   inset: 14px auto 14px 14px;
   overflow: visible;
   width: var(--nav-w);
@@ -84,7 +84,7 @@ body,
 }
 
 .app-shell .scrim {
-  z-index: 4;
+  z-index: 31;
 }
 
 .app-shell .brand {
@@ -184,6 +184,39 @@ body,
 
 .app-shell .nav-icon svg {
   display: block;
+}
+
+.app-shell .nav-back {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  background: var(--glass);
+  box-shadow: inset 0 1px 0 var(--glass-highlight);
+  color: var(--glass-text);
+  cursor: pointer;
+}
+
+.app-shell .nav-back:hover {
+  background: var(--glass-strong);
+}
+
+.app-shell .nav-back:focus-visible {
+  outline: 2px solid var(--mist);
+  outline-offset: 2px;
+}
+
+.app-shell .profile-button {
+  border-radius: 16px;
+}
+
+.app-shell .profile-button-active {
+  background: var(--glass);
 }
 
 .app-shell .nav-item-label {

@@ -1,7 +1,7 @@
 import { currentCourseTopic } from '../lib/courses'
 import { addDaysIso, diffDays, dueLabel, thisMondayIso, todayIso } from '../lib/dates'
 import { PET_PRESET_VERSION } from '../lib/pet-kind'
-import { mergePresetTools, PRESET_TOOLS_VERSION } from './default-tools'
+import { ensureNativeTools, mergePresetTools, normalizeToolItem, PRESET_TOOLS_VERSION } from './default-tools'
 import { createSeedData } from './seed'
 import { ensureCourseClasses } from '../lib/course-classes'
 import type {
@@ -201,8 +201,12 @@ function mergeWithSeed(partial: Partial<WorkbenchData> | null): WorkbenchData {
   const students = (partial.students ?? seed.students).map(normalizeStudent)
   const assignments = (partial.assignments ?? seed.assignments).map(normalizeAssignment)
   const storedToolsVersion = partial.meta?.presetToolsVersion ?? 0
-  const tools =
-    storedToolsVersion < PRESET_TOOLS_VERSION ? mergePresetTools(partial.tools) : (partial.tools ?? seed.tools)
+  const tools = ensureNativeTools(
+    (storedToolsVersion < PRESET_TOOLS_VERSION ? mergePresetTools(partial.tools) : (partial.tools ?? seed.tools)).map(
+      normalizeToolItem,
+    ),
+  )
+  const toolIds = new Set(tools.map((item) => item.id))
   const meta = {
     ...seed.meta,
     ...partial.meta,
@@ -280,7 +284,7 @@ function mergeWithSeed(partial: Partial<WorkbenchData> | null): WorkbenchData {
     newsBookmarks,
     newsRead,
     tools,
-    favoriteTools: partial.favoriteTools ?? seed.favoriteTools,
+    favoriteTools: (partial.favoriteTools ?? seed.favoriteTools).filter((id) => toolIds.has(id)),
     grades: partial.grades ?? seed.grades,
     dutyConfirmedDates: partial.dutyConfirmedDates ?? seed.dutyConfirmedDates,
     reminders: partial.reminders?.length ? partial.reminders : seed.reminders,
