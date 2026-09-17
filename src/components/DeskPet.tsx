@@ -1,18 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
 import type { PetKind } from '../data/types'
+import { useHourlyPetTip } from '../hooks/useHourlyPetTip'
 import { getResourceFile } from '../lib/resource-files'
 import { DEFAULT_Q_PET_SRC, PET_AVATAR_EVENT } from '../lib/q-pet'
 import { petDisplayName, resolvePetKind } from '../lib/pet-kind'
-import { nextPetTip, petTipLine } from '../lib/pet-tips'
 import { Live2DDeskPet } from './Live2DDeskPet'
 import { PetMascot } from './PetMascots'
+import { PetTipBubble } from './PetTipBubble'
 import './desk-pet.css'
 
 type Mood = 'idle' | 'walk' | 'talk' | 'celebrate'
 
 type Props = {
   greetingName: string
-  pageId?: string
   petAvatarId?: string
   petKind?: PetKind
 }
@@ -58,7 +58,7 @@ function photoCorner() {
   }
 }
 
-function ClassicDeskPet({ greetingName, pageId, petAvatarId, kind }: Props & { kind: Exclude<PetKind, 'live2d-cat' | 'live2d-white-cat'> }) {
+function ClassicDeskPet({ greetingName, petAvatarId, kind }: Props & { kind: Exclude<PetKind, 'live2d-cat' | 'live2d-white-cat'> }) {
   const [pos, setPos] = useState(() =>
     kind === 'photo'
       ? photoCorner()
@@ -69,17 +69,21 @@ function ClassicDeskPet({ greetingName, pageId, petAvatarId, kind }: Props & { k
   )
   const [facing, setFacing] = useState<1 | -1>(-1)
   const [mood, setMood] = useState<Mood>('idle')
-  const [speech, setSpeech] = useState('')
   const [docked, setDocked] = useState(false)
   const [shaking, setShaking] = useState(false)
   const [photoUrl, setPhotoUrl] = useState<string | null>(kind === 'photo' ? DEFAULT_Q_PET_SRC : null)
+  const { speech, dismiss, speak } = useHourlyPetTip(greetingName, !docked)
   const drag = useRef<{ x: number; y: number; px: number; py: number } | null>(null)
   const moved = useRef(false)
   const pinned = useRef(kind === 'photo')
   const pauseUntil = useRef(0)
   const dirRef = useRef({ x: -0.7, y: 0.25 })
-  const mounted = useRef(false)
-  const lastTip = useRef<string | null>(null)
+  const speechRef = useRef(speech)
+
+  useEffect(() => {
+    speechRef.current = speech
+    if (speech) pauseUntil.current = Date.now() + 4200
+  }, [speech])
 
   useEffect(() => {
     let url: string | null = null
@@ -112,18 +116,6 @@ function ClassicDeskPet({ greetingName, pageId, petAvatarId, kind }: Props & { k
     }
   }, [petAvatarId, kind])
 
-  const say = (text: string, next: Mood = 'talk') => {
-    setSpeech(text)
-    setMood(next)
-    pauseUntil.current = Date.now() + 4200
-  }
-
-  const remind = () => {
-    const tip = nextPetTip(lastTip.current)
-    lastTip.current = tip
-    say(petTipLine(greetingName, tip))
-  }
-
   useEffect(() => {
     pinned.current = kind === 'photo'
     if (kind === 'photo') {
@@ -152,22 +144,12 @@ function ClassicDeskPet({ greetingName, pageId, petAvatarId, kind }: Props & { k
   }, [kind])
 
   useEffect(() => {
-    const first = !mounted.current
-    mounted.current = true
-    if (!first && pageId !== 'overview') return undefined
-    const t = window.setTimeout(remind, first ? 1400 : 400)
-    return () => window.clearTimeout(t)
-    // 打开应用、以及每次回到概览时提示一次
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pageId])
-
-  useEffect(() => {
     if (docked || kind === 'photo') return undefined
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     if (reduced) return undefined
     const tick = window.setInterval(() => {
-      if (Date.now() < pauseUntil.current || drag.current) {
-        setMood((current) => (current === 'walk' ? 'idle' : current))
+      if (speechRef.current || Date.now() < pauseUntil.current || drag.current) {
+        setMood((current) => (current === 'walk' ? (speechRef.current ? 'talk' : 'idle') : current))
         return
       }
       const dir = dirRef.current
@@ -190,31 +172,13 @@ function ClassicDeskPet({ greetingName, pageId, petAvatarId, kind }: Props & { k
     const pauseWalk = window.setInterval(() => {
       if (drag.current) return
       pauseUntil.current = Date.now() + 2200 + Math.random() * 1800
-      setMood('idle')
+      setMood((current) => (current === 'talk' ? current : 'idle'))
     }, 7000)
     return () => {
       window.clearInterval(tick)
       window.clearInterval(pauseWalk)
     }
   }, [docked, kind])
-
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      if (docked) return
-      remind()
-    }, 4 * 60 * 1000)
-    return () => window.clearInterval(id)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [greetingName, docked])
-
-  useEffect(() => {
-    if (mood !== 'talk') return undefined
-    const t = window.setTimeout(() => {
-      setMood('idle')
-      setSpeech('')
-    }, 5000)
-    return () => window.clearTimeout(t)
-  }, [mood])
 
   const onPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     event.currentTarget.setPointerCapture(event.pointerId)
@@ -245,6 +209,7 @@ function ClassicDeskPet({ greetingName, pageId, petAvatarId, kind }: Props & { k
   }
 
   const cornered = kind === 'photo' && pinned.current
+  const shownMood = speech ? 'talk' : mood
 
   if (docked) {
     return (
@@ -263,7 +228,6 @@ function ClassicDeskPet({ greetingName, pageId, petAvatarId, kind }: Props & { k
           setShaking(true)
           window.setTimeout(() => setShaking(false), 480)
           setDocked(false)
-          remind()
         }}
         aria-label={`展开${petDisplayName(kind)}`}
       >
@@ -274,17 +238,13 @@ function ClassicDeskPet({ greetingName, pageId, petAvatarId, kind }: Props & { k
 
   return (
     <div
-      className={`desk-pet-stage mood-${mood}${kind === 'photo' ? ' kind-photo' : ''}`}
+      className={`desk-pet-stage mood-${shownMood}${kind === 'photo' ? ' kind-photo' : ''}`}
       style={cornered ? { right: 16, bottom: 12, left: 'auto', top: 'auto' } : { left: pos.x, top: pos.y }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
     >
-      {(speech || mood === 'talk') && (
-        <div className="desk-pet-bubble" role="status">
-          {speech || petTipLine(greetingName, lastTip.current ?? nextPetTip())}
-        </div>
-      )}
+      {speech && <PetTipBubble text={speech} onDismiss={dismiss} />}
       <button
         type="button"
         className={`desk-pet-avatar${shaking ? ' is-shaking' : ''}`}
@@ -292,11 +252,11 @@ function ClassicDeskPet({ greetingName, pageId, petAvatarId, kind }: Props & { k
           if (moved.current) return
           setShaking(true)
           window.setTimeout(() => setShaking(false), 480)
-          remind()
+          speak()
         }}
         aria-label={`${petDisplayName(kind)}，点击听健康提示`}
       >
-        <PetFigure mood={mood} facing={facing} kind={kind} photoUrl={photoUrl} />
+        <PetFigure mood={shownMood} facing={facing} kind={kind} photoUrl={photoUrl} />
       </button>
       <button type="button" className="desk-pet-mini" onClick={() => setDocked(true)}>
         收起

@@ -18,6 +18,43 @@ export function shuffled<T>(items: T[]): T[] {
   return next
 }
 
+export function pickRandom<T>(items: readonly T[]): T | undefined {
+  if (!items.length) return undefined
+  return items[Math.floor(Math.random() * items.length)] as T
+}
+
+export function remainingRoster<T extends { id: string }>(roster: readonly T[], called: readonly T[]): T[] {
+  const used = new Set(called.map((item) => item.id))
+  return roster.filter((item) => !used.has(item.id))
+}
+
+export function buildSpinSequence<T>(
+  pool: readonly T[],
+  winner: T,
+  ticks = 24,
+  same: (a: T, b: T) => boolean = Object.is,
+): T[] {
+  const count = Math.max(8, ticks)
+  if (!pool.length) return [winner]
+  const sequence: T[] = []
+  for (let index = 0; index < count; index += 1) {
+    if (index === count - 1) {
+      sequence.push(winner)
+      continue
+    }
+    let next = pickRandom(pool) as T
+    const previous = sequence[sequence.length - 1]
+    if (previous && pool.length > 1 && same(next, previous)) {
+      next = pool.find((item) => !same(item, previous)) ?? next
+    }
+    if (index >= count - 3 && pool.length > 1 && same(next, winner)) {
+      next = pool.find((item) => !same(item, winner)) ?? next
+    }
+    sequence.push(next)
+  }
+  return sequence
+}
+
 export function splitIntoGroups<T>(items: T[], groupCount: number): T[][] {
   if (!items.length) return []
   const count = Math.max(1, Math.min(Math.floor(groupCount) || 1, items.length))

@@ -349,7 +349,6 @@ function App() {
       <ConfirmHost />
       <DeskPet
         greetingName={data.profile.greetingName || `${data.profile.name}老师`}
-        pageId={activeId}
         petAvatarId={data.profile.petAvatarId}
         petKind={data.profile.petKind}
       />

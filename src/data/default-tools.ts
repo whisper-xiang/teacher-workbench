@@ -73,8 +73,8 @@ export function normalizeToolItem(item: ToolItem): ToolItem {
 const NATIVE_TOOLS: ToolItem[] = [
   {
     id: 'native-rollcall',
-    name: '课堂点名 / 分组',
-    description: '用当前课花名册随机点名或分组，结果可复制，不改名单',
+    name: '随机点名 / 分组',
+    description: '花名册抽签点名，也可随机分组；结果可复制，不改名单',
     category: '课堂与教务',
     initials: '点',
     tone: 'teal',

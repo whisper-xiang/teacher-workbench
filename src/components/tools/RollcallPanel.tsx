@@ -1,9 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { Course, StudentRecord } from '../../data/types'
 import {
+  buildSpinSequence,
   copyText,
   formatNamedGroups,
-  shuffled,
+  pickRandom,
+  remainingRoster,
   splitBySize,
   splitIntoGroups,
   suggestedGroupCount,
@@ -13,11 +15,13 @@ import { ToolCourseTabs } from './ToolCourseTabs'
 
 type Mode = 'call' | 'group'
 type GroupBy = 'count' | 'size'
+type CallPhase = 'idle' | 'spinning' | 'landed' | 'last'
 
 type CallDeck = {
   key: string
-  queue: StudentRecord[]
-  cursor: number
+  called: StudentRecord[]
+  current: StudentRecord | null
+  spinning: boolean
   groupCount: number
   groupSize: number
   groups: StudentRecord[][]
@@ -32,12 +36,21 @@ type Props = {
 function deckFor(key: string, roster: StudentRecord[]): CallDeck {
   return {
     key,
-    queue: shuffled(roster),
-    cursor: 0,
+    called: [],
+    current: null,
+    spinning: false,
     groupCount: suggestedGroupCount(roster.length),
     groupSize: roster.length <= 4 ? Math.max(1, roster.length) : 4,
     groups: [],
   }
+}
+
+function prefersReducedMotion() {
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+}
+
+function sameStudent(a: StudentRecord, b: StudentRecord) {
+  return a.id === b.id
 }
 
 export function RollcallPanel({ courses, students, onOpenStudents }: Props) {
@@ -46,10 +59,12 @@ export function RollcallPanel({ courses, students, onOpenStudents }: Props) {
   const [courseId, setCourseId] = useState(defaultCourseId)
   const [mode, setMode] = useState<Mode>('call')
   const [groupBy, setGroupBy] = useState<GroupBy>('count')
+  const [unique, setUnique] = useState(true)
   const [deck, setDeck] = useState<CallDeck>({
     key: '',
-    queue: [],
-    cursor: 0,
+    called: [],
+    current: null,
+    spinning: false,
     groupCount: 4,
     groupSize: 4,
     groups: [],
@@ -67,27 +82,120 @@ export function RollcallPanel({ courses, students, onOpenStudents }: Props) {
     setDeck(deckFor(rosterKey, roster))
   }
 
-  const queue = deck.queue
-  const cursor = deck.cursor
+  const called = deck.called
+  const current = deck.current
+  const spinning = deck.spinning
   const groupCount = deck.groupCount
   const groupSize = deck.groupSize
   const groups = deck.groups
-  const current = queue[cursor]
-  const called = queue.slice(0, cursor)
-  const remaining = Math.max(0, queue.length - cursor)
+  const pool = unique ? remainingRoster(roster, called) : roster
+  const phase: CallPhase = spinning
+    ? 'spinning'
+    : unique && pool.length === 0 && current
+      ? 'last'
+      : current
+        ? 'landed'
+        : 'idle'
 
-  const restartCall = () => {
-    setDeck((currentDeck) => ({
-      ...currentDeck,
-      queue: shuffled(roster),
-      cursor: 0,
-    }))
+  const prevRef = useRef<HTMLParagraphElement>(null)
+  const nameRef = useRef<HTMLParagraphElement>(null)
+  const nextRef = useRef<HTMLParagraphElement>(null)
+  const spinRaf = useRef(0)
+  const spinningLock = useRef(false)
+  const spinSeq = useRef<StudentRecord[]>([])
+  const drawKey = useRef(rosterKey)
+
+  const paintReel = (index: number) => {
+    const sequence = spinSeq.current
+    const shown = sequence[index]
+    if (prevRef.current) prevRef.current.textContent = sequence[index - 1]?.name ?? ''
+    if (nameRef.current) nameRef.current.textContent = shown?.name ?? ''
+    if (nextRef.current) nextRef.current.textContent = sequence[index + 1]?.name ?? ''
   }
 
-  const nextCall = () => {
-    if (cursor < queue.length) {
-      setDeck((currentDeck) => ({ ...currentDeck, cursor: currentDeck.cursor + 1 }))
+  const cancelSpin = () => {
+    cancelAnimationFrame(spinRaf.current)
+    spinningLock.current = false
+  }
+
+  useEffect(() => {
+    cancelSpin()
+    drawKey.current = rosterKey
+    return () => cancelSpin()
+  }, [rosterKey])
+
+  useLayoutEffect(() => {
+    if (!spinning) return
+    paintReel(0)
+  }, [spinning])
+
+  const finishDraw = (winner: StudentRecord, key: string, nextCalled: StudentRecord[]) => {
+    spinningLock.current = false
+    setDeck((currentDeck) => {
+      if (currentDeck.key !== key) return currentDeck
+      return {
+        ...currentDeck,
+        spinning: false,
+        current: winner,
+        called: nextCalled,
+      }
+    })
+  }
+
+  const startDraw = (replace = false) => {
+    if (spinningLock.current || spinning) return
+    const existing = replace && current ? called.filter((item) => item.id !== current.id) : called
+    const drawPool = unique ? remainingRoster(roster, existing) : roster
+    const winner = pickRandom(drawPool)
+    if (!winner) return
+
+    const nextCalled = [...existing, winner]
+    const key = rosterKey
+    cancelAnimationFrame(spinRaf.current)
+    spinningLock.current = true
+
+    if (prefersReducedMotion() || drawPool.length <= 1) {
+      finishDraw(winner, key, nextCalled)
+      return
     }
+
+    const sequence = buildSpinSequence(drawPool, winner, 24, sameStudent)
+    spinSeq.current = sequence
+    setDeck((currentDeck) => ({
+      ...currentDeck,
+      spinning: true,
+      current: null,
+      called: existing,
+    }))
+
+    const started = performance.now()
+    const duration = 1800
+    const tick = (now: number) => {
+      if (drawKey.current !== key) {
+        spinningLock.current = false
+        return
+      }
+      const t = Math.min(1, (now - started) / duration)
+      const eased = 1 - (1 - t) ** 3
+      const index = Math.min(sequence.length - 1, Math.floor(eased * sequence.length))
+      paintReel(index)
+      if (t < 1) {
+        spinRaf.current = requestAnimationFrame(tick)
+        return
+      }
+      finishDraw(winner, key, nextCalled)
+    }
+    spinRaf.current = requestAnimationFrame(tick)
+  }
+
+  const restartCall = () => {
+    cancelSpin()
+    setDeck((currentDeck) => ({
+      ...currentDeck,
+      called: [],
+      current: null,
+      spinning: false,
+    }))
   }
 
   const runGroups = () => {
@@ -115,6 +223,17 @@ export function RollcallPanel({ courses, students, onOpenStudents }: Props) {
       notify.warning('复制失败')
     }
   }
+
+  const kicker =
+    phase === 'spinning' ? '签筒转动' : phase === 'last' ? '本轮最后一位' : phase === 'landed' ? '就是这位' : '课堂抽签'
+
+  const stageName = phase === 'landed' || phase === 'last' ? current?.name : '点到谁'
+  const stageMeta =
+    phase === 'landed' || phase === 'last'
+      ? current?.number || '无学号'
+      : unique
+        ? `还剩 ${pool.length} 人`
+        : `花名册 ${roster.length} 人`
 
   if (!courses.length) {
     return (
@@ -148,37 +267,83 @@ export function RollcallPanel({ courses, students, onOpenStudents }: Props) {
         </div>
       ) : mode === 'call' ? (
         <div className="tools-call">
-          {current ? (
-            <div className="tools-call-stage">
+          <div className={`tools-call-stage is-${phase}`} aria-busy={spinning}>
+            <span className="tools-call-seal" aria-hidden="true">
+              签
+            </span>
+            <div className="tools-call-board" aria-live={spinning ? 'off' : 'polite'} aria-atomic="true">
               <p className="tools-call-kicker">
-                第 {cursor + 1} 位 · 还剩 {remaining} 人
+                {kicker}
+                {roster.length > 0 ? ` · 已点 ${called.length} / ${roster.length}` : ''}
               </p>
-              <p className="tools-call-name">{current.name}</p>
-              <p className="tools-call-meta">{current.number || '无学号'}</p>
+              <div className="tools-call-reel">
+                <p ref={prevRef} className="tools-call-reel-item is-prev" aria-hidden="true">
+                  {spinning ? '' : '\u00a0'}
+                </p>
+                <div className="tools-call-window">
+                  {spinning ? (
+                    <p ref={nameRef} className="tools-call-name is-now" />
+                  ) : (
+                    <p className={`tools-call-name is-now${phase === 'idle' ? ' is-placeholder' : ''}`}>
+                      {stageName}
+                    </p>
+                  )}
+                </div>
+                <p ref={nextRef} className="tools-call-reel-item is-next" aria-hidden="true">
+                  {spinning ? '' : '\u00a0'}
+                </p>
+              </div>
+              <p className="tools-call-meta">{spinning ? '正在抽取' : stageMeta}</p>
             </div>
-          ) : (
-            <div className="tools-call-stage is-done">
-              <p className="tools-call-kicker">本轮已点完</p>
-              <p className="tools-call-name">全班 {queue.length} 人</p>
-              <p className="tools-call-meta">重新开始会再打乱一次顺序</p>
-            </div>
-          )}
+          </div>
           <div className="tools-native-actions">
-            <button type="button" className="primary-action" disabled={!current} onClick={nextCall}>
-              下一位
+            <button
+              type="button"
+              className="primary-action"
+              disabled={spinning || (unique && pool.length === 0)}
+              onClick={() => startDraw(false)}
+            >
+              {spinning ? '抽取中' : unique && pool.length === 0 ? '本轮已点完' : current ? '再抽一位' : '随机抽取'}
             </button>
-            <button type="button" className="outline-action" onClick={restartCall}>
-              重新开始
+            <button type="button" className="outline-action" disabled={spinning || !current} onClick={() => startDraw(true)}>
+              这位重抽
             </button>
-            <button type="button" className="text-action" disabled={!current} onClick={() => void copyCurrent()}>
+            <button type="button" className="outline-action" disabled={spinning} onClick={restartCall}>
+              重开一轮
+            </button>
+            <button type="button" className="text-action" disabled={!current || spinning} onClick={() => void copyCurrent()}>
               复制姓名
             </button>
           </div>
-          {called.length > 0 && (
-            <p className="tools-call-history">
-              已点 {called.length} 人：{called.map((item) => item.name).join('、')}
-            </p>
-          )}
+          <div className="tools-call-toolbar">
+            <button
+              type="button"
+              className={unique ? 'active' : ''}
+              aria-pressed={unique}
+              disabled={spinning}
+              onClick={() => {
+                if (spinning) return
+                setUnique((currentUnique) => !currentUnique)
+              }}
+            >
+              本轮不重复
+            </button>
+            <p className="tools-hint">{unique ? '抽过的人先离开签筒，点完再重开。' : '每次都从全班抽，同一个人可能再被点到。'}</p>
+          </div>
+          <div className="tools-call-roster" aria-label="花名册">
+            {roster.map((item) => {
+              const picked = current?.id === item.id
+              const wasCalled = called.some((entry) => entry.id === item.id)
+              return (
+                <span
+                  key={item.id}
+                  className={`tools-call-chip${picked ? ' is-picked' : wasCalled ? ' is-called' : ''}`}
+                >
+                  {item.name}
+                </span>
+              )
+            })}
+          </div>
         </div>
       ) : (
         <div className="tools-groups">

@@ -1,6 +1,7 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import type { Widget } from 'l2d-widget'
-import { shuffledPetTipLines } from '../lib/pet-tips'
+import { useHourlyPetTip } from '../hooks/useHourlyPetTip'
+import { PetTipBubble } from './PetTipBubble'
 
 type Props = {
   greetingName: string
@@ -8,14 +9,21 @@ type Props = {
 }
 
 export function Live2DDeskPet({ greetingName, variant }: Props) {
+  const { speech, dismiss, speak } = useHourlyPetTip(greetingName, true)
+  const speakRef = useRef(speak)
+
+  useEffect(() => {
+    speakRef.current = speak
+  }, [speak])
+
   useEffect(() => {
     let cancelled = false
     let widget: Widget | null = null
     let layerTimer: ReturnType<typeof setInterval> | undefined
+    const canvases: HTMLCanvasElement[] = []
+    const onPetClick = () => speakRef.current()
     const compact = window.matchMedia('(max-width: 620px)').matches
-    const name = greetingName || '老师'
     const modelFolder = variant === 'white' ? 'tororo' : 'hijiki'
-    const tips = shuffledPetTipLines(name)
     void import('l2d-widget').then(({ createWidget }) => {
       if (cancelled) return
       const lowerLayer = () => {
@@ -23,6 +31,12 @@ export function Live2DDeskPet({ greetingName, variant }: Props) {
           const el = node as HTMLElement
           if (el.style.zIndex === '9999') el.style.zIndex = '24'
           if (el.style.zIndex === '9998') el.style.zIndex = '23'
+        })
+        document.querySelectorAll('body > div canvas').forEach((node) => {
+          const canvas = node as HTMLCanvasElement
+          if (canvases.includes(canvas)) return
+          canvases.push(canvas)
+          canvas.addEventListener('click', onPetClick)
         })
       }
       widget = createWidget({
@@ -32,21 +46,7 @@ export function Live2DDeskPet({ greetingName, variant }: Props) {
           offset: [0, compact ? -0.08 : -0.04],
           volume: 0,
           logLevel: 'warn',
-          tips: {
-            welcomeMessage: tips,
-            messages: tips,
-            duration: 4200,
-            interval: 4 * 60 * 1000,
-            typing: { speed: 72 },
-            offset: { x: compact ? -24 : -34, y: compact ? -54 : -64 },
-            style: {
-              border: '1px solid rgba(255,255,255,.2)',
-              borderRadius: '14px 14px 5px 14px',
-              boxShadow: '0 12px 30px rgba(32,45,38,.2), inset 0 1px rgba(255,255,255,.16)',
-              backdropFilter: 'blur(14px)',
-              fontFamily: 'inherit',
-            },
-          },
+          tips: false,
         },
         position: 'bottom-right',
         size: compact ? { width: 172, height: 172 } : { width: 224, height: 224 },
@@ -80,9 +80,15 @@ export function Live2DDeskPet({ greetingName, variant }: Props) {
     return () => {
       cancelled = true
       if (layerTimer) window.clearInterval(layerTimer)
+      canvases.forEach((canvas) => canvas.removeEventListener('click', onPetClick))
       if (widget) void widget.destroy()
     }
-  }, [greetingName, variant])
+  }, [variant])
 
-  return null
+  if (!speech) return null
+  return (
+    <div className="desk-pet-live2d-tip">
+      <PetTipBubble text={speech} onDismiss={dismiss} />
+    </div>
+  )
 }
