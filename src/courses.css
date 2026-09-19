@@ -160,6 +160,25 @@
   cursor: pointer;
 }
 
+.course-week-label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--moss-40);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.course-week-row {
+  margin-top: 0;
+}
+
+.course-week-hint {
+  margin: 8px 0 0;
+  color: var(--moss-50);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .course-pick-chip:hover,
 .course-pick-chip.is-on {
   border-color: var(--moss-40);

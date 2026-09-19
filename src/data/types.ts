@@ -103,6 +103,12 @@ export type CourseClassGroup = {
   performances?: StudentPerformance[]
 }
 
+export type StudentObservation = {
+  id: string
+  date: string
+  text: string
+}
+
 export type StudentRecord = {
   id: string
   name: string
@@ -116,6 +122,8 @@ export type StudentRecord = {
   major: MajorId
   processScore: number
   notes: string
+  /** 学期中随手记下的课堂表现，期末据此生成平时成绩 */
+  observations?: StudentObservation[]
 }
 
 export type HomeworkSubmission = {
@@ -431,6 +439,17 @@ export type ThesisNote = {
   text: string
 }
 
+export type ThesisEvidence = {
+  id: string
+  stage: ThesisStage
+  fileId?: string
+  fileName: string
+  mimeType?: string
+  size?: string
+  uploadedAt: string
+  note?: string
+}
+
 export type ThesisAdvisee = {
   id: string
   name: string
@@ -441,6 +460,10 @@ export type ThesisAdvisee = {
   drafts: ThesisDraft[]
   analysis?: ThesisAnalysis
   notes: ThesisNote[]
+  /** 各环节批阅、聊天截图等佐证，期末生成指导记录 */
+  evidence?: ThesisEvidence[]
+  recordText?: string
+  recordAt?: string
 }
 
 export type WorkbenchData = {

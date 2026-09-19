@@ -129,6 +129,7 @@ function normalizeStudent(student: StudentRecord): StudentRecord {
     ...student,
     major: student.major ?? inferMajorFromText(student.className || student.courseId),
     className: student.className || '未分班',
+    observations: student.observations ?? [],
   }
 }
 
@@ -168,6 +169,7 @@ function normalizeAdvisee(person: ThesisAdvisee): ThesisAdvisee {
     stage: isThesisStage(person.stage) ? person.stage : '选题',
     drafts: person.drafts ?? [],
     notes: person.notes ?? [],
+    evidence: person.evidence ?? [],
   }
 }
 

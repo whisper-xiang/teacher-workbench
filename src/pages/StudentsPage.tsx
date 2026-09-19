@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import '../components/course-tabs.css'
 import '../students.css'
 import { calcGradeTotal, uid } from '../data/store'
-import type { Course, GradeItem, StudentRecord } from '../data/types'
+import type { Course, GradeItem, StudentObservation, StudentRecord } from '../data/types'
 import {
   StudentDialogs,
   StudentRosterTable,
@@ -12,6 +12,9 @@ import { RosterImportDialog } from '../components/students/RosterImportDialog'
 import { buildGradeCsv, downloadGradeCsv } from '../lib/grade-csv'
 import { notify } from '../lib/notify'
 import { confirm } from '../lib/confirm'
+import { hasLlmSettings } from '../lib/llm-settings'
+import { localUsualScores, proposeUsualScores, type UsualScoreDraft } from '../lib/usual-from-notes'
+import { todayIso } from '../lib/dates'
 
 type Props = {
   courses: Course[]
@@ -20,6 +23,7 @@ type Props = {
   initialCourseId?: string
   onChangeStudents: (students: StudentRecord[]) => void
   onChangeGrades: (grades: GradeItem[]) => void
+  onOpenSettings?: () => void
   onBack?: () => void
 }
 
@@ -32,7 +36,14 @@ function emptyStudentDraft(): StudentDraft {
     usual: '',
     midterm: '',
     final: '',
+    observations: [],
+    newObservation: '',
   }
+}
+
+function notesFromObservations(observations: StudentObservation[], fallback = '') {
+  const latest = observations[0]?.text.trim()
+  return latest || fallback
 }
 
 function clampScore(value: number) {
@@ -46,12 +57,16 @@ export function StudentsPage({
   initialCourseId,
   onChangeStudents,
   onChangeGrades,
+  onOpenSettings,
   onBack,
 }: Props) {
   const [courseId, setCourseId] = useState(initialCourseId || courses[0]?.id || '')
   const [query, setQuery] = useState('')
   const [studentDraft, setStudentDraft] = useState<StudentDraft | null>(null)
   const [importOpen, setImportOpen] = useState(false)
+  const [usualDrafts, setUsualDrafts] = useState<UsualScoreDraft[] | null>(null)
+  const [usualBusy, setUsualBusy] = useState(false)
+  const [usualLocal, setUsualLocal] = useState(false)
 
   useEffect(() => {
     if (initialCourseId && courses.some((course) => course.id === initialCourseId)) {
@@ -87,6 +102,8 @@ export function StudentsPage({
       usual: String(grade?.usual ?? student.processScore),
       midterm: grade?.midterm != null ? String(grade.midterm) : '',
       final: grade?.final ? String(grade.final) : '',
+      observations: student.observations ?? [],
+      newObservation: '',
     })
   }
 
@@ -111,7 +128,8 @@ export function StudentsPage({
       className: course.className,
       major: course.major,
       processScore: usual,
-      notes: studentDraft.notes.trim(),
+      notes: notesFromObservations(studentDraft.observations, studentDraft.notes.trim()),
+      observations: studentDraft.observations,
     }
     const nextStudents = studentDraft.id
       ? students.map((item) => (item.id === studentDraft.id ? nextStudent : item))
@@ -135,6 +153,86 @@ export function StudentsPage({
     )
     notify.success(studentDraft.id ? `已更新「${name}」` : `已加入「${name}」`)
     setStudentDraft(null)
+  }
+
+  const addObservation = () => {
+    if (!studentDraft?.newObservation.trim()) return
+    const next: StudentObservation = {
+      id: uid('obs'),
+      date: todayIso(),
+      text: studentDraft.newObservation.trim(),
+    }
+    setStudentDraft({
+      ...studentDraft,
+      observations: [next, ...studentDraft.observations],
+      newObservation: '',
+      notes: next.text,
+    })
+  }
+
+  const removeObservation = (id: string) => {
+    if (!studentDraft) return
+    const observations = studentDraft.observations.filter((item) => item.id !== id)
+    setStudentDraft({
+      ...studentDraft,
+      observations,
+      notes: notesFromObservations(observations, studentDraft.notes),
+    })
+  }
+
+  const generateUsual = async () => {
+    if (!course || !roster.length) return
+    setUsualBusy(true)
+    try {
+      if (hasLlmSettings()) {
+        const drafts = await proposeUsualScores(roster, course.name)
+        setUsualDrafts(drafts)
+        setUsualLocal(false)
+        notify.success('已根据课堂表现拟出平时成绩，确认后写入')
+      } else {
+        setUsualDrafts(localUsualScores(roster))
+        setUsualLocal(true)
+        notify.warning('还没配置模型，先按文字做了本机粗估。到设置填写后可再智能生成。')
+      }
+    } catch (error) {
+      setUsualDrafts(localUsualScores(roster))
+      setUsualLocal(true)
+      notify.error(error instanceof Error ? error.message : '生成失败，已改用本机粗估')
+      if (String(error instanceof Error ? error.message : '').includes('设置')) onOpenSettings?.()
+    } finally {
+      setUsualBusy(false)
+    }
+  }
+
+  const applyUsualDrafts = () => {
+    if (!course || !usualDrafts?.length) return
+    let nextGrades = grades
+    let nextStudents = students
+    for (const draft of usualDrafts) {
+      const student = nextStudents.find((item) => item.id === draft.studentId)
+      if (!student) continue
+      const usual = clampScore(draft.usual)
+      const current = nextGrades.find((item) => item.studentId === student.id && item.courseId === course.id)
+      const midterm = current?.midterm ?? 0
+      const final = current?.final ?? 0
+      const nextGrade: GradeItem = {
+        id: current?.id || uid('grade'),
+        courseId: course.id,
+        studentId: student.id,
+        usual,
+        midterm,
+        final,
+        total: calcGradeTotal(usual, midterm, final),
+      }
+      nextGrades = current
+        ? nextGrades.map((item) => (item.id === current.id ? nextGrade : item))
+        : [...nextGrades, nextGrade]
+      nextStudents = nextStudents.map((item) => (item.id === student.id ? { ...item, processScore: usual } : item))
+    }
+    onChangeGrades(nextGrades)
+    onChangeStudents(nextStudents)
+    setUsualDrafts(null)
+    notify.success(`已写入「${course.name}」${usualDrafts.length} 人平时成绩`)
   }
 
   const removeStudent = async (id: string) => {
@@ -184,7 +282,7 @@ export function StudentsPage({
         <div>
           <p className="section-label">日常工作</p>
           <h1>学生与评价</h1>
-          <p>花名册、总评登记与成绩导出 · 数据仅保存在本机</p>
+          <p>学期初导入花名册，学期中补课堂表现，期末据此生成平时成绩。</p>
         </div>
         <div className="students-heading-actions">
           {onBack && (
@@ -194,6 +292,14 @@ export function StudentsPage({
           )}
           <button type="button" className="outline-action" disabled={!course} onClick={() => setImportOpen(true)}>
             导入花名册
+          </button>
+          <button
+            type="button"
+            className="outline-action"
+            disabled={!roster.length || usualBusy}
+            onClick={() => void generateUsual()}
+          >
+            {usualBusy ? '正在生成…' : '生成平时成绩'}
           </button>
           <button type="button" className="outline-action" disabled={!roster.length} onClick={exportGrades}>
             导出成绩
@@ -250,7 +356,71 @@ export function StudentsPage({
         onStudentDraftChange={setStudentDraft}
         onSaveStudent={saveStudent}
         onRemoveStudent={(id) => void removeStudent(id)}
+        onAddObservation={addObservation}
+        onRemoveObservation={removeObservation}
       />
+      {usualDrafts ? (
+        <div className="students-modal-backdrop" onMouseDown={() => setUsualDrafts(null)}>
+          <div
+            className="students-composer students-usual-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="usual-dialog-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="students-composer-head">
+              <div>
+                <p className="section-label">{usualLocal ? '本机粗估' : '智能分析'}</p>
+                <h2 id="usual-dialog-title">平时成绩草案</h2>
+                <p className="students-composer-meta">{course?.name} · 确认后写入平时分，仍可再改</p>
+              </div>
+              <button type="button" className="students-composer-close" onClick={() => setUsualDrafts(null)} aria-label="关闭">
+                ×
+              </button>
+            </div>
+            <ul className="students-usual-list">
+              {usualDrafts.map((item) => (
+                <li key={item.studentId}>
+                  <strong>{item.name}</strong>
+                  <input
+                    className="grade-input"
+                    inputMode="numeric"
+                    value={item.usual}
+                    onChange={(event) =>
+                      setUsualDrafts(
+                        usualDrafts.map((row) =>
+                          row.studentId === item.studentId
+                            ? { ...row, usual: clampScore(Number(event.target.value) || 0) }
+                            : row,
+                        ),
+                      )
+                    }
+                    aria-label={`${item.name} 平时成绩`}
+                  />
+                  <span>{item.reason}</span>
+                </li>
+              ))}
+            </ul>
+            <div className="composer-actions">
+              {usualLocal && onOpenSettings ? (
+                <button type="button" className="text-action" onClick={onOpenSettings}>
+                  去设置模型
+                </button>
+              ) : (
+                <span />
+              )}
+              <div className="composer-actions-right">
+                <button type="button" className="outline-action" onClick={() => setUsualDrafts(null)}>
+                  取消
+                </button>
+                <button type="button" className="primary-action" onClick={applyUsualDrafts}>
+                  写入平时成绩
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
       <RosterImportDialog
         open={importOpen}
         course={course}

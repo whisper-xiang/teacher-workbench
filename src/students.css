@@ -9,6 +9,14 @@
   gap: 20px;
 }
 
+.students-heading-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .students-heading h1 {
   margin: 8px 0 7px;
   color: var(--ink);
@@ -534,4 +542,84 @@
 .students-composer .danger-action:focus-visible {
   outline: 3px solid var(--moss-90);
   outline-offset: 2px;
+}
+
+.students-observe-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: -4px;
+  color: var(--moss-50);
+  font-size: 12px;
+}
+
+.students-observe-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.students-observe-list li {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--moss-90);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.students-observe-list time {
+  display: block;
+  color: var(--moss-50);
+  font-size: 11px;
+}
+
+.students-observe-list p {
+  margin: 2px 0 0;
+  color: var(--moss-20);
+  font-size: 13px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.students-observe-empty,
+.students-observe-legacy {
+  margin: 0;
+  color: var(--moss-50);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.students-usual-dialog {
+  width: min(560px, 100%);
+}
+
+.students-usual-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0 22px 8px;
+  list-style: none;
+  max-height: min(48vh, 420px);
+  overflow: auto;
+}
+
+.students-usual-list li {
+  display: grid;
+  grid-template-columns: minmax(72px, 0.8fr) 64px minmax(0, 1.6fr);
+  gap: 10px;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--moss-90);
+  font-size: 13px;
+}
+
+.students-usual-list span {
+  color: var(--moss-50);
+  line-height: 1.45;
 }

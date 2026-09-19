@@ -9,7 +9,7 @@ import { uid } from '../data/store'
 import type { ResearchNotice, ResearchProject, WorkMaterial } from '../data/types'
 import { fillIfEmpty, guessFromFile } from '../lib/intake-file'
 import { notify } from '../lib/notify'
-import { formatFileSize, openStoredFile, putResourceFile } from '../lib/resource-files'
+import { formatFileSize, openStoredFile, downloadStoredFile, putResourceFile } from '../lib/resource-files'
 
 type TabId = 'upcoming' | 'open' | 'active' | 'ended'
 
@@ -344,7 +344,8 @@ export function ResearchPage({
               {item.fileName && <small>附件 · {item.fileName}</small>}
               <div className="daily-card-actions">
                 {item.url && <a className="text-action" href={item.url} target="_blank" rel="noreferrer">查看通知</a>}
-                {item.fileId && <button type="button" className="text-action" onClick={() => void openStoredFile(item.fileId!)}>预览附件</button>}
+                {item.fileId && <button type="button" className="text-action" onClick={() => void openStoredFile(item.fileId!).catch((error) => notify.error(error instanceof Error ? error.message : '无法预览'))}>预览附件</button>}
+                {item.fileId && <button type="button" className="text-action" onClick={() => void downloadStoredFile(item.fileId!).catch((error) => notify.error(error instanceof Error ? error.message : '无法下载'))}>下载附件</button>}
                 {item.fileId && (
                   <button type="button" className="text-action" onClick={() => setHandlingNoticeId((value) => value === item.id ? '' : item.id)}>
                     {handlingNoticeId === item.id ? '收起' : '查看正文'}

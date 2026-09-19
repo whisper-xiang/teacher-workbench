@@ -1,22 +1,25 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import '../papers.css'
 import { uid } from '../data/store'
-import { THESIS_STAGES, type CalendarEvent, type ThesisAdvisee, type ThesisDraft, type ThesisStage } from '../data/types'
+import { THESIS_STAGES, type CalendarEvent, type ThesisAdvisee, type ThesisDraft, type ThesisEvidence, type ThesisStage } from '../data/types'
 import { confirm } from '../lib/confirm'
 import { addDaysIso, todayIso } from '../lib/dates'
 import { hasLlmSettings } from '../lib/llm-settings'
 import { notify } from '../lib/notify'
-import { deleteResourceFile, formatFileSize, openStoredFile, putResourceFile } from '../lib/resource-files'
+import { deleteResourceFile, downloadStoredFile, formatFileSize, openStoredFile, putResourceFile } from '../lib/resource-files'
 import { analysisToNote, analyzeThesis, buildThesisPrompt, parseThesisAnalysis } from '../lib/thesis-analyze'
 import { dropPaperEvents, upsertPaperDeadline } from '../lib/thesis-events'
 import { extractThesisText } from '../lib/thesis-text'
+import { buildThesisRecordFallback, downloadTextFile, evidenceByStage, generateThesisRecord } from '../lib/thesis-record'
 import { NavIcon } from '../nav-icons'
 
 const DRAFT_ACCEPT = '.doc,.docx,.pdf,.txt,.md,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain'
+const EVIDENCE_ACCEPT = `${DRAFT_ACCEPT},image/*,.png,.jpg,.jpeg,.webp,.gif`
 
 type Props = {
   advisees: ThesisAdvisee[]
   events: CalendarEvent[]
+  teacherName?: string
   initialId?: string
   onChangeAdvisees: (advisees: ThesisAdvisee[]) => void
   onChangeEvents: (events: CalendarEvent[]) => void
@@ -93,6 +96,7 @@ function buildTimeline(person: ThesisAdvisee, today: string): TimelineItem[] {
 export function PapersPage({
   advisees,
   events,
+  teacherName,
   initialId,
   onChangeAdvisees,
   onChangeEvents,
@@ -107,11 +111,13 @@ export function PapersPage({
   const [remindDate, setRemindDate] = useState(addDaysIso(todayIso(), 7))
   const [busy, setBusy] = useState(false)
   const [analyzing, setAnalyzing] = useState(false)
+  const [recording, setRecording] = useState(false)
   const [pasteOpen, setPasteOpen] = useState(false)
   const [pasteText, setPasteText] = useState('')
   const [dragging, setDragging] = useState(false)
   const [llmReady, setLlmReady] = useState(hasLlmSettings)
   const fileRef = useRef<HTMLInputElement>(null)
+  const evidenceRef = useRef<HTMLInputElement>(null)
   const dragDepth = useRef(0)
   const today = todayIso()
 
@@ -177,6 +183,7 @@ export function PapersPage({
       stage: '选题',
       drafts: [],
       notes: [],
+      evidence: [],
     }
     onChangeAdvisees([next, ...advisees])
     setAdding(false)
@@ -225,6 +232,88 @@ export function PapersPage({
       notify.error(error instanceof Error ? error.message : '文件保存失败')
     } finally {
       setBusy(false)
+    }
+  }
+
+  const takeEvidence = async (file: File | undefined) => {
+    if (!selected || !file) return
+    setBusy(true)
+    try {
+      const fileId = uid('thev')
+      await putResourceFile(fileId, file, file.name)
+      const next: ThesisEvidence = {
+        id: uid('the'),
+        stage: selected.stage,
+        fileId,
+        fileName: file.name,
+        mimeType: file.type,
+        size: formatFileSize(file.size),
+        uploadedAt: today,
+      }
+      patchPerson(selected.id, (person) => ({
+        ...person,
+        evidence: [next, ...(person.evidence ?? [])],
+      }))
+      notify.success(`已放入「${selected.stage}」佐证：${file.name}`)
+    } catch (error) {
+      notify.error(error instanceof Error ? error.message : '佐证保存失败')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const removeEvidence = async (item: ThesisEvidence) => {
+    if (!selected) return
+    try {
+      await confirm.delete(`确定删除「${item.fileName}」？`)
+    } catch {
+      return
+    }
+    if (item.fileId) void deleteResourceFile(item.fileId).catch(() => undefined)
+    patchPerson(selected.id, (person) => ({
+      ...person,
+      evidence: (person.evidence ?? []).filter((row) => row.id !== item.id),
+    }))
+    notify.warning(`已删除：${item.fileName}`, '已删除')
+  }
+
+  const openEvidence = async (item: ThesisEvidence, download = false) => {
+    if (!item.fileId) return
+    try {
+      if (download) await downloadStoredFile(item.fileId)
+      else await openStoredFile(item.fileId)
+    } catch (error) {
+      notify.error(error instanceof Error ? error.message : '打不开这份材料')
+    }
+  }
+
+  const exportRecord = async () => {
+    if (!selected) return
+    setRecording(true)
+    try {
+      const text = llmReady
+        ? await generateThesisRecord(selected, teacherName ?? '')
+        : buildThesisRecordFallback(selected, teacherName ?? '')
+      patchPerson(selected.id, (person) => ({ ...person, recordText: text, recordAt: today }))
+      downloadTextFile(`${selected.name}-指导记录.txt`, text)
+      const files = (selected.evidence ?? []).filter((item) => item.fileId)
+      for (const item of files) {
+        if (item.fileId) await downloadStoredFile(item.fileId)
+      }
+      notify.success(
+        files.length
+          ? '已下载指导记录，并逐份下载证明材料'
+          : llmReady
+            ? '已生成并下载指导记录。各环节还可补传佐证。'
+            : '已按现有意见整理记录。到设置填写模型后可再润色。',
+      )
+    } catch (error) {
+      const fallback = buildThesisRecordFallback(selected, teacherName ?? '')
+      patchPerson(selected.id, (person) => ({ ...person, recordText: fallback, recordAt: today }))
+      downloadTextFile(`${selected.name}-指导记录.txt`, fallback)
+      notify.error(error instanceof Error ? error.message : '智能生成失败，已下载本机整理稿')
+    } finally {
+      setRecording(false)
     }
   }
 
@@ -333,7 +422,10 @@ export function PapersPage({
     } catch {
       return
     }
-    const files = selected.drafts.map((item) => item.fileId).filter((id): id is string => Boolean(id))
+    const files = [
+      ...selected.drafts.map((item) => item.fileId),
+      ...(selected.evidence ?? []).map((item) => item.fileId),
+    ].filter((id): id is string => Boolean(id))
     onChangeAdvisees(advisees.filter((item) => item.id !== selected.id))
     onChangeEvents(dropPaperEvents(events, selected.id))
     files.forEach((id) => void deleteResourceFile(id).catch(() => undefined))
@@ -462,11 +554,77 @@ export function PapersPage({
               </div>
             </div>
             <div className="papers-heading-actions">
+              <button type="button" className="outline-action" disabled={recording} onClick={() => void exportRecord()}>
+                {recording ? '正在整理…' : '生成指导记录'}
+              </button>
               <button type="button" className="text-action" onClick={() => void removePerson()}>
                 移出
               </button>
             </div>
           </div>
+
+          <section className="papers-evidence" aria-label={`${selected.stage}佐证资料`}>
+            <div className="papers-evidence-head">
+              <div>
+                <p className="section-label">佐证资料 · {selected.stage}</p>
+                <h3>上传批阅、聊天截图或过程材料</h3>
+              </div>
+              <button
+                type="button"
+                className="outline-action"
+                disabled={busy}
+                onClick={() => evidenceRef.current?.click()}
+              >
+                {busy ? '正在收下…' : '上传佐证'}
+              </button>
+              <input
+                ref={evidenceRef}
+                type="file"
+                accept={EVIDENCE_ACCEPT}
+                hidden
+                onChange={(event) => {
+                  void takeEvidence(event.target.files?.[0])
+                  event.target.value = ''
+                }}
+              />
+            </div>
+            <ul className="papers-evidence-list">
+              {evidenceByStage(selected, selected.stage).map((item) => (
+                <li key={item.id}>
+                  <div>
+                    <strong>{item.fileName}</strong>
+                    <small>
+                      {item.uploadedAt}
+                      {item.size ? ` · ${item.size}` : ''}
+                    </small>
+                  </div>
+                  <div className="papers-evidence-actions">
+                    {item.fileId && (
+                      <button type="button" className="text-action" onClick={() => void openEvidence(item)}>
+                        预览
+                      </button>
+                    )}
+                    {item.fileId && (
+                      <button type="button" className="text-action" onClick={() => void openEvidence(item, true)}>
+                        下载
+                      </button>
+                    )}
+                    <button type="button" className="text-action" onClick={() => void removeEvidence(item)}>
+                      删除
+                    </button>
+                  </div>
+                </li>
+              ))}
+              {evidenceByStage(selected, selected.stage).length === 0 && (
+                <li className="papers-evidence-empty">这个环节还没有佐证。期末生成记录时会一并列入证明材料。</li>
+              )}
+            </ul>
+            {selected.recordText ? (
+              <p className="papers-help">
+                最近一次指导记录整理于 {selected.recordAt || '本机'}，可再次生成覆盖。
+              </p>
+            ) : null}
+          </section>
 
           <button
             type="button"

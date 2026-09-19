@@ -66,6 +66,7 @@
 - **实现**：2026-08-13。路由 `#/students/:courseId`；课程卡片进入；作业批改回写 `homework` 并同步日历截止。
 - **精简（2026-09-16）**：学生页去掉作业与批改、到勤百分比、过程分双套、小组与状态；平时即过程分。花名册人数以名单为准。主要文件：`StudentsPage.tsx`、`StudentSections.tsx`。
 - **导入（2026-09-16）**：花名册支持粘贴 / 上传 csv、tsv、json、网页表；本机规则能认的直接抽出，否则交给豆包识别，确认后写入当前课。成绩表可顺带带入平时 / 期中 / 期末。主要文件：`RosterImportDialog.tsx`、`src/lib/roster-import.ts`、`src/lib/roster-import-llm.ts`。
+- **表现记录（2026-09-18）**：学期中可随时给每位学生补课堂表现文字；期末根据这些描述智能生成平时成绩草案，确认后写入 `GradeItem.usual`。主要文件：`StudentsPage.tsx`、`StudentSections.tsx`、`src/lib/usual-from-notes.ts`。
 
 ### P0-2　课程从「课表格子」升级为「课程档案（syllabus 化）」
 
@@ -81,6 +82,7 @@
 - **精简**：2026-09-10。教学页只留课程门类、周课表、周主题档案；班级节点 / 课堂表现 / 本课资源编辑下放到学生与资源路由。主要文件：`CoursesPage.tsx`、`CourseDetailPanel.tsx`。
 - **再收（2026-09-16）**：教学页改成一张周课表。点空格排课（课名、教室、选填本周主题），点格子改这一节或去掉；课名对上已有课程则加时段。保存仍写 `Course.sessions` 并同步日程。去掉课程名单、档案、学分编号和 16 周 syllabus。主要文件：`CoursesPage.tsx`、`src/lib/courses.ts`、`src/App.tsx`。
 - **导入（2026-09-16）**：课表支持粘贴 / 上传，先由豆包识别数据格式并抽出格子，确认后合并进 `Course.sessions` 并同步日程；接口失败时回退本机规则。主要文件：`TimetableImportDialog.tsx`、`src/lib/timetable-import.ts`、`src/lib/timetable-import-llm.ts`。
+- **周期（2026-09-18）**：排课时可选 8 / 16 / 18 周，保存后按 `Course.totalWeeks` 在日程出现对应次数。主要文件：`CoursesPage.tsx`、`src/lib/courses.ts`、`src/data/sync.ts`。
 
 ### P0-3　修复「今天」硬编码，回归真实时间
 
@@ -154,6 +156,7 @@
 - **验收标准**：能为一门课添加第二班级并记下作业发布/学生表现节点；能把资源库文件关联到本课并打开；能把一条已开始的科研通知转入「进行中」，并在「我的」里勾选成果看到结题进度变化；学生活动可从下拉选择或手输新建。
 - **涉及**：`src/App.tsx`、`src/pages/CoursesPage.tsx`、`src/pages/CourseDetailPanel.tsx`、`src/pages/ResearchPage.tsx`、`src/pages/ActivitiesPage.tsx`、`src/data/types.ts`、`src/data/seed.ts`。
 - **实现**：2026-08-25。学生与评价、资源库仍可从教学详情进入，不再作为侧栏一级入口。2026-08-25 续：班级节点去掉课前/课后；科研与学生活动支持预置选择 + 手工录入；活动页改为卡片布局。2026-08-25 再续：科研/学生活动录入可上传文件自动识别名称与日期，也可手填；上传后可在本页预览、改备注、替换。
+- **下载（2026-09-18）**：科研通知与项目材料列表直接提供预览和下载。主要文件：`ResearchPage.tsx`、`WorkMaterialsPanel.tsx`。
 
 ### P2-4　教学随手记与年度工作量报告
 
@@ -177,6 +180,7 @@
 - **涉及**：`src/data/sync.ts`、`src/pages/CalendarPage.tsx`、`src/pages/Dashboard.tsx`、`src/components/DeskPet.tsx`、`src/components/PetMascots.tsx`、`src/lib/q-pet.ts`、`src/lib/pet-kind.ts`、`src/data/types.ts`。
 - **实现**：2026-08-25。`hiddenCourseEventIds` 记住调课删除；`journal-` 事件由随手记派生。续：桌面宠物。设置页可点选仓鼠/狗狗等软萌预设，或上传照片生成本机 Q 版大头立绘。2026-08-26：工作概览将今日日程/值班/待办合成一份清单，完成项进入「已完成」，顶部显示当日完成百分比。2026-09-09：概览收成一条今日清单（课→课程档案，截止→办事页，值班/待办就地勾完）；列出当天全部事项含已完成，可取消勾选。宠物口头提示「吾日三省吾身：喝水、走动、提肛」，不统计次数。去掉波形、统计卡、课程小卡。2026-09-09 续：日程页打开落在今天；周视图为工作日；重叠课时并排；课/截止/随手记点击进入对应页；添加入口只保留一处；完成改勾选，去掉确认到岗。周末安排在月视图查看。2026-09-10：设置页收成我 / 学期 / 桌宠 / 本机四块，失焦即存；桌宠照片改为选图后直接生成。续：设置页可切换黄昏 / 林荫 / 雨后风景，或上传本机照片作背景。2026-09-16：预置照片 Q 版立绘守在右下角，作为默认桌宠；设置页仍可换回黑猫或其他萌宠。主要文件：`public/pets/q-child.png`、`DeskPet.tsx`、`src/lib/q-pet.ts`。2026-09-16 续：宠物提示改为随机一句「喝水 / 走动 / 提肛」，不连着重复。主要文件：`src/lib/pet-tips.ts`、`DeskPet.tsx`、`Live2DDeskPet.tsx`。2026-09-17：宠物改为工作时段整点提示喝水/活动（8–22 点每 2 小时），悬停气泡关闭，不再在打开概览时说话。主要文件：`src/lib/pet-tips.ts`、`src/hooks/useHourlyPetTip.ts`、`DeskPet.tsx`、`Live2DDeskPet.tsx`、`PetTipBubble.tsx`。2026-09-17 续：设置「我」可上传本机照片作侧栏/顶栏头像，IndexedDB 保存；清除后回到姓名首字。主要文件：`SettingsPage.tsx`、`src/lib/profile-avatar.ts`、`App.tsx`。2026-09-17 再续：黄昏恢复原图；林荫 / 雨后换成同一套金黄暮色风景。主要文件：`public/glass-sky.jpg`、`glass-grove.jpg`、`glass-rain.jpg`。
 - **收口（2026-09-16）**：数据仍与课表 / 作业 / 随手记 / 值班表互通；日程与概览的交互留在当前页（查看、勾选、本节省课、每周值班），不再跳到其他路由。每周值班由 `dutyRoster` 生成 `duty-` 事件。主要文件：`CalendarPage.tsx`、`src/lib/duty.ts`、`src/data/sync.ts`。
+- **编辑口（2026-09-18）**：课程与值班可在日程页改、删；删除可选当天或本学期全部（当天记入 `hiddenCourseEventIds`，全部则改课表时段或值班表）。主要文件：`CalendarPage.tsx`、`src/lib/courses.ts`、`App.tsx`。
 
 ### P2-6　论文指导（本科毕业论文）
 
@@ -191,6 +195,7 @@
 - **涉及**：`src/pages/PapersPage.tsx`、`src/lib/thesis-analyze.ts`、`src/lib/llm-settings.ts`、`src/data/types.ts`、`src/pages/SettingsPage.tsx`。
 - **实现**：2026-09-10。路由 `#/papers/:id`；密钥单独存在 `teacher-workbench-llm-v1`，不进 JSON 备份。
 - **改版（2026-09-16）**：名单改为表格；点进详情看时间轴（稿、意见、阶段、下次看）；详情支持拖入文稿。分析直接填进意见框，不再另开结果墙。主要文件：`PapersPage.tsx`、`src/papers.css`。
+- **佐证（2026-09-18）**：每个指导环节可上传批阅、聊天截图等佐证；期末生成指导记录并下载证明材料。主要文件：`PapersPage.tsx`、`src/lib/thesis-record.ts`。
 
 ---
 

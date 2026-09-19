@@ -4,7 +4,7 @@ import type { WorkMaterial } from '../data/types'
 import { fillIfEmpty, guessFromFile } from '../lib/intake-file'
 import { confirm } from '../lib/confirm'
 import { notify } from '../lib/notify'
-import { deleteResourceFile, formatFileSize, openStoredFile, putResourceFile } from '../lib/resource-files'
+import { deleteResourceFile, downloadStoredFile, formatFileSize, openStoredFile, putResourceFile } from '../lib/resource-files'
 import { FileIntake } from './FileIntake'
 import { StoredFileEditor } from './StoredFileEditor'
 
@@ -132,8 +132,29 @@ export function WorkMaterialsPanel({ materials, kinds, onChange, smartOptimize, 
             </div>
             <div className="work-materials-actions">
               {item.fileId && (
-                <button type="button" className="text-action" onClick={() => void openStoredFile(item.fileId!)}>
+                <button
+                  type="button"
+                  className="text-action"
+                  onClick={() =>
+                    void openStoredFile(item.fileId!).catch((error) =>
+                      notify.error(error instanceof Error ? error.message : '无法预览'),
+                    )
+                  }
+                >
                   预览
+                </button>
+              )}
+              {item.fileId && (
+                <button
+                  type="button"
+                  className="text-action"
+                  onClick={() =>
+                    void downloadStoredFile(item.fileId!).catch((error) =>
+                      notify.error(error instanceof Error ? error.message : '无法下载'),
+                    )
+                  }
+                >
+                  下载
                 </button>
               )}
               <button

@@ -7,6 +7,7 @@ import { DEADLINE_EVENT_PREFIX } from '../data/sync'
 import type {
   CalendarEvent,
   CalendarKind,
+  Course,
   DutySlot,
   ReminderItem,
   ReminderSettings,
@@ -20,6 +21,7 @@ import {
   parseDutyEventId,
 } from '../lib/duty'
 import { notify } from '../lib/notify'
+import { parseCourseEventId } from '../lib/courses'
 import { PAPER_EVENT_PREFIX } from '../lib/thesis-events'
 import {
   defaultReminderDatetime,
@@ -63,7 +65,6 @@ function reminderSortMinutes(item: ReminderItem) {
 
 function isProjectedEvent(item: CalendarEvent) {
   return (
-    item.kind === 'course' ||
     item.kind === 'journal' ||
     item.id.startsWith(DEADLINE_EVENT_PREFIX) ||
     item.id.startsWith(PAPER_EVENT_PREFIX)
@@ -71,7 +72,6 @@ function isProjectedEvent(item: CalendarEvent) {
 }
 
 function peekHint(item: CalendarEvent) {
-  if (item.kind === 'course') return item.detail || '这节课由教学课表同步到日程，可在本页勾选或本节省课。'
   if (item.kind === 'journal') return item.detail || '来自随手记，可在本页勾选完成。'
   if (item.kind === 'deadline') return item.detail || '截止日期提醒，可在本页勾选完成。'
   return item.detail || '这项安排已同步到日程。'
@@ -80,12 +80,13 @@ function peekHint(item: CalendarEvent) {
 type Props = {
   events: CalendarEvent[]
   dutyRoster: DutySlot[]
+  courses: Course[]
   reminders: ReminderItem[]
   settings: ReminderSettings
   weekStart: string
   weekNumber: number
   focusId?: string
-  onChangeSchedule: (next: { events: CalendarEvent[]; dutyRoster?: DutySlot[] }) => void
+  onChangeSchedule: (next: { events: CalendarEvent[]; dutyRoster?: DutySlot[]; courses?: Course[] }) => void
   onChangeReminders: (items: ReminderItem[]) => void
   onChangeSettings: (settings: ReminderSettings) => void
 }
@@ -93,6 +94,7 @@ type Props = {
 export function CalendarPage({
   events,
   dutyRoster,
+  courses,
   reminders,
   settings,
   weekStart,
@@ -315,6 +317,33 @@ export function CalendarPage({
     event.preventDefault()
     if (!editor?.title.trim()) return
 
+    const parsedCourse = parseCourseEventId(editor.id)
+    if (parsedCourse) {
+      const course = courses.find((item) => item.id === parsedCourse.courseId)
+      if (!course) {
+        notify.warning('找不到这门课，请到教学页改排课')
+        return
+      }
+      const room = editor.detail.trim() || '待定教室'
+      const nextCourses = courses.map((item) =>
+        item.id === course.id
+          ? {
+              ...item,
+              name: editor.title.trim(),
+              sessions: item.sessions.map((session) =>
+                session.day === parsedCourse.day && session.section === parsedCourse.section
+                  ? { ...session, room }
+                  : session,
+              ),
+            }
+          : item,
+      )
+      onChangeSchedule({ events, courses: nextCourses })
+      notify.success(`已保存「${editor.title.trim()}」，整学期这一节会一起改`)
+      setEditor(null)
+      return
+    }
+
     if (editor.kind === 'duty' && weeklyRepeat) {
       const slotId = parseDutyEventId(editor.id)?.slotId || uid('slot')
       const slot = dutySlotFromEvent(
@@ -385,28 +414,62 @@ export function CalendarPage({
     setEditor(null)
   }
 
-  const remove = () => {
+  const removeDay = async () => {
     if (!editor?.id) return
-    if (isDutyEventId(editor.id)) {
-      onChangeSchedule({ events: events.filter((item) => item.id !== editor.id) })
-      notify.warning(`本周不去：${editor.title}`)
-      setEditor(null)
+    const series = Boolean(parseCourseEventId(editor.id) || parseDutyEventId(editor.id))
+    try {
+      await confirm({
+        title: series ? '删除当天' : '删除安排',
+        message: series
+          ? `只去掉 ${editor.date} 这一次「${editor.title}」，本学期其他周次还在。`
+          : `确定删除「${editor.title}」？`,
+        confirmButtonText: series ? '删除当天' : '删除',
+        confirmButtonClass: 'danger',
+      })
+    } catch {
       return
     }
     onChangeSchedule({ events: events.filter((item) => item.id !== editor.id) })
-    notify.warning(`已删除：${editor.title}`, '已删除')
+    notify.warning(series ? `已删除当天：${editor.title}` : `已删除：${editor.title}`)
     setEditor(null)
   }
 
-  const dropDutySeries = async () => {
+  const removeSeries = async () => {
     if (!editor) return
-    const parsed = parseDutyEventId(editor.id)
-    if (!parsed) return
+    const parsedCourse = parseCourseEventId(editor.id)
+    if (parsedCourse) {
+      const course = courses.find((item) => item.id === parsedCourse.courseId)
+      if (!course) return
+      try {
+        await confirm({
+          title: '删除本学期全部',
+          message: `本学期不再出现这一节「${course.name}」。教学课表里这一格也会去掉。`,
+          confirmButtonText: '删除全部',
+          confirmButtonClass: 'danger',
+        })
+      } catch {
+        return
+      }
+      const remaining = course.sessions.filter(
+        (item) => !(item.day === parsedCourse.day && item.section === parsedCourse.section),
+      )
+      const nextCourses =
+        remaining.length === 0
+          ? courses.filter((item) => item.id !== course.id)
+          : courses.map((item) => (item.id === course.id ? { ...item, sessions: remaining } : item))
+      onChangeSchedule({ events, courses: nextCourses })
+      notify.warning(`已去掉本学期「${course.name}」这一节`)
+      setEditor(null)
+      return
+    }
+
+    const parsedDuty = parseDutyEventId(editor.id)
+    if (!parsedDuty) return
     try {
       await confirm({
-        title: '取消每周值班',
+        title: '删除本学期全部',
         message: `本学期不再自动出现「${editor.title}」。`,
-        confirmButtonText: '取消每周',
+        confirmButtonText: '删除全部',
         confirmButtonClass: 'danger',
       })
     } catch {
@@ -414,9 +477,9 @@ export function CalendarPage({
     }
     onChangeSchedule({
       events,
-      dutyRoster: dutyRoster.filter((item) => item.id !== parsed.slotId),
+      dutyRoster: dutyRoster.filter((item) => item.id !== parsedDuty.slotId),
     })
-    notify.warning(`已取消每周值班：${editor.title}`)
+    notify.warning(`已取消本学期值班：${editor.title}`)
     setEditor(null)
   }
 
@@ -575,22 +638,6 @@ export function CalendarPage({
     notify.success(item.done ? `已恢复「${item.title}」` : `已完成「${item.title}」`)
   }
 
-  const dropCourse = async (item: CalendarEvent) => {
-    try {
-      await confirm({
-        title: '本节省课',
-        message: `删除后，本学期不再自动出现这一节「${item.title}」。`,
-        confirmButtonText: '本节省课',
-        confirmButtonClass: 'danger',
-      })
-    } catch {
-      return
-    }
-    onChangeSchedule({ events: events.filter((event) => event.id !== item.id) })
-    notify.warning(`已调课：${item.title}`)
-    setPeek(null)
-  }
-
   const openItem = (item: CalendarEvent) => {
     setSelectedDay(item.date)
     setActiveEventId(item.id)
@@ -601,6 +648,19 @@ export function CalendarPage({
     }
     setPeek(null)
     setWeeklyRepeat(isDutyEventId(item.id))
+    const parsedCourse = parseCourseEventId(item.id)
+    if (parsedCourse) {
+      const course = courses.find((entry) => entry.id === parsedCourse.courseId)
+      const session = course?.sessions.find(
+        (entry) => entry.day === parsedCourse.day && entry.section === parsedCourse.section,
+      )
+      setEditor({
+        ...item,
+        title: course?.name ?? item.title,
+        detail: session?.room ?? item.detail,
+      })
+      return
+    }
     setEditor(item)
   }
 
@@ -732,11 +792,6 @@ export function CalendarPage({
               已完成
             </label>
             <div className="composer-actions">
-              {peek.kind === 'course' && (
-                <button type="button" className="delete-action" onClick={() => void dropCourse(peek)}>
-                  本节省课
-                </button>
-              )}
               <span />
               <button type="button" className="outline-action" onClick={() => setPeek(null)}>
                 关闭
@@ -760,14 +815,16 @@ export function CalendarPage({
             <div className="composer-heading">
               <div>
                 <p className="section-label">{editor.id ? '编辑日程' : '新建日程'}</p>
-                <h2 id="calendar-editor-dialog-title">{editor.id ? '修改安排' : '添加安排'}</h2>
+                <h2 id="calendar-editor-dialog-title">
+                  {parseCourseEventId(editor.id) ? '改这一节' : editor.id ? '修改安排' : '添加安排'}
+                </h2>
               </div>
               <button type="button" className="icon-button" onClick={() => setEditor(null)} aria-label="关闭">
                 ×
               </button>
             </div>
             <label>
-              日程名称
+              {parseCourseEventId(editor.id) ? '课程' : '日程名称'}
               <input
                 autoFocus
                 value={editor.title}
@@ -776,7 +833,7 @@ export function CalendarPage({
               />
             </label>
             <label>
-              地点或说明
+              {parseCourseEventId(editor.id) ? '教室' : '地点或说明'}
               <input value={editor.detail} onChange={(event) => setEditor({ ...editor, detail: event.target.value })} />
             </label>
             <div className="composer-grid">
@@ -787,32 +844,37 @@ export function CalendarPage({
                   value={editor.date}
                   onChange={(event) => setEditor({ ...editor, date: event.target.value })}
                   required
+                  disabled={Boolean(parseCourseEventId(editor.id))}
                 />
               </label>
-              <label>
-                类型
-                <select
-                  value={editor.kind}
-                  onChange={(event) => {
-                    const kind = event.target.value as CalendarKind
-                    setEditor({
-                      ...editor,
-                      kind,
-                      start: isAllDayCalendarKind(kind) ? 0 : editor.start || 6,
-                      length: isAllDayCalendarKind(kind) ? 1 : editor.length || 1,
-                    })
-                    setWeeklyRepeat(kind === 'duty')
-                  }}
-                >
-                  {CREATABLE_KINDS.map((value) => (
-                    <option value={value} key={value}>
-                      {CALENDAR_KIND_LABELS[value]}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              {parseCourseEventId(editor.id) ? (
+                <p className="composer-hint">改课名或教室会同步本学期这一节。要改周几或节次，请到教学课表。</p>
+              ) : (
+                <label>
+                  类型
+                  <select
+                    value={editor.kind}
+                    onChange={(event) => {
+                      const kind = event.target.value as CalendarKind
+                      setEditor({
+                        ...editor,
+                        kind,
+                        start: isAllDayCalendarKind(kind) ? 0 : editor.start || 6,
+                        length: isAllDayCalendarKind(kind) ? 1 : editor.length || 1,
+                      })
+                      setWeeklyRepeat(kind === 'duty')
+                    }}
+                  >
+                    {CREATABLE_KINDS.map((value) => (
+                      <option value={value} key={value}>
+                        {CALENDAR_KIND_LABELS[value]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
             </div>
-            {editor.kind !== 'deadline' && (
+            {editor.kind !== 'deadline' && !parseCourseEventId(editor.id) && (
               <div className="composer-grid">
                 <label>
                   开始时间
@@ -842,7 +904,7 @@ export function CalendarPage({
                 </label>
               </div>
             )}
-            {editor.kind === 'duty' && (
+            {editor.kind === 'duty' && !parseCourseEventId(editor.id) && (
               <>
                 <label className="settings-check">
                   <input
@@ -874,13 +936,13 @@ export function CalendarPage({
             )}
             <div className="composer-actions">
               {editor.id && (
-                <button type="button" className="delete-action" onClick={remove}>
-                  {isDutyEventId(editor.id) ? '本周不去' : '删除'}
+                <button type="button" className="delete-action" onClick={() => void removeDay()}>
+                  {parseCourseEventId(editor.id) || isDutyEventId(editor.id) ? '删除当天' : '删除'}
                 </button>
               )}
-              {isDutyEventId(editor.id) && (
-                <button type="button" className="outline-action" onClick={() => void dropDutySeries()}>
-                  取消每周
+              {(parseCourseEventId(editor.id) || isDutyEventId(editor.id)) && (
+                <button type="button" className="outline-action" onClick={() => void removeSeries()}>
+                  删除本学期
                 </button>
               )}
               <span />

@@ -5,11 +5,13 @@ import { uid } from '../data/store'
 import type { Course } from '../data/types'
 import { confirm } from '../lib/confirm'
 import {
+  COURSE_WEEK_OPTIONS,
   SECTIONS,
   SECTION_TIMES,
   WEEK_DAYS,
   createCourseFromSlot,
   currentCourseTopic,
+  withTotalWeeks,
   withWeekTopic,
 } from '../lib/courses'
 import { notify } from '../lib/notify'
@@ -28,6 +30,7 @@ type Draft = {
   name: string
   room: string
   topic: string
+  totalWeeks: number
 }
 
 function slotLabel(day: number, section: number) {
@@ -51,7 +54,7 @@ export function CoursesPage({ courses, weekNumber, onChange }: Props) {
   const close = () => setDraft(null)
 
   const openCreate = (day: number, section: number) => {
-    setDraft({ day, section, name: '', room: '', topic: '' })
+    setDraft({ day, section, name: '', room: '', topic: '', totalWeeks: 16 })
   }
 
   const openEdit = (course: Course, day: number, section: number) => {
@@ -63,6 +66,7 @@ export function CoursesPage({ courses, weekNumber, onChange }: Props) {
       name: course.name,
       room: session?.room ?? '',
       topic: currentCourseTopic(course, weekNumber),
+      totalWeeks: course.totalWeeks || 16,
     })
   }
 
@@ -74,22 +78,27 @@ export function CoursesPage({ courses, weekNumber, onChange }: Props) {
     const room = draft.room.trim() || '待定教室'
     const topic = draft.topic.trim()
 
+    const weeks = draft.totalWeeks || 16
+
     if (draft.courseId) {
       const course = courses.find((item) => item.id === draft.courseId)
       if (!course) return
       const next = withWeekTopic(
-        {
-          ...course,
-          name,
-          sessions: course.sessions.map((item) =>
-            item.day === draft.day && item.section === draft.section ? { ...item, room } : item,
-          ),
-        },
+        withTotalWeeks(
+          {
+            ...course,
+            name,
+            sessions: course.sessions.map((item) =>
+              item.day === draft.day && item.section === draft.section ? { ...item, room } : item,
+            ),
+          },
+          weeks,
+        ),
         weekNumber,
         topic,
       )
       onChange(courses.map((item) => (item.id === next.id ? next : item)))
-      notify.success('已保存这一节')
+      notify.success(`已保存这一节，课表将显示 ${weeks} 次`)
       close()
       return
     }
@@ -102,15 +111,18 @@ export function CoursesPage({ courses, weekNumber, onChange }: Props) {
         return
       }
       const next = withWeekTopic(
-        {
-          ...existing,
-          sessions: [...existing.sessions, { day: draft.day, section: draft.section, room }],
-        },
+        withTotalWeeks(
+          {
+            ...existing,
+            sessions: [...existing.sessions, { day: draft.day, section: draft.section, room }],
+          },
+          weeks,
+        ),
         weekNumber,
         topic,
       )
       onChange(courses.map((item) => (item.id === next.id ? next : item)))
-      notify.success(`已把「${name}」加到这一格`)
+      notify.success(`已把「${name}」加到这一格，按 ${weeks} 周同步`)
       close()
       return
     }
@@ -125,12 +137,13 @@ export function CoursesPage({ courses, weekNumber, onChange }: Props) {
         room,
         weekNumber,
         topic,
+        totalWeeks: weeks,
       }),
       weekNumber,
       topic,
     )
     onChange([...courses, created])
-    notify.success(`已排入「${name}」`)
+    notify.success(`已排入「${name}」，课表将显示 ${weeks} 次`)
     close()
   }
 
@@ -166,7 +179,7 @@ export function CoursesPage({ courses, weekNumber, onChange }: Props) {
       <div className="courses-heading">
         <div>
           <h1>课表</h1>
-          <p>点空格排课，点格子改这一节。也可导入课表。保存后整学期出现在日程。现在是第 {weekNumber} 周。</p>
+          <p>点空格排课，点格子改这一节。课程周期 8 周就出现 8 次，16 周就 16 次。现在是第 {weekNumber} 周。</p>
         </div>
         <button type="button" className="outline-action" onClick={() => setImporting(true)}>
           导入课表
@@ -211,7 +224,9 @@ export function CoursesPage({ courses, weekNumber, onChange }: Props) {
                             onClick={() => openEdit(course, session.day, session.section)}
                           >
                             <b>{course.name}</b>
-                            <span>{session.room}</span>
+                            <span>
+                              {session.room} · {course.totalWeeks || 16}周
+                            </span>
                           </button>
                         ))
                       ) : (
@@ -277,6 +292,7 @@ export function CoursesPage({ courses, weekNumber, onChange }: Props) {
                         ...draft,
                         name: course.name,
                         topic: currentCourseTopic(course, weekNumber),
+                        totalWeeks: course.totalWeeks || 16,
                       })
                     }
                   >
@@ -303,6 +319,23 @@ export function CoursesPage({ courses, weekNumber, onChange }: Props) {
                 placeholder="选填，会出现在概览"
               />
             </label>
+
+            <div>
+              <span className="course-week-label">课程周期</span>
+              <div className="course-pick-row course-week-row">
+                {COURSE_WEEK_OPTIONS.map((weeks) => (
+                  <button
+                    key={weeks}
+                    type="button"
+                    className={`course-pick-chip${draft.totalWeeks === weeks ? ' is-on' : ''}`}
+                    onClick={() => setDraft({ ...draft, totalWeeks: weeks })}
+                  >
+                    {weeks} 周
+                  </button>
+                ))}
+              </div>
+              <p className="course-week-hint">保存后按这个周次出现在日程课表，例如 8 周就是 8 次。</p>
+            </div>
 
             <div className={`composer-actions${editing ? ' composer-actions-split' : ''}`}>
               {editing ? (

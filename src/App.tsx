@@ -667,12 +667,13 @@ function App() {
           <CalendarPage
             events={data.events}
             dutyRoster={data.dutyRoster}
+            courses={data.courses}
             reminders={data.reminders}
             settings={data.reminderSettings}
             weekStart={data.meta.weekStart}
             weekNumber={data.meta.weekNumber}
             focusId={routeParam || undefined}
-            onChangeSchedule={({ events, dutyRoster }) =>
+            onChangeSchedule={({ events, dutyRoster, courses }) =>
               update((current) => {
                 const hideable = (id: string) => id.startsWith('course-') || id.startsWith('duty-')
                 const previous = new Set(current.events.filter((item) => hideable(item.id)).map((item) => item.id))
@@ -683,6 +684,7 @@ function App() {
                   ...current,
                   events,
                   dutyRoster: dutyRoster ?? current.dutyRoster,
+                  courses: courses ?? current.courses,
                   hiddenCourseEventIds,
                 }
                 return { ...next, events: syncDerivedEvents(next) }
@@ -708,6 +710,7 @@ function App() {
           <PapersPage
             advisees={data.thesisAdvisees ?? []}
             events={data.events}
+            teacherName={data.profile.name}
             initialId={routeParam || undefined}
             onChangeAdvisees={(thesisAdvisees) => patch('thesisAdvisees', thesisAdvisees)}
             onChangeEvents={(events) => patch('events', events)}
@@ -733,6 +736,7 @@ function App() {
             initialCourseId={routeParam}
             onChangeStudents={(students) => patch('students', students)}
             onChangeGrades={(grades) => patch('grades', grades)}
+            onOpenSettings={() => openSettings('model')}
           />
         )}
         {activeId === 'resources' && (

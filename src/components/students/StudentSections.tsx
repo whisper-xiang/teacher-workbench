@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import type { Course, GradeItem, StudentRecord } from '../../data/types'
+import type { Course, GradeItem, StudentObservation, StudentRecord } from '../../data/types'
 import { letterGrade } from '../../data/types'
 import { calcGradeTotal } from '../../data/store'
 import { MajorTag } from '../MajorTag'
@@ -13,6 +13,8 @@ export type StudentDraft = {
   usual: string
   midterm: string
   final: string
+  observations: StudentObservation[]
+  newObservation: string
 }
 
 type StudentRosterTableProps = {
@@ -72,9 +74,16 @@ export function StudentRosterTable({
             return (
               <tr key={student.id}>
                 <td>
-                  <button type="button" className="student-name-btn" onClick={() => onEditStudent(student)}>
+                      <button type="button" className="student-name-btn" onClick={() => onEditStudent(student)}>
                     <strong>{student.name}</strong>
-                    <small>{student.number || '无学号'}</small>
+                    <small>
+                      {student.number || '无学号'}
+                      {student.observations?.[0]?.text
+                        ? ` · ${student.observations[0].text.slice(0, 18)}${student.observations[0].text.length > 18 ? '…' : ''}`
+                        : student.notes
+                          ? ` · ${student.notes.slice(0, 18)}${student.notes.length > 18 ? '…' : ''}`
+                          : ''}
+                    </small>
                   </button>
                 </td>
                 {(['usual', 'midterm', 'final'] as const).map((field) => (
@@ -113,6 +122,8 @@ type StudentDialogsProps = {
   onStudentDraftChange: (draft: StudentDraft | null) => void
   onSaveStudent: (event: React.FormEvent) => void
   onRemoveStudent: (id: string) => void
+  onAddObservation: () => void
+  onRemoveObservation: (id: string) => void
 }
 
 export function StudentDialogs({
@@ -121,6 +132,8 @@ export function StudentDialogs({
   onStudentDraftChange,
   onSaveStudent,
   onRemoveStudent,
+  onAddObservation,
+  onRemoveObservation,
 }: StudentDialogsProps) {
   useEffect(() => {
     if (!studentDraft) return
@@ -218,9 +231,44 @@ export function StudentDialogs({
             </div>
 
             <label>
-              备注
-              <textarea rows={3} value={studentDraft.notes} onChange={(event) => onStudentDraftChange({ ...studentDraft, notes: event.target.value })} />
+              课堂表现
+              <textarea
+                rows={3}
+                value={studentDraft.newObservation}
+                onChange={(event) => onStudentDraftChange({ ...studentDraft, newObservation: event.target.value })}
+                placeholder="这节课谁发言好、谁需要关注，随时补一句"
+              />
             </label>
+            <div className="students-observe-actions">
+              <button
+                type="button"
+                className="outline-action"
+                disabled={!studentDraft.newObservation.trim()}
+                onClick={onAddObservation}
+              >
+                记下这条
+              </button>
+              <span>期末可按这些文字生成平时成绩</span>
+            </div>
+            {studentDraft.observations.length ? (
+              <ul className="students-observe-list">
+                {studentDraft.observations.map((item) => (
+                  <li key={item.id}>
+                    <div>
+                      <time dateTime={item.date}>{item.date}</time>
+                      <p>{item.text}</p>
+                    </div>
+                    <button type="button" className="text-action" onClick={() => onRemoveObservation(item.id)}>
+                      去掉
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : studentDraft.notes ? (
+              <p className="students-observe-legacy">{studentDraft.notes}</p>
+            ) : (
+              <p className="students-observe-empty">还没有课堂表现记录。</p>
+            )}
           </div>
 
           <div className={`composer-actions${studentDraft.id ? ' composer-actions-split' : ''}`}>

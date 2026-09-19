@@ -4,6 +4,32 @@ import { inferMajorFromText, type CalendarEvent, type Course } from '../data/typ
 export const WEEK_DAYS = ['周一', '周二', '周三', '周四', '周五'] as const
 export const SECTIONS = ['1–2 节', '3–4 节', '5–6 节', '7–8 节', '晚上'] as const
 export const SECTION_TIMES = ['08:00–09:40', '10:00–11:40', '14:00–15:40', '16:00–17:40', '19:00–20:40'] as const
+export const COURSE_WEEK_OPTIONS = [8, 16, 18] as const
+
+export function parseCourseEventId(id: string) {
+  const matched = id.match(/^course-(.+)-(\d+)-(\d+)-w(\d+)$/)
+  if (!matched) return null
+  return {
+    courseId: matched[1],
+    day: Number(matched[2]),
+    section: Number(matched[3]),
+    week: Number(matched[4]),
+  }
+}
+
+export function withTotalWeeks(course: Course, totalWeeks: number): Course {
+  const total = Math.max(1, Math.min(22, Math.round(totalWeeks) || 16))
+  const weeklyTopics = Array.from({ length: total }, (_, index) => course.weeklyTopics?.[index] ?? '')
+  const currentWeek = Math.min(total, Math.max(1, course.currentWeek || 1))
+  return {
+    ...course,
+    totalWeeks: total,
+    currentWeek,
+    weeklyTopics,
+    weeks: `第 1–${total} 周`,
+    progress: Math.round((currentWeek / total) * 100),
+  }
+}
 
 export function matchCourseFromEvent(
   event: Pick<CalendarEvent, 'id' | 'kind' | 'title'>,
@@ -65,10 +91,11 @@ export function createCourseFromSlot(input: {
   room: string
   weekNumber: number
   topic?: string
+  totalWeeks?: number
 }): Course {
   const name = input.name.trim()
   const room = input.room.trim() || '待定教室'
-  const totalWeeks = 16
+  const totalWeeks = Math.max(1, Math.min(22, Math.round(input.totalWeeks || 16)))
   const week = Math.min(totalWeeks, Math.max(1, input.weekNumber || 1))
   const topic = input.topic?.trim() || ''
   const weeklyTopics = Array.from({ length: totalWeeks }, () => '')
